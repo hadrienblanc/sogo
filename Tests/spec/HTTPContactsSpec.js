@@ -54,7 +54,7 @@ describe('HTTP Contacts', function() {
   })
 
   it('Save a card whose UID holds an @ from an URL-escaped card id', async function() {
-    const creation = await webdav.createVCard(davAddressBook, cardName, vcard)
+    const creation = await webdav.createVCard(davAddressBook + '/', cardName, vcard)
     expect(creation.status)
       .withContext(`HTTP status code when creating the card over CardDAV`)
       .toBe(201)
@@ -77,7 +77,7 @@ describe('HTTP Contacts', function() {
   })
 
   it('Save a card whose UID holds an @ from an over-escaped card id', async function() {
-    const creation = await webdav.createVCard(davAddressBook, cardName, vcard)
+    const creation = await webdav.createVCard(davAddressBook + '/', cardName, vcard)
     expect(creation.status)
       .withContext(`HTTP status code when creating the card over CardDAV`)
       .toBe(201)
