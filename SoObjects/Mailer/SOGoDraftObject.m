@@ -2411,7 +2411,8 @@ static NSString    *userAgent      = nil;
   //  - SOGoMailKeepDraftsAfterSend is not set;
   //  - draft is successfully deleted;
   //  - drafts mailbox exists.
-  [self delete];
+  if (!error)
+    [self delete];
   if (!error &&
       ![dd mailKeepDraftsAfterSend] &&
       [imap4 doesMailboxExistAtURL: [container imap4URL]])
