@@ -46,6 +46,7 @@
 #import <SOGo/DOMNode+SOGo.h>
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
+#import <SOGo/NSCalendarDate+SOGo.h>
 #import <SOGo/NSObject+DAV.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoBuild.h>
@@ -1822,11 +1823,13 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   startDate = [[timeRangeElement attribute: @"start"] asCalendarDate];
   if (!startDate)
     startDate = [NSCalendarDate distantPast];
+  startDate = [startDate dateByClampingToInt32EpochRange];
   [filter setObject: startDate forKey: @"start"];
 
   endDate = [[timeRangeElement attribute: @"end"] asCalendarDate];
   if (!endDate)
     endDate = [NSCalendarDate distantFuture];
+  endDate = [endDate dateByClampingToInt32EpochRange];
   [filter setObject: endDate forKey: @"end"];
 
   [self _enforceTimeLimitOnFilter: filter
