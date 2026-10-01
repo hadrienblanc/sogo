@@ -139,7 +139,7 @@
   WORequest *rq;
 
   rq = [_ctx request];
-  rqCalendar = [iCalCalendar parseSingleFromSource: [rq contentAsString]];
+  rqCalendar = [iCalCalendar parseSingleFromSource: [rq davBodyAsString]];
 
   // We are unable to parse the received calendar, we return right away
   // with a 400 error code.
