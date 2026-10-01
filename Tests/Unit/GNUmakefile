@@ -35,6 +35,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSURL+misc.m \
 	TestNGMailAddressParser.m \
 	TestNGInternetSocketAddress.m \
+	TestSOGoDraftObject.m \
 	TestSOGoSieveManager.m \
 	TestWORequest+SOGo.m \
 	\
@@ -61,6 +62,11 @@ endif
 
 -include GNUmakefile.preamble
 include $(GNUSTEP_MAKEFILES)/test-tool.make
+
+before::
+	$(MAKE) -C ../../SoObjects/Contacts --no-print-directory all
+	$(MAKE) -C ../../SoObjects/Mailer --no-print-directory all
+
 -include GNUmakefile.postamble
 
 check :: $(TEST_TOOL)

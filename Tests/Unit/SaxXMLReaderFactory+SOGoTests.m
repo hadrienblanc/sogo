@@ -21,6 +21,7 @@
  */
 
 #import <Foundation/NSArray.h>
+#import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSProcessInfo.h>
 
 #import <SaxObjC/SaxXMLReaderFactory.h>
@@ -35,15 +36,26 @@
 
 - (NSArray *) saxReaderSearchPathes
 {
-  NSArray *pathes, *args;
-  NSString *exedir;
+  NSMutableArray *pathes;
+  NSArray *args, *libraryPaths;
+  NSString *exedir, *libraryPath;
+  NSUInteger i;
 
   args = [[NSProcessInfo processInfo] arguments];
   exedir = [[args objectAtIndex: 0] stringByDeletingLastPathComponent];
-  pathes = [NSArray arrayWithObject:
-                      [NSString stringWithFormat: @"%@/%@",
-                                exedir,
-                                @"../../../SOPE/NGCards/versitCardsSaxDriver/"]];
+  pathes = [NSMutableArray arrayWithObject:
+                       [NSString stringWithFormat: @"%@/%@",
+                                 exedir,
+                                 @"../../../SOPE/NGCards/versitCardsSaxDriver/"]];
+
+  libraryPaths = NSStandardLibraryPaths();
+  for (i = 0; i < [libraryPaths count]; i++)
+    {
+      libraryPath = [[libraryPaths objectAtIndex: i]
+                             stringByAppendingPathComponent: @"SaxDrivers-4.9"];
+      if (![pathes containsObject: libraryPath])
+        [pathes addObject: libraryPath];
+    }
 
   return pathes;
 }
