@@ -107,6 +107,9 @@
 /* HTML */
 - (NSString *) cleanInvalidHTMLTags;
 
+/* CKEditor compatibility */
+- (NSString *) ckEditorUserAgentOverride;
+
 @end
 
 #endif /* NSSTRING_URL_H */

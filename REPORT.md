@@ -1,133 +1,182 @@
-# Bug 6191 — edited URL property is re-saved as ATTACH (RFC 5545 violation)
+# Bug 6189 — unable to enter text when composing an email in the mobile view (Firefox Mobile)
 
-Branch: `fix-6191-mantis` — commit `773a8dc61` — `fix(calendar): save edited URL property back to URL instead of ATTACH (bug 6191)`
+Branch: `fix-6189-mantis` — commit see below — `fix(mail): report a desktop Firefox user agent to CKEditor on Firefox for Android (bug 6189)`
 
 ## Root cause (file:line)
 
-The web editor shows ATTACH properties **and** the VEVENT `URL` property
-(RFC 5545 §3.8.4.6) in a single editable list, but the two were
-indistinguishable in the save payload:
+The message body of the compose dialog is CKEditor 5 (`sg-ckeditor`,
+`UI/Templates/MailerUI/UIxMailEditor.wox:308-313`; bundled build
+`UI/WebServerResources/js/vendor/ckeditor/build/ckeditor.js`, v44.1.0).
+At script load, CKEditor captures the user agent once and derives its
+environment flags:
 
-- **Read** — `-[UIxComponentEditor attachUrls]` (before the fix,
-  `UI/Scheduler/UIxComponentEditor.m:595-625`): ATTACH values were
-  returned as `{value: ...}` dictionaries and the URL property value was
-  appended with **no marker**. (It also appended a phantom
-  `{"value": ""}` entry for events without a URL, because
-  `+[NSURL URLWithString:@""]` is non-nil on GNUstep.)
-- **Write** — `-[UIxComponentEditor setAttributes:]`
-  (`UI/Scheduler/UIxComponentEditor.m:660-687`): all existing ATTACH
-  children were removed, then every submitted value was written back as
-  an ATTACH, **except** values equal to the current URL property
-  (dedup). The URL property itself was never updated nor removable.
+- `navigator.userAgent.toLowerCase()` → env module (`isAndroid` when the
+  UA contains "android", `isGecko` when it matches `gecko/\d+`) —
+  CKEditor 5 build, env module (search `isAndroid:h(i)` in
+  `js/vendor/ckeditor/build/ckeditor.js`);
+- the typing feature selects its input pipeline from that flag:
+  `const e = s.isAndroid ? dw : lw` where
+  `lw=["insertText","insertReplacementText"]` and
+  `dw=[...lw,"insertCompositionText"]`, plus an Android-only
+  `_compositionQueue` reconciliation of soft-keyboard composition
+  events (search `insertCompositionText` / `_compositionQueue.flush`).
 
-So when a user *edited* the URL row (e.g. `https://www.uni-ulm.de` →
-`https://www.uni-ulm.de/icq`), the new value no longer matched the
-original URL: it landed in ATTACH while the original URL stayed → two
-links, and iOS shows the ATTACH one as a broken attachment (an ATTACH
-that is not a downloadable document).
+That Android pipeline is built for Blink's IME event flow. Firefox for
+Android (Gecko) drives soft-keyboard text through a composition flow the
+pipeline mishandles: characters are swallowed, while Enter and Backspace
+— handled from `keydown` keystrokes, which Gecko reports correctly —
+still work. This matches the ticket exactly, including the reporter's
+own controlled experiment: switching SOGo to the **desktop view**
+("Request desktop site") makes Firefox send a UA without the "Android"
+token, CKEditor then uses its standard Gecko (desktop) pipeline and
+typing works on the very same browser/keyboard; Chrome on Android is
+unaffected (the Android pipeline is made for it).
 
-Reproduced live on the shared stack (sogo-tests3): CalDAV PUT of an
-event with `URL;VALUE=URI:https://www.uni-ulm.de`, then a web-editor
-`save` POST with `attachUrls:[{"value":"https://www.uni-ulm.de/icq"}]`
-produced exactly the ticket's ICS: unchanged `URL:` **plus**
-`ATTACH:https://www.uni-ulm.de/icq`.
+SOGo's own code is not at fault: instrumented replays of Firefox-Android
+key/composition/beforeinput sequences against the live stack (read-only,
+sogo-tests2, Playwright + synthetic Gecko-style events) show no SOGo or
+angular-material handler cancels or resets input in either editor
+(`beforeinput` on `.ck-content` is only cancelled by CKEditor itself,
+which is the broken path). Fixing the vendor build not being an option,
+the minimal server-side fix is to report a desktop-Firefox user agent to
+the page **before** `ckeditor.js` evaluates, only on Gecko-on-Android
+devices:
+
+- `SoObjects/SOGo/NSString+Utilities.m` — new
+  `-[NSString ckEditorUserAgentOverride]`: for a UA containing both
+  "Android" and `Gecko/<digits>` (Firefox on Android — Chrome's
+  "like Gecko)" token has no digits and never matches), returns an
+  equivalent desktop Firefox UA built from the Gecko version (digits
+  only, therefore injection-safe); returns nil otherwise.
+- `UI/Common/UIxPageFrame.m` — `ckEditorUserAgentOverride` /
+  `hasCKEditorUserAgentOverride` fed from
+  `[[context request] clientCapabilities] userAgent`.
+- `UI/Templates/UIxPageFrame.wox:131-133` — inside the inline script
+  that runs *before* all JS imports (ckeditor.js included):
+  `Object.defineProperty(navigator, 'userAgent', …)` restricted to that
+  override. The page-frame inline script precedes the `<script>`
+  imports, so CKEditor's env capture sees the desktop UA.
+
+Known limitation, stated honestly: no Firefox-Android engine was
+available in this environment, so the Gecko-side failure was not
+reproduced live; the root cause is established from the reporter's
+desktop/mobile-view experiment (same engine, only the UA differs),
+CKEditor 5's UA-conditional typing code, and CKEditor's history of
+Firefox-Mobile-only typing bugs. If the reporter's claim that the
+plain-text (textarea) compose mode also fails is accurate (we could not
+observe any SOGo-side blocking on that path, and the textarea path does
+not depend on the UA), that residual issue would be Gecko-internal and
+out of SOGo's reach; the UA switch cannot affect it either way.
 
 ## What changed (before/after)
 
-Implementation of the reporter's resolution **C** ("allow editing the
-URL property, but save it back to URL instead of ATTACH"), plus
-recommendation **2** (label). The merge/split logic moved verbatim into
-a testable category on `iCalEntityObject`
-(`SoObjects/Appointments/iCalEntityObject+SOGo.m:369-431`):
-
 | | Before | After |
 |---|---|---|
-| view JSON of URL property | `{value}` — indistinguishable from ATTACH | `{value, isUrl: true}` (flag round-trips through the AngularJS editor: `ng-model` keeps object identity, `$omit` deep-copies) |
-| save of an **edited** URL row | new value written as **ATTACH**, old URL kept → two links | flagged value written back to the **URL** property (`-[iCalEntityObject setUrl:]`), no ATTACH twin |
-| save without any `isUrl` flag (legacy/API clients) | dedup: values equal to the URL property skipped, URL untouched | **identical** (legacy fallback preserved) |
-| deleting/clearing the URL row | URL property kept | unchanged (URL kept — conservative, iOS treats URL as immutable) |
-| event with ATTACH but no URL | view JSON carried a trailing phantom `{"value": ""}` row | phantom row gone |
-| editor row labels | every row labelled "URL" | URL-property row: "URL"; attachment rows: "Document URL" (`UIxAppointmentEditorTemplate.wox:144-145`, `UIxTaskEditorTemplate.wox:112-113`), key added to all 47 `UI/Scheduler/*.lproj/Localizable.strings` (translated for fr/de/es/it/pt/nl/da/sv/no, English elsewhere, following the existing untranslated-key convention) |
+| page served to Firefox on Android | `navigator.userAgent` = real mobile UA → CKEditor env `isAndroid=true` → Android typing pipeline → soft-keyboard characters dropped in compose (Enter/Backspace work) | inline script (before ckeditor.js loads) overrides `navigator.userAgent` to the desktop-Firefox equivalent → CKEditor env takes the Gecko desktop pipeline used by desktop Firefox (and by the reporter's working "desktop view") → typing works |
+| page served to Chrome/Android, iOS, desktop browsers | unchanged | unchanged — override emitted only for Android+`Gecko/<digits>` UAs, i.e. Firefox on Android in mobile view |
+| Firefox on Android, "desktop site" mode | UA already desktop-shaped, no override | unchanged (nil override) |
 
-`UIxComponentEditor attachUrls` / `setAttributes:` now delegate to the
-category (`-[iCalEntityObject attachUrlsForEditor]` /
-`-setAttachUrlsFromEditor:`); invalid entries (non-dict, missing/empty
-value) are ignored instead of risking `addObject:nil`.
+Server-side detection (regex on the UA header) is unit-tested; the
+emitted UA string contains only digits and fixed tokens, so it cannot
+break out of the JS string literal (hostile-UA test case included).
 
 ## Tests
 
-- New `Tests/Unit/TestiCalEntityObjectAttachUrls.m` (registered in
-  `Tests/Unit/GNUmakefile`), 8 tests covering every branch of both
-  methods: getter with URL+ATTACH (flag position/value), ATTACH-only
-  (no phantom entry), edited URL saved back to URL with no ATTACH,
-  edited URL + resubmitted ATTACH kept, legacy unflagged submission
-  (dedup + URL preserved), unflagged submission does not delete the URL
-  property, invalid entries ignored (non-dict, no value key, empty
-  value, empty flagged value), empty flagged value leaves URL
-  unchanged. Execution proven by mutation (broken assertion → FAIL,
-  restored).
-- Full suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c10-6191`
-  → **79 tests, 2 failures**, both pre-documented host noise
-  (`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
-- `UI/SOGoUI`, `UI/Common`, `UI/Scheduler` compile and link against the
-  change (copied the main checkout's generated `config.make` into the
-  worktree — worktrees don't carry untracked build files).
+- New `Tests/Unit/TestNSString+CKEditorUserAgentOverride.m` (registered
+  in `Tests/Unit/GNUmakefile`), 8 tests: Firefox-Android phone + tablet
+  UAs masked to the desktop equivalent (two Gecko versions), Chrome on
+  Android untouched, desktop Firefox untouched, Firefox-Android
+  desktop-view UA untouched, Safari iOS / Edge Android untouched, empty
+  and partial UAs return nil, hostile UA attempting JS injection is
+  neutralised to digits-only. Execution proven by mutation (broken
+  assertion → FAIL, restored).
+- Full suite: `local/run-worktree-tests.sh
+  ~/Projets/hadrienblanc/sogo/wt/c10-6189` → **87 tests, 2 failures**,
+  both pre-documented host noise (`test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection`).
+- New e2e spec `Tests/spec/HTTPPageFrameCKEditorSpec.js` (jasmine,
+  cross-fetch): logs in, fetches `/SOGo/so/<user>/Mail/view` with a
+  Firefox-Android UA → asserts the override script and the desktop UA
+  literal are served; with a Chrome-Android UA and with a desktop
+  Firefox UA → asserts the override is absent. **Runs against a stack
+  deployed from this branch** (the shared stack still runs the previous
+  build; no deploys allowed for sub-agents).
+- In-app dry run (documented for reference, in `/tmp/opencode/rep6189/`):
+  Playwright loaded the real stack but injected exactly the override
+  line the patched template emits, before ckeditor.js; with the override
+  active the compose dialog opens and `hello 6189` lands in the
+  ng-model (`<p>hello 6189</p>`) in HTML mode and in the textarea in
+  text mode, with no page errors — i.e. the change is inert for
+  Chromium-class event flows and does not regress the working paths.
+- Stack hygiene: probes opened compose dialogs but never saved; Drafts
+  of sogo-tests2 verified empty (IMAP check) — no artifacts to clean.
 
 ## Verification steps for the orchestrator
 
-Reproduction artifacts were cleaned up (both test events deleted,
-204). After deploying this branch to the e2e stack, rerun:
+After deploying this branch to the e2e stack (static volume reset per
+field notes), from any host:
 
 ```bash
-U=sogo-tests3; P=sogo; D=/tmp/opencode/rep6191
-curl -s -o /dev/null -w 'PUT: %{http_code}\n' -u $U:$P -X PUT \
-  -H 'Content-Type: text/calendar; charset=utf-8' \
-  --data-binary @$D/test-6191-url.ics \
-  http://127.0.0.1:50001/SOGo/dav/$U/Calendar/personal/test-6191-urlattach.ics
-curl -s -c $D/cookies.txt -H 'Content-Type: application/json' \
-  -d '{"userName":"'$U'","password":"'$P'"}' http://127.0.0.1:50001/SOGo/connect
-# 1. view must flag the URL entry:  "attachUrls":[{"value":"https://www.uni-ulm.de","isUrl":true}]
-curl -s -b $D/cookies.txt http://127.0.0.1:50001/SOGo/so/$U/Calendar/personal/test-6191-urlattach.ics/view
-# 2. save the EDITED url as the web UI would (flag round-trip)
-XSRF=$(grep XSRF $D/cookies.txt | awk '{print $7}')
-curl -s -b $D/cookies.txt -H "X-XSRF-TOKEN: $XSRF" -H 'Content-Type: application/json' -X POST \
-  -d '{"attachUrls":[{"value":"https://www.uni-ulm.de/icq","isUrl":true}],"summary":"test-6191 URL edit","location":"office","classification":"confidential","isAllDay":0,"startDate":"2026-04-30","startTime":"15:15","endDate":"2026-04-30","endTime":"16:15","timezone":"Europe/Berlin","sendAppointmentNotifications":0,"pid":"personal","destinationCalendar":"personal"}' \
-  http://127.0.0.1:50001/SOGo/so/$U/Calendar/personal/test-6191-urlattach.ics/save
-# 3. ICS must contain URL:https://www.uni-ulm.de/icq and NO ATTACH
-curl -s -u $U:$P http://127.0.0.1:50001/SOGo/dav/$U/Calendar/personal/test-6191-urlattach.ics | grep -E 'URL|ATTACH'
-# cleanup
-curl -s -o /dev/null -w 'DELETE: %{http_code}\n' -u $U:$P -X DELETE \
-  http://127.0.0.1:50001/SOGo/dav/$U/Calendar/personal/test-6191-urlattach.ics
+# 1. session
+curl -s -c /tmp/rep6189.cookies -H 'Content-Type: application/json' \
+  -d '{"userName":"sogo-tests1","password":"sogo"}' http://127.0.0.1:50001/SOGo/connect/
+
+# 2. mail page as Firefox Mobile (mobile view): override MUST be present
+curl -s -b /tmp/rep6189.cookies \
+  -A 'Mozilla/5.0 (Android 16; Mobile; rv:149.0) Gecko/149.0 Firefox/149.0' \
+  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/view | \
+  grep -F "Object.defineProperty(navigator, 'userAgent'"
+# expected: one line ending with return 'Mozilla/5.0 (X11; Linux x86_64) Gecko/149 Firefox/149'; } });
+
+# 3. same page as Chrome Android and as desktop Firefox: override MUST be absent
+curl -s -b /tmp/rep6189.cookies \
+  -A 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36' \
+  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/view | grep -cF "defineProperty(navigator" ; echo  # expected 0
+curl -s -b /tmp/rep6189.cookies \
+  -A 'Mozilla/5.0 (X11; Linux x86_64; rv:149.0) Gecko/149.0 Firefox/149.0' \
+  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/view | grep -cF "defineProperty(navigator" ; echo  # expected 0
+
+# 4. e2e spec (inside the rebuilt container, per AGENTS.md) — covers all three assertions
+#    cd /workspace/Tests && npx jasmine --filter 'page frame ckeditor user agent override'
 ```
 
-- BEFORE fix (measured): step 3 returns `URL;VALUE=URI:https://www.uni-ulm.de` +
-  `ATTACH:https://www.uni-ulm.de/icq`.
-- AFTER fix (expected): step 1 flags `"isUrl":true`; step 3 returns only
-  `URL:https://www.uni-ulm.de/icq` (no ATTACH).
-- Unit suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c10-6191`.
-- Source of `test-6191-url.ics` kept at `/tmp/opencode/rep6191/test-6191-url.ics`
-  (event with `URL;VALUE=URI:https://www.uni-ulm.de`, UID `test-6191-urlattach`).
+Real-device confirmation (only possible step that needs actual
+hardware): Firefox for Android → SOGo → compose → type in the body;
+characters must now appear. Before the fix they did not (Enter and
+Backspace only).
+
+Unit suite: `local/run-worktree-tests.sh
+~/Projets/hadrienblanc/sogo/wt/c10-6189` (87 tests, 2 known host-noise
+failures).
 
 ## PR body draft
 
-Bug 6191 — a VEVENT carrying a URL property (RFC 5545 §3.8.4.6, e.g.
-added from iOS Calendar) is shown as a clickable link in the web
-calendar, but the editor merges it into the attachment list with no
-marker. On save, the code only skipped values *equal* to the existing
-URL property and wrote everything else to ATTACH — so editing the link
-produced both an unchanged `URL:` and a new `ATTACH:` (two links), and
-iOS then shows a broken "attachment" since the URL is not a downloadable
-document. Reproduced on the dev stack exactly as in the ticket.
+Bug 6189 — on Firefox for Android in the mobile view, no text could be
+entered in the compose body: the keyboard opened, but characters were
+dropped, while Enter and Backspace kept working; plain Chrome on Android
+and Firefox's own "desktop view" on the same phone were fine. The body
+editor is CKEditor 5, whose typing feature picks an Android-specific
+input pipeline when its load-time environment sniff sees "android" in
+the user agent; that pipeline (an IME composition queue designed for
+Blink) mishandles Gecko's soft-keyboard composition flow — characters
+never reach the model, while keydown-driven keys such as Enter and
+Backspace still do. The reporter's workaround — switching SOGo to the
+desktop view, which simply removes "Android" from the UA — exercised
+CKEditor's desktop Gecko pipeline and worked, which pinned the root
+cause to that UA-conditional pipeline selection.
 
-AVANT: edit `https://www.uni-ulm.de` → `https://www.uni-ulm.de/icq` in
-the web editor → ICS keeps `URL;VALUE=URI:https://www.uni-ulm.de` and
-gains `ATTACH:https://www.uni-ulm.de/icq`; the attachment is unusable on
-iOS. APRÈS: the view payload flags the URL-sourced entry
-(`isUrl: true`, round-tripped through the AngularJS editor), and a
-flagged value is saved back to the `URL` property — the ICS ends with a
-single `URL:https://www.uni-ulm.de/icq` and no ATTACH twin. Unflagged
-payloads keep the legacy dedup behaviour (API clients unaffected),
-attachment rows are now labelled "Document URL" (47 locales), the
-phantom empty URL row is gone, and 8 new unit tests cover every branch
-of the merge/split logic (suite: 79 tests, only the two known host-noise
-failures).
+AVANT: Firefox Android + mobile view → `navigator.userAgent` contains
+"Android" → CKEditor typing pipeline `isAndroid` → typed characters
+swallowed in the compose body (HTML mode), Enter/Backspace still
+functional; users must switch to desktop view to write a mail.
+APRÈS: the page frame (UIxPageFrame) detects Firefox-on-Android UAs
+server-side (Android + `Gecko/<digits>`, everything else untouched) and
+overrides `navigator.userAgent` with the equivalent desktop Firefox UA
+before ckeditor.js loads — exactly the state the reporter's working
+"desktop view" produced, now automatic; CKEditor then uses its standard
+Gecko pipeline and typing works in the mobile layout. Chrome on Android,
+iOS and desktop browsers are byte-for-byte unaffected (override not
+emitted), the emitted string is digits-only (no injection surface), 8
+unit tests cover the UA matrix including hostile inputs, and a new e2e
+spec locks the served page for Firefox-mobile vs Chrome-mobile vs
+desktop UAs.
