@@ -1,144 +1,191 @@
-# Bug 6182 — Save button disabled on Mail settings page
+# Bug 6180 — HTML emails from Outlook/Word render incorrectly in SOGo webmail (mso-* CSS)
 
-https://bugs.sogo.nu/view.php?id=6182 — severity major, [ SOGo ] Web Preferences,
-reproducible always, reported on 5.12.5 (@56d874c68700).
+https://bugs.sogo.nu/view.php?id=6180 — severity minor, [ SOGo ] GUI,
+reproducible always, reported on 5.12.4 (@ega, confirmed by Bahnkonzept).
+
+Verdict: **real bug** — reproduced live on the shared e2e stack, root-caused
+to two defects in SOGo's mail HTML pipeline (not to "mso-* properties being
+ignored": unknown CSS properties are correctly passed through and ignored by
+the browser, exactly like in Thunderbird; the damage happens around them).
 
 ## Root cause (file:line)
 
-- `UI/WebServerResources/js/Preferences/Preferences.service.js:237` — the
-  `$mdDateLocaleProvider.isDateComplete` override installed by the Preferences
-  service uses:
+Reproduced by PUTting realistic Outlook/Word `.eml` files into
+`/SOGo/dav/sogo-tests1/Mail/0/foldertest-6180/` (DAV) and fetching
+`/SOGo/so/sogo-tests1/Mail/0/foldertest-6180/<uid>/view` (the exact
+endpoint the AngularJS webmail uses for the message body).
 
-  ```js
-  var re = /^((([a-zA-Z]|[^\x00-\x7F]){2,}|[0-9]{1,4})([ .,]+|[/-])){2}(([a-zA-Z]|[^\x00-\x7F]){3,}|[0-9]{1,4})$/;
-  ```
+**Defect 1 — Office `<o:p>` paragraph marks become real paragraphs.**
+The stack's libxml2 HTML parser strips namespace prefixes of unknown
+elements (`o:p` → `p`, `w:sdt` → `sdt`, `v:rect` → `rect`, … — verified live).
+All of these are harmless *except* `o:p`, whose local name collides with the
+HTML `<p>` block element: every `<o:p>&nbsp;</o:p>` spacer Word emits between
+paragraphs is rendered as a **nested real `<p>`** with browser-default
+margins (~1em top+bottom), on top of a `p.MsoNormal` whose own rule sets
+`margin:0cm`. Live before-state:
 
-  The pattern is anchored on a **final month name or number**: a short date
-  string that ends with a dot can never match.
+```
+<p class="MsoNormal">Hello from Word, first paragraph.</p>
+<p class="MsoNormal"><p>&#160;</p></p>        ← nested fake paragraph
+```
 
-Chain of events (verified against the shipped sources):
+Thunderbird treats `o:p` as an unknown inline element (no box, no margin),
+which is why the same mail looks fine there. Owned by the pre-parsing pass
+`-[NSData sanitizedContentUsingVoidTags:]`, called by
+`UI/MailPartViewers/UIxMailPartHTMLViewer.m` (`_parseContent`) for both
+`UIxMailPartHTMLViewer` and `UIxMailPartExternalHTMLViewer`.
 
-1. The Mail settings tab renders two `md-datepicker` inputs for the vacation
-   auto-reply window (`UI/Templates/PreferencesUI/UIxPreferences.wox:1246` and
-   `:1267`). They format their value with the user's `SOGoShortDateFormat`
-   through `$mdDateLocaleProvider.formatDate`.
-2. For locales whose short date format ends with a dot — Hungarian
-   `%Y.%b.%d.` (the reporter's case: `2026.Már.23.`), Montenegrin
-   `%e.%m.%y.` shipped in `UI/MainUI/Montenegrin.lproj/Locale:23` (`23.03.26.`) —
-   the formatted string ends with `.`.
-3. Angular Material's `DatePickerCtrl.isInputValid`
-   (`angular-material.js:17806`) requires `locale.isDateComplete(input)`;
-   the regex rejects the trailing dot, so `updateErrorState` sets the
-   ngModel `valid` flag to false.
-4. The datepickers live inside `preferencesForm`
-   (`UIxPreferences.wox:31`), so the form becomes `$invalid` and the save
-   FAB (`UIxPreferences.wox:83-87`,
-   `ng-disabled="preferencesForm.$invalid || preferencesForm.$pristine"`)
-   stays disabled for the **entire tab**, even where dates are irrelevant —
-   exactly what the reporter describes.
+**Defect 2 — brace-less CSS at-rules swallow the next rule.**
+In `_appendStyle:` (the `<style>` sanitizer, formerly
+`UI/MailPartViewers/UIxMailPartHTMLViewer.m:468`, now in
+`UI/MailPartViewers/UIxHTMLMailContentHandler.m:435`), an `@` sets
+`hasEmbeddedCSS = YES` and the flag is only cleared by a `}` at nesting
+level 0. For a statement at-rule with no block — `@import url(...);`,
+`@charset "utf-8";` — the `;` is not handled, so the parser treats the
+**next rule's braces** as the at-rule's block and silently drops the whole
+rule. Live before-state (mail whose CSS begins with `@import` for web
+fonts, then Word's rules):
 
-Note: `String.prototype.parseDate` (`Common/utils.js:181`) already tolerates
-the trailing dot (leftover input is ignored), and `Date.prototype.format`
-produces it faithfully — only `isDateComplete` blocked the save. The ticket
-**is a real bug**; the regex is the right place to fix it (the trailing dot is
-legitimate typography in these locales, not invalid input).
+```
+<style type="text/css">
+  ← empty: p.MsoNormal {margin:0cm; ...} was swallowed
+</style>
+```
+
+Every `<p>` then renders with browser-default margins → the "excessive
+whitespace / broken layout" of the ticket. If a `@font-face` (braced at-rule)
+sits between, it absorbs the swallow — which is why some Word mails render
+acceptably and mails with `@import`-led CSS are "always" broken.
+
+**About "message body appears completely blank":** not reproduced with any
+realistic Outlook/Word structure (conditional comments, downlevel-revealed
+`<!--[if !mso]><!-->`, VML style blocks, `w:WordDocument` islands all behave).
+Most plausible extreme of defect 2: a mail whose *entire* layout CSS sits in
+the single rule following a brace-less at-rule. Nothing suggests a third
+defect; no fix was speculative-added for it.
 
 ## What changed (before/after)
 
-`UI/WebServerResources/js/Preferences/Preferences.service.js:237` (and the
-generated bundle `UI/WebServerResources/js/Preferences.services.js`, same
-literal, per repo convention for JS fixes):
+1. `SoObjects/Mailer/NSData+Mail.m` (`sanitizedContentUsingVoidTags:`,
+   new pass before the void-tag repair): removes `<o:p>`/`</o:p>` tags
+   (case-insensitive; open tags with attributes and `<o:p…>` up to the next
+   `>` included; a truncated tag without `>` is left untouched). Only the
+   tags are removed — the spacer *content* (`&nbsp;`) stays inline, matching
+   Thunderbird. Other prefixed elements (`w:`, `v:`, `st1:`, `m:`) are left
+   alone: their prefix-stripped local names are unknown inline elements that
+   carry no margins.
 
-```diff
--        var re = /^((([a-zA-Z]|[^\x00-\x7F]){2,}|[0-9]{1,4})([ .,]+|[/-])){2}(([a-zA-Z]|[^\x00-\x7F]){3,}|[0-9]{1,4})$/;
-+        var re = /^((([a-zA-Z]|[^\x00-\x7F]){2,}|[0-9]{1,4})([ .,]+|[/-])){2}(([a-zA-Z]|[^\x00-\x7F]){3,}|[0-9]{1,4})\.?$/;
-```
+   - AVANT: `<p class=MsoNormal><o:p>&nbsp;</o:p></p>` →
+     `<p class="MsoNormal"><p>&#160;</p></p>` (nested paragraph, ~2 extra em
+     of blank space per spacer, of which Word emits one per blank line).
+   - APRÈS: → `<p class="MsoNormal">&#160;</p>` (inline spacer, one line).
 
-One optional trailing dot is now accepted after the final component.
+2. `UI/MailPartViewers/UIxHTMLMailContentHandler.m:435` (`_appendStyle:`,
+   phase 2): a `;` while `hasEmbeddedCSS && embeddedCSSLevel == 0` now ends
+   the at-rule statement (`hasEmbeddedCSS = NO`, cursor rebased), per CSS
+   grammar (at-rules end at `;` **or** at their block). `;` inside
+   `@font-face`/`@media` blocks (level ≥ 1) is untouched, and `@media` inner
+   rules stay dropped by design (Gmail behaves the same — matches the
+   reporter's "other webmails also show some degradation").
 
-- AVANT: `isDateComplete("2026.Már.23.")` → `false` → `preferencesForm.$invalid`
-  → save button disabled on the whole Mail settings tab.
-- APRÈS: `isDateComplete("2026.Már.23.")` → `true`; the model stays valid and
-  the save button enables as soon as something is edited.
+   - AVANT: `@import url("…");p.MsoNormal {margin:0cm;}` → empty CSS.
+   - APRÈS: → `.SOGoHTMLMail-CSS-Delimiter p.MsoNormal {margin:0cm
+     !important;}` (and `@import` does not leak into the CSS).
 
-Guards preserved (covered by tests): partially typed dates (`23.03`,
-`2026.márc`) are still incomplete, and a double trailing dot (`23.03.26..`)
-is still rejected. No server-side (Obj-C) code involved.
+3. `UI/MailPartViewers/UIxHTMLMailContentHandler.{h,m}` (new): pure move of
+   the private `_UIxHTMLMailContentHandler` SAX class out of
+   `UIxMailPartHTMLViewer.m` (no behavior change; the viewer keeps
+   `_xmlCharsetForCharset`, `_sanitizeHtmlForDisplay` and both viewer
+   classes; `VoidTags` is exposed via `+voidTags` used by the viewer's 4
+   `sanitizedContentUsingVoidTags:` call sites). Rationale: the class has no
+   UI/superclass dependencies, and the move makes the sanitizer permanently
+   unit-testable (AGENTS coverage rule) — `_appendStyle` had zero coverage.
+
+Also: `UI/MailPartViewers/GNUmakefile` (compile the new file in the
+MailPartViewers bundle), `Tests/Unit/GNUmakefile` (register the two test
+files, compile the handler into the tool, xml2 cflags), `.gitignore`
+(build-artifact dir created by compiling the UI source into the test tool).
 
 ## Tests
 
-- New `Tests/spec/PreferencesIsDateCompleteSpec.js` (jasmine, same
-  source-loading pattern as `SchedulerComponentControllerSpec.js`; no stack
-  required). It loads the real `Preferences.service.js` with stubbed Angular
-  and drives the actual `$mdDateLocaleProvider` adapter installed by the
-  service constructor:
-  - formats a Hungarian `%Y.%b.%d.` date (`2026.márc.23.`) and asserts
-    `isDateComplete` accepts it;
-  - same for the Montenegrin `%e.%m.%y.` shipped format (`23.03.26.`);
-  - round-trips `parseDate('2026.márc.23.')` to 2026-03-23;
-  - dot-free formats (`23-Mar-26`, `3/14/16`, `23.03.26`) still complete;
-  - partial input (`23.03`, `2026.márc`) and `23.03.26..` still incomplete.
-  - Verified the spec **fails on the pre-fix source** (2 failures) and passes
-    after the fix.
-- No `Tests/Unit` (Obj-C) test added: the change is entirely client-side JS;
-  there is no server code path to cover (per AGENTS.md the JS spec is the
-  unit test; e2e re-verification happens at the orchestrator's stack rebuild).
-- `local/run-worktree-tests.sh wt/c11-6182`: 99 tests, only the 2 documented
-  host-noise failures (`test_NGInternetSocketAddressFromString`,
-  `test_stringWithoutHTMLInjection`).
+- New `Tests/Unit/TestNSData+Mail.m` (9 tests): `<o:p>`/`</o:p>` stripping
+  (basic, close-tag, case+attributes, empty pair), guards (`<w:>`/`<v:>`/
+  `<st1:>` untouched, `<p>`/`<pre>` untouched, truncated `<o:p` untouched)
+  and regression locks for the adjacent pre-existing passes (meta charset
+  stripping, `</br>` repair) which had no coverage.
+- New `Tests/Unit/TestUIxHTMLMailContentHandler.m` (17 tests) driving the
+  real handler with SAX events: the fix (rule kept after `@import;`/`@charset;`,
+  at-rule text not leaked) and its guard rails (`;` inside `@font-face`/`@media`
+  blocks is not a terminator, `@media` inner rules stay dropped, `@page` of
+  Word mails), plus surrounding `_appendStyle`/`startElement` behavior now
+  under coverage: mso properties passthrough, selector prefixing of
+  `p.MsoNormal, li.MsoNormal, div.MsoNormal`, no `!important` duplication,
+  `body` selector rewrite, `<!--`/`/* */` stripping in `<style>`, banned tags,
+  `on*`/`unsafe-style`/`unsafe-src`/cid: attribute handling, body escaping,
+  self-closed void tags.
+- New `Tests/spec/MailHtmlRenderingSpec.js` (e2e, stack needed): PUTs a
+  Word email (`@import`-led CSS + `<o:p>` spacers) via DAV, fetches `/view`,
+  asserts both fixes end-to-end, cleans up its mailbox. Verified **red on the
+  current (pre-fix) stack** with the same HTTP calls from the host (4 failing
+  assertions: rule kept after @import, margin reset, mso property, no fake
+  paragraph); turns green after deploy.
+- Red/green discipline for the unit tests: with fix 2 reverted, exactly
+  `test_atRuleStatementDoesNotSwallowNextRule` + `test_charsetAtRuleDoesNotSwallowNextRule`
+  fail; with fix 1 reverted, exactly the 4 `OfficeParagraphMark` tests fail.
+- `local/run-worktree-tests.sh wt/c11-6180`: **126 tests, only the 2
+  documented host-noise failures** (`test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection`). Baseline before the change: 99 tests,
+  same 2 failures.
 
 ## Verification steps for the orchestrator
 
-1. JS spec (in the `sogo_dev` container, as usual):
-   `cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && npx jasmine --filter='Preferences date locale (bug 6182)'` —
-   expect 5 specs, 0 failures (restore `lib/config.js` afterwards).
-   Local pre-merge equivalent used here:
-   `node ../sogo/Tests/node_modules/jasmine/bin/jasmine.js --config=/tmp/opencode/jasmine-6182.json`
-   from `wt/c11-6182/Tests` (minimal config without the `esm` require, which
-   is incompatible with the host's Node 25).
-2. Regex sanity (host, read-only):
+1. Unit suite (worktree):
+   `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c11-6180`
+   — expect 126 tests, 2 known host-noise failures only.
+2. e2e jasmine (inside the `sogo_dev` container, after the cycle rebuild):
+   `cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && npx jasmine --filter='Mail HTML rendering (bug 6180)'`
+   — expect 2 specs, 0 failures (restore `lib/config.js` afterwards).
+3. Manual before/after on the stack (host, read-only):
    ```bash
-   node -e 'var re=/^((([a-zA-Z]|[^\x00-\x7F]){2,}|[0-9]{1,4})([ .,]+|[/-])){2}(([a-zA-Z]|[^\x00-\x7F]){3,}|[0-9]{1,4})\.?$/;
-     console.log(["2026.Már.23.","23.03.26.","23.03.26","23.03"].map(function(s){return s+": "+re.test(s)}).join("\n"))'
-   # expected: true, true, true, false
+   node /tmp/opencode/check6180.mjs   # same flow as the spec: MKCOL + PUT + /view + DELETE
    ```
-3. Obj-C unit suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c11-6182`
-   — 99 tests, 2 known host-noise failures only. (First run in this worktree
-   needed `source local/env.sh && ./configure --enable-debug --disable-strip`
-   to generate the git-ignored `config.make`.)
-4. Manual e2e after stack rebuild (browser): set a Hungarian short date format
-   (`%Y.%b.%d.`) on the General preferences tab, then open Mail settings —
-   the vacation datepickers show `2026.márc.23.`-style values and the save
-   button must enable when something is modified.
-
-Stack note: static assets under `/SOGo.woa/WebServerResources/` answer 404 on
-the shared stack from the host, so the bundle could not be re-fetched over
-HTTP for a before/after diff; the reproduction was done against the exact
-shipped sources in-tree (regex extracted verbatim from
-`Preferences.services.js`).
+   Expected after deploy: 8/8 `PASS` lines, exit 0 (currently on the pre-fix
+   stack: 4 `FAIL` — rule kept after @import, margin reset kept, mso property
+   kept, no fake paragraph from o:p). The script prints the rendered body:
+   after deploy the spacer line must read `<p class="MsoNormal">&#160;</p>`
+   (no nested `<p>`), and the `<style>` block must contain
+   `.SOGoHTMLMail-CSS-Delimiter p.MsoNormal … margin:0cm !important`.
+4. Reproduction artifacts `test-6180*` were removed from `sogo-tests1`
+   (mailbox listing verified clean); the spec creates/deletes its own
+   `test-6180-rendering` mailbox.
 
 ## PR body draft
 
-The Mail settings tab could never be saved with a short date format that ends
-with a dot. The `isDateComplete` override installed on Angular Material's date
-locale required the date string to end with a month name or a number, so the
-vacation date pickers — which format their value with the user's
-`SOGoShortDateFormat` — marked their model invalid for locales such as
-Hungarian (`%Y.%b.%d.` → `2026.Már.23.`) or the shipped Montenegrin format
-(`%e.%m.%y.` → `23.03.26.`). Because both pickers sit inside
-`preferencesForm`, the whole form turned `$invalid` and the save button
-stayed disabled for the entire tab, even on sections where the dates play no
-role. Parsing was never the problem: `String.prototype.parseDate` already
-ignored the trailing dot.
+HTML emails composed in Outlook/Word rendered with excessive whitespace and
+broken spacing in SOGo webmail, while Thunderbird displays them fine. Two
+defects in the mail HTML pipeline cause it — both reproduced live on the e2e
+stack with realistic Word-generated emails. First, libxml2 strips the
+namespace prefix of Office markup, so Word's `<o:p>&nbsp;</o:p>` paragraph-mark
+spacers become *real* `<p>` elements with browser-default margins, nested
+inside the very paragraphs whose CSS sets `margin:0cm`; the pre-parsing
+sanitizer now removes the `o:p` tags (keeping their content inline, like
+Thunderbird). Second, the `<style>` sanitizer treated `@import url(...);`-style
+at-rule statements as block at-rules, so it silently swallowed the entire CSS
+rule that followed — typically `p.MsoNormal {margin:0cm}` — leaving every
+paragraph with default margins; a `;` at nesting level 0 now terminates the
+statement, per CSS grammar. mso-* properties themselves were never the
+culprit: they are passed through (with `!important`) and ignored by the
+browser, exactly as in other clients.
 
-AVANT: with `SOGoShortDateFormat = "%Y.%b.%d."`, the picker shows
-`2026.Már.23.`, `isDateComplete` returns false, the model is flagged invalid
-and the save FAB of Mail settings never enables.
+AVANT: a Word mail with `@import`-led CSS renders with an empty `<style>`
+block — every paragraph gets ~1em top/bottom margins — and each
+`<o:p>&nbsp;</o:p>` spacer adds a nested blank paragraph (`<p class="MsoNormal"><p>&#160;</p></p>`),
+blowing up the vertical spacing (ticket screenshot).
 
-APRÈS: an optional trailing dot is accepted by the completeness check; the
-model stays valid, the save button enables as soon as anything is edited.
-Partially typed dates (`23.03`, `2026.márc`) and doubled trailing dots
-(`23.03.26..`) are still rejected, so the picker keeps flagging genuinely
-incomplete input. Covered by the new offline jasmine spec
-`Tests/spec/PreferencesIsDateCompleteSpec.js` (5 cases, red before / green
-after).
+APRÈS: the `p.MsoNormal {margin:0cm !important}` rule survives after the
+`@import` statement, `@font-face`/`@page` blocks stay dropped as before, and
+spacers render inline (`<p class="MsoNormal">&#160;</p>`); Word/Outlook mails
+keep their intended compact layout, matching Thunderbird. The private SAX
+handler was moved to `UIxHTMLMailContentHandler.{h,m}` (pure move) so the
+sanitizer is covered by 26 new unit tests plus an e2e spec verified red
+before the fix.
