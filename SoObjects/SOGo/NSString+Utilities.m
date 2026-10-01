@@ -24,6 +24,7 @@
 #import <NGExtensions/NSDictionary+misc.h>
 #import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NGBase64Coding.h>
+#import <NGExtensions/NSString+misc.h>
 
 #import <NGMime/NGMimeHeaderFieldGenerator.h>
 #import <SBJson/SBJsonParser.h>
@@ -101,6 +102,21 @@ static int cssEscapingCount;
     newUrl = self;
 
   return newUrl;
+}
+
+- (NSString *) variantByUnescapingURL
+{
+  NSString *variant;
+
+  variant = nil;
+  if ([self containsURLEscapeCharacters])
+    {
+      variant = [self stringByUnescapingURL];
+      if ([variant isEqualToString: self])
+        variant = nil;
+    }
+
+  return variant;
 }
 
 - (NSRange) _rangeOfURLInRange: (NSRange) refRange

@@ -24,6 +24,8 @@
 
 #import <NGExtensions/NSString+misc.h>
 
+#import <SOGo/NSString+Utilities.h>
+
 #import "SOGoTest.h"
 
 @interface TestNSString_plus_URLEscaping : SOGoTest
@@ -51,6 +53,63 @@
       inString++;
       outString++;
     }
+}
+
+- (void) test_variantByUnescapingURL
+{
+  const char *inStrings[] =
+    { "20260128150612.6QfnQ_p2oz1SoTSgRxGZOlg%40horde.tachtler.net.vcf",
+      "sogo%2Btest%40example.com.vcf", "%C3%A9l%C3%A9phant.vcf", NULL };
+  NSString *outStrings[] =
+    { @"20260128150612.6QfnQ_p2oz1SoTSgRxGZOlg@horde.tachtler.net.vcf",
+      @"sogo+test@example.com.vcf", @"éléphant.vcf" };
+  const char **inString;
+  NSString **outString;
+  NSString *result, *error;
+
+  inString = inStrings;
+  outString = outStrings;
+  while (*inString)
+    {
+      result = [[NSString stringWithUTF8String: *inString] variantByUnescapingURL];
+      error = [NSString stringWithFormat:
+                          @"string '%s' badly unescaped: '%@' (expected '%@')",
+                        *inString, result, *outString];
+      testWithMessage([result isEqualToString: *outString], error);
+      inString++;
+      outString++;
+    }
+}
+
+- (void) test_variantByUnescapingURLWithoutEscape
+{
+  const char *inStrings[] =
+    { "20260128150612.6QfnQ_p2oz1SoTSgRxGZOlg@horde.tachtler.net.vcf",
+      "sogo+test@example.com.vcf", "plain.vcf", NULL };
+  const char **inString;
+  NSString *result, *error;
+
+  inString = inStrings;
+  while (*inString)
+    {
+      result = [[NSString stringWithUTF8String: *inString] variantByUnescapingURL];
+      error = [NSString stringWithFormat:
+                          @"string '%s' has no unescaped variant but got '%@'",
+                        *inString, result];
+      testWithMessage(result == nil, error);
+      inString++;
+    }
+}
+
+- (void) test_variantByUnescapingURLWithPartialEscape
+{
+  NSString *result, *error;
+
+  result = [@"50%off.vcf" variantByUnescapingURL];
+  error = [NSString stringWithFormat:
+                      @"string '50%%off.vcf' unescaped to '%@' (expected '50off.vcf')",
+                    result];
+  testWithMessage([result isEqualToString: @"50off.vcf"], error);
 }
 
 @end
