@@ -911,6 +911,23 @@ static int cssEscapingCount;
   return count;
 }
 
+- (NSString *) stringByReplacingFirstOccurrenceOfString: (NSString *) target
+                                             withString: (NSString *) replacement
+{
+  NSMutableString *newString;
+  NSRange range;
+
+  range = [self rangeOfString: target];
+  if (range.location == NSNotFound)
+    return self;
+
+  newString = [NSMutableString stringWithString: self];
+  [newString replaceCharactersInRange: range
+                           withString: replacement];
+
+  return newString;
+}
+
 - (NSString *) stringByReplacingPrefix: (NSString *) oldPrefix
                             withPrefix: (NSString *) newPrefix
 {

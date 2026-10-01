@@ -95,6 +95,8 @@
 
 /* substrings */
 - (NSUInteger) countOccurrencesOfString: (NSString *) substring;
+- (NSString *) stringByReplacingFirstOccurrenceOfString: (NSString *) target
+                                             withString: (NSString *) replacement;
 - (NSString *) stringByReplacingPrefix: (NSString *) oldPrefix
                             withPrefix: (NSString *) newPrefix;
 
