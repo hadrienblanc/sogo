@@ -177,6 +177,117 @@
   return isValid;
 }
 
++ (EOQualifier *) _cardDAVQualifierForKeys: (NSArray *) keys
+                                 operator: (SEL) operator
+                                    value: (id) value
+{
+  NSMutableArray *qualifiers;
+  EOQualifier *qualifier;
+  NSEnumerator *e;
+  NSString *key;
+
+  qualifiers = [NSMutableArray arrayWithCapacity: [keys count]];
+  e = [keys objectEnumerator];
+  while ((key = [e nextObject]))
+    [qualifiers addObject: [[[EOKeyValueQualifier alloc] initWithKey: key
+                                                      operatorSelector: operator
+                                                                value: value] autorelease]];
+
+  if ([qualifiers count] > 1)
+    qualifier = [[[EOOrQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+  else if ([qualifiers count])
+    qualifier = [qualifiers objectAtIndex: 0];
+  else
+    qualifier = nil;
+
+  return qualifier;
+}
+
++ (EOQualifier *) _cardDAVTextMatchQualifierForKeys: (NSArray *) keys
+                                              value: (NSString *) value
+                                         matchType: (NSString *) matchType
+                                           negated: (BOOL) negated
+{
+  EOQualifier *qualifier;
+  NSString *pattern;
+
+  if ([matchType isEqualToString: @"equals"])
+    pattern = value;
+  else if ([matchType isEqualToString: @"starts-with"])
+    pattern = [NSString stringWithFormat: @"%@*", value];
+  else if ([matchType isEqualToString: @"ends-with"])
+    pattern = [NSString stringWithFormat: @"*%@", value];
+  else
+    pattern = [NSString stringWithFormat: @"*%@*", value];
+
+  qualifier = [self _cardDAVQualifierForKeys: keys
+                                   operator: EOQualifierOperatorCaseInsensitiveLike
+                                      value: pattern];
+
+  if (negated)
+    qualifier = [[[EONotQualifier alloc] initWithQualifier: qualifier] autorelease];
+
+  return qualifier;
+}
+
++ (EOQualifier *) _cardDAVDefinedQualifierForKeys: (NSArray *) keys
+{
+  return [self _cardDAVQualifierForKeys: keys
+                              operator: EOQualifierOperatorNotEqual
+                                 value: @""];
+}
+
++ (EOQualifier *) _cardDAVNotDefinedQualifierForKeys: (NSArray *) keys
+{
+  NSMutableArray *qualifiers;
+  EOQualifier *qualifier;
+  NSEnumerator *e;
+  NSString *key;
+
+  qualifiers = [NSMutableArray arrayWithCapacity: [keys count]];
+  e = [keys objectEnumerator];
+  while ((key = [e nextObject]))
+    [qualifiers addObject:
+                   [[[EOOrQualifier alloc] initWithQualifierArray:
+                     [NSArray arrayWithObjects:
+                       [[[EOKeyValueQualifier alloc] initWithKey: key
+                                                  operatorSelector: EOQualifierOperatorEqual
+                                                            value: @""] autorelease],
+                       [[[EOKeyValueQualifier alloc] initWithKey: key
+                                                  operatorSelector: EOQualifierOperatorEqual
+                                                            value: nil] autorelease],
+                       nil]] autorelease]];
+
+  if ([qualifiers count] > 1)
+    qualifier = [[[EOAndQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+  else if ([qualifiers count])
+    qualifier = [qualifiers objectAtIndex: 0];
+  else
+    qualifier = nil;
+
+  return qualifier;
+}
+
++ (EOQualifier *) _cardDAVCombineQualifiers: (NSArray *) qualifiers
+                                       test: (NSString *) test
+{
+  EOQualifier *qualifier;
+
+  if ([qualifiers count] > 1)
+    {
+      if ([test isEqualToString: @"allof"])
+        qualifier = [[[EOAndQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+      else
+        qualifier = [[[EOOrQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+    }
+  else if ([qualifiers count])
+    qualifier = [qualifiers objectAtIndex: 0];
+  else
+    qualifier = nil;
+
+  return qualifier;
+}
+
 - (EOQualifier *) _parseContactFilter: (id <DOMElement>) filterElement // a prop-filter element
 {
   NSMutableArray *qualifiers;
@@ -192,6 +303,8 @@
 
   parentNode = [filterElement parentNode];
   name = [[filterElement attribute: @"name"] lowercaseString];
+  if ([name rangeOfString: @"."].location != NSNotFound)
+    name = [[name componentsSeparatedByString: @"."] lastObject];
 
   if ([[(id)parentNode tagName] isEqualToString: @"filter"]
       && [self _isValidFilter: name])
@@ -209,38 +322,35 @@
           match = (NGDOMElement *)[ranges objectAtIndex: i];
           if ([(NSArray *)[match childNodes] count])
             {
-              SEL currentOperator;
               EOQualifier *currentQualifier;
               NSString *currentMatchType, *currentMatch;
+              BOOL negated;
 
               currentMatch = [match textValue];
               currentMatchType = [[match attribute: @"match-type"] lowercaseString];
-              if ([currentMatchType isEqualToString: @"equals"])
-                currentOperator = EOQualifierOperatorEqual;
-              else // contains, starts-with, ends-with
-                {
-                  currentOperator = EOQualifierOperatorCaseInsensitiveLike;
-                  currentMatch = [NSString stringWithFormat: @"*%@*", currentMatch];
-                }
+              negated = [[[match attribute: @"negate-condition"] lowercaseString]
+                          isEqualToString: @"yes"];
 
-              currentQualifier = [[EOKeyValueQualifier alloc] initWithKey: [criteria objectAtIndex: 0]
-                                                         operatorSelector: currentOperator
-                                                                    value: currentMatch];
-              [currentQualifier autorelease];
+              currentQualifier = [[self class] _cardDAVTextMatchQualifierForKeys: criteria
+                                                                            value: currentMatch
+                                                                       matchType: currentMatchType
+                                                                         negated: negated];
               [qualifiers addObject: currentQualifier];
             }
         }
 
-      if ([qualifiers count] > 1)
+      if (![qualifiers count])
         {
-          if ([test isEqualToString: @"allof"])
-            qualifier = [[EOAndQualifier alloc] initWithQualifierArray: qualifiers];
-          else // anyof
-            qualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
-          [qualifier autorelease];
+          BOOL isNotDefined;
+
+          isNotDefined = [[filterElement getElementsByTagName: @"is-not-defined"] length] > 0;
+          if (isNotDefined)
+            qualifier = [[self class] _cardDAVNotDefinedQualifierForKeys: criteria];
+          else
+            qualifier = [[self class] _cardDAVDefinedQualifierForKeys: criteria];
         }
-      else if ([qualifiers count])
-        qualifier = [qualifiers objectAtIndex: 0];
+      else
+        qualifier = [[self class] _cardDAVCombineQualifiers: qualifiers test: test];
     }
 
   return qualifier;
@@ -270,16 +380,7 @@
             [qualifiers addObject: currentQualifier];
         }
 
-      if ([qualifiers count] > 1)
-        {
-          if ([test isEqualToString: @"allof"])
-            qualifier = [[EOAndQualifier alloc] initWithQualifierArray: qualifiers];
-          else
-            qualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
-          [qualifier autorelease];
-        }
-      else if ([qualifiers count])
-        qualifier = [qualifiers objectAtIndex: 0];
+      qualifier = [[self class] _cardDAVCombineQualifiers: qualifiers test: test];
     }
 
   return qualifier;
