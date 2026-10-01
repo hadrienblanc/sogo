@@ -32,6 +32,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	\
 	TestNGNetUtlilities.m \
 	TestNSData+Crypto.m \
+	TestNSData+Mail.m \
 	TestNSString+Crypto.m \
 	TestNSString+URLEscaping.m \
 	TestNSString+Utilities.m \
@@ -43,9 +44,12 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoDraftObject.m \
 	TestSOGoMailForward.m \
 	TestSOGoSieveManager.m \
+	TestUIxHTMLMailContentHandler.m \
 	TestWORequest+SOGo.m \
 	\
 	TestRTFHandler.m \
+	\
+	../../UI/MailPartViewers/UIxHTMLMailContentHandler.m \
 	\
     # I don't know how to link against -l:SOGoBackend \
 	     undefined reference to `__objc_class_name_SOGoMailFolder'
@@ -53,7 +57,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 TEST_TOOL_NAME = $(TEST_TOOL)
 
 $(TEST_TOOL)_CPPFLAGS += \
-	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange
+	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../UI/MailPartViewers -I../../OpenChange \
+	$(shell xml2-config --cflags)
 
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lNGObjWeb -lobjc \
