@@ -84,7 +84,7 @@ static NSString *SQLFor(EOQualifier *qualifier)
                                                              value: @"foo"
                                                         matchType: @"contains"
                                                           negated: YES]),
-             @" NOT (UPPER(c_mail) LIKE UPPER('*foo*'))");
+             @"( NOT (UPPER(c_mail) LIKE UPPER('*foo*'))) OR (c_mail IS NULL)");
 }
 
 - (void) test_textMatchOnNameCoversAllNameColumns

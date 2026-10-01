@@ -203,12 +203,37 @@
   return qualifier;
 }
 
++ (EOQualifier *) _cardDAVNullQualifierForKeys: (NSArray *) keys
+{
+  NSMutableArray *qualifiers;
+  EOQualifier *qualifier;
+  NSEnumerator *e;
+  NSString *key;
+
+  qualifiers = [NSMutableArray arrayWithCapacity: [keys count]];
+  e = [keys objectEnumerator];
+  while ((key = [e nextObject]))
+    [qualifiers addObject:
+                   [[[EOKeyValueQualifier alloc] initWithKey: key
+                                              operatorSelector: EOQualifierOperatorEqual
+                                                        value: nil] autorelease]];
+
+  if ([qualifiers count] > 1)
+    qualifier = [[[EOAndQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+  else if ([qualifiers count])
+    qualifier = [qualifiers objectAtIndex: 0];
+  else
+    qualifier = nil;
+
+  return qualifier;
+}
+
 + (EOQualifier *) _cardDAVTextMatchQualifierForKeys: (NSArray *) keys
                                               value: (NSString *) value
                                          matchType: (NSString *) matchType
                                            negated: (BOOL) negated
 {
-  EOQualifier *qualifier;
+  EOQualifier *match, *qualifier;
   NSString *pattern;
 
   if ([matchType isEqualToString: @"equals"])
@@ -220,12 +245,23 @@
   else
     pattern = [NSString stringWithFormat: @"*%@*", value];
 
-  qualifier = [self _cardDAVQualifierForKeys: keys
-                                   operator: EOQualifierOperatorCaseInsensitiveLike
-                                      value: pattern];
+  match = [self _cardDAVQualifierForKeys: keys
+                                operator: EOQualifierOperatorCaseInsensitiveLike
+                                   value: pattern];
 
   if (negated)
-    qualifier = [[[EONotQualifier alloc] initWithQualifier: qualifier] autorelease];
+    {
+      EOQualifier *nullQualifier;
+
+      nullQualifier = [self _cardDAVNullQualifierForKeys: keys];
+      qualifier = [[[EOOrQualifier alloc] initWithQualifierArray:
+                                 [NSArray arrayWithObjects:
+                                   [[[EONotQualifier alloc] initWithQualifier: match] autorelease],
+                                   nullQualifier,
+                                   nil]] autorelease];
+    }
+  else
+    qualifier = match;
 
   return qualifier;
 }

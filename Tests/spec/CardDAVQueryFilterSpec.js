@@ -78,7 +78,7 @@ describe('CardDAV addressbook-query filters', function() {
     })
 
     return response
-      .filter(r => r.status === 207)
+      .filter(r => r.status === 207 && r.href)
       .map(r => r.href.split('/').pop())
       .sort()
   }
@@ -153,12 +153,22 @@ describe('CardDAV addressbook-query filters', function() {
     results = await query(filterOn([
       { _attributes: { name: 'EMAIL' }, ...textMatch('domaine.ca', { 'match-type': 'ends-with' }) }
     ]))
+    expect(results).toEqual(['card-complete.vcf', 'card-group.vcf', 'card-uppercase.vcf'])
+
+    results = await query(filterOn([
+      { _attributes: { name: 'EMAIL' }, ...textMatch('domaine.com', { 'match-type': 'ends-with' }) }
+    ]))
     expect(results).toEqual([])
 
     results = await query(filterOn([
       { _attributes: { name: 'EMAIL' }, ...textMatch('email', { 'match-type': 'contains' }) }
     ]))
-    expect(results).toEqual(['card-complete.vcf', 'card-group.vcf', 'card-uppercase.vcf'])
+    expect(results).toEqual(['card-complete.vcf', 'card-uppercase.vcf'])
+
+    results = await query(filterOn([
+      { _attributes: { name: 'EMAIL' }, ...textMatch('groupe', { 'match-type': 'contains' }) }
+    ]))
+    expect(results).toEqual(['card-group.vcf'])
   })
 
   it('#5956 negate-condition returns the cards that do not match', async function() {
@@ -202,12 +212,12 @@ describe('CardDAV addressbook-query filters', function() {
     results = await query(filterOn([
       { _attributes: { name: 'FN' }, ...textMatch('jane', { 'match-type': 'contains' }) }
     ]))
-    expect(results).toEqual(['card-no-email.vcf', 'card-uppercase.vcf'])
+    expect(results).toEqual(['card-uppercase.vcf'])
 
     results = await query(filterOn([
-      { _attributes: { name: 'N' }, ...textMatch('john', { 'match-type': 'contains' }) }
+      { _attributes: { name: 'N' }, ...textMatch('sans', { 'match-type': 'contains' }) }
     ]))
-    expect(results).toEqual(['card-complete.vcf'])
+    expect(results).toEqual(['card-no-email.vcf'])
   })
 
   it('anyof and allof combine prop-filters', async function() {
