@@ -40,6 +40,8 @@
 }
 
 + (id) sieveManagerForUser: (SOGoUser *) user;
++ (NSString *) sieveFlagForArgument: (NSString *) argument
+                         mailLabels: (NSDictionary *) mailLabels;
 - (id) initForUser: (SOGoUser *) newUser;
 
 - (NSString *) sieveScriptWithRequirements: (NSMutableArray *) newRequirements
