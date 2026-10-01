@@ -26,6 +26,8 @@
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGObjWeb/WORequest.h>
 
+#import <NGExtensions/NSObject+Logs.h>
+
 #import <NGImap4/NGImap4Connection.h>
 #import <NGImap4/NGImap4Client.h>
 #import <NGImap4/NSString+Imap4.h>
@@ -1148,6 +1150,7 @@
   labelsList = [[labels sortedArrayUsingSelector: @selector(compareAscending:)] objectEnumerator];
   while ((label = [labelsList nextObject]))
     {
+      label = [label stringByDecodingImap4LabelName];
       if (![imapKeywords containsObject: [label uppercaseString]])
         {
           if ((userLabel = [userLabels objectForKey: label]))
@@ -1217,7 +1220,8 @@
         {
           flag = [flags objectAtIndex: i];
           if ([flag isKindOfClass: [NSString class]])
-            [flags replaceObjectAtIndex: i  withObject: [flag fromCSSIdentifier]];
+            [flags replaceObjectAtIndex: i
+                              withObject: [[flag fromCSSIdentifier] stringByEncodingImap4LabelName]];
           else
             [flags removeObjectAtIndex: i];
         }
@@ -1229,7 +1233,15 @@
       if ([[result valueForKey: @"result"] boolValue])
         response = [self responseWith204];
       else
-        response = [self responseWithStatus: 500 andJSONRepresentation: result];
+        {
+          [self errorWithFormat: @"addOrRemoveLabel: unable to store flags %@: %@",
+                             flags, [result objectForKey: @"reason"]];
+          o = [result objectForKey: @"reason"];
+          if (!o)
+            o = [NSNull null];
+          result = [NSDictionary dictionaryWithObject: o forKey: @"reason"];
+          response = [self responseWithStatus: 500 andJSONRepresentation: result];
+        }
     }
 
   return response;
@@ -1244,6 +1256,9 @@
   NSArray *msgUIDs;
   NSMutableArray *flags;
   NSDictionary *v, *content, *result;
+  NSEnumerator *labels;
+  NSString *label;
+  id o;
 
   request = [context request];
   content = [[request contentAsString] objectFromJSONString];
@@ -1255,7 +1270,9 @@
 
   co = [self clientObject];
   v = [[[context activeUser] userDefaults] mailLabelsColors];
-  [flags addObjectsFromArray: [v allKeys]];
+  labels = [[v allKeys] objectEnumerator];
+  while ((label = [labels nextObject]))
+    [flags addObject: [label stringByEncodingImap4LabelName]];
 
   client = [[co imap4Connection] client];
   [[co imap4Connection] selectFolder: [co imap4URL]];
@@ -1264,7 +1281,15 @@
   if ([[result valueForKey: @"result"] boolValue])
     response = [self responseWith204];
   else
-    response = [self responseWithStatus:500 andJSONRepresentation:result];
+    {
+      [self errorWithFormat: @"removeAllLabels: unable to store flags %@: %@",
+                         flags, [result objectForKey: @"reason"]];
+      o = [result objectForKey: @"reason"];
+      if (!o)
+        o = [NSNull null];
+      result = [NSDictionary dictionaryWithObject: o forKey: @"reason"];
+      response = [self responseWithStatus:500 andJSONRepresentation:result];
+    }
 
   return response;
 }
