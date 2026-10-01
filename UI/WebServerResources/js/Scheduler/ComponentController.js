@@ -40,9 +40,15 @@
     };
 
     this.newMessageWithAllRecipients = function ($event) {
-      var recipients = _.map(this.component.attendees, function(attendee) {
+      var organizer = this.component.organizer,
+          recipients = [];
+      if (organizer && organizer.email
+          && _.findIndex(this.component.attendees, { email: organizer.email }) < 0) {
+        recipients.push(organizer.name + " <" + organizer.email + ">");
+      }
+      recipients = recipients.concat(_.map(this.component.attendees, function(attendee) {
         return attendee.name + " <" + attendee.email + ">";
-      });
+      }));
       _newMessage($event, recipients);
     };
 

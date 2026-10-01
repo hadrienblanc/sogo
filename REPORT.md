@@ -1,177 +1,119 @@
-# Ticket 6186 — Attachments/content not displayed in the preview when forwarding
+# Ticket 6183 — sending mail to all participants of an event misses organizer
 
-**Branch:** `fix-6186-mantis` — commit `311b71ed8`
+**Branch:** `fix-6183-mantis`
+**Mantis:** https://bugs.sogo.nu/view.php?id=6183 (Web Calendar, minor, 5.12.4)
 
 ## Root cause (file:line)
 
-When forwarding inline in HTML compose mode, SOGo renders the quoted-message
-header block through the `SOGoMailForward` component
-(`SoObjects/Mailer/SOGoMailForward.m`), interpolated unescaped into the draft
-HTML (`SOGoMailEnglishForward.wo/SOGoMailEnglishForward.html`, all bindings
-`escapeHTML = NO`).
+`UI/WebServerResources/js/Scheduler/ComponentController.js:42` — the toolbar
+mail button of the event view (`UIxAppointmentViewTemplate.wox:78`,
+"Email Attendees (internal users)") calls `newMessageWithAllRecipients`, which
+built the recipient list from `component.attendees` only.
 
-On SOGo 5.12.4 (reporter's version) **every** header value was inserted raw.
-The ticket's DevTool.png shows the smoking gun: an Outlook/Exchange
-`References` message-id
-`<dudpr@imb11375a27a6d84913ed336c9e2eb74a@dudpr@imb11375.eurprddl.prod.gelabs.com>`
-was inserted unescaped, so the HTML parser turned `<dudpr@...>` into a phantom
-*element*. CKEditor 5 flags/renames it (`data-ck-unsafe-element="dudpr@..."`,
-hidden with `display:none`) — the reporter's "CKEditor classifies the text as
-unsafe content" — and everything after `Referenzen:` (the whole forwarded
-body) becomes invisible in the editor.
+SOGo never adds the organizer to the ATTENDEE list (neither its own editor —
+`UI/Scheduler/UIxComponentEditor.m:493` `_handleOrganizer` sets the ORGANIZER
+property only — nor Outlook-style invites), and the backend serializes both
+parties separately (`SoObjects/Appointments/iCalEntityObject+SOGo.m:119-175`
+`attributesInContext:`). An attendee opening an invited event therefore held
+`attendees = [themselves, ...]` with `organizer` in a distinct object, and the
+composed message went to everyone except the organizer.
 
-- The `References`/`Organization`/`Newsgroups` instances of this bug were
-  already fixed on `experimental` by f11f34cde (for #6046), at
-  `SoObjects/Mailer/SOGoMailForward.m:156,208,225`.
-- **The last unescaped field of the same template was `subject`**
-  (`SoObjects/Mailer/SOGoMailForward.m:86-89`): a subject containing angle
-  brackets (e.g. `WG: <Testinhalt>`) reproduces the exact same swallow.
-  The fix escapes it in HTML composition mode. `SOGoMailReply` inherits the
-  same accessor, so Outlook-style replies are covered too.
-
-So: the ticket **is a real bug**; its main instance (References) was already
-fixed on `experimental` but was never locked by tests, and the identical
-subject path was still open. Both are addressed here.
+Verified read-only on the e2e stack: `GET
+/SOGo/so/sogo-tests2/Calendar/personal/<uid>/view` (invitee copy of an event
+organized by sogo-tests1) returns `organizer: {email: sogo-tests1...}` and
+`attendees: [{email: sogo-tests2...}]` — the old code's recipients missed the
+organizer entirely.
 
 ## What changed (before/after)
 
-`SoObjects/Mailer/SOGoMailForward.m` — `subject`:
+`ComponentController.js` (and the committed minified bundle
+`UI/WebServerResources/js/Scheduler.services.js`, hand-patched the same way;
+the stale `.map` is left as-is, matching the precedent of commit d984e4a4b):
 
-```diff
- - (NSString *) subject
- {
--  return [sourceMail decodedSubject];
-+  NSString *subject;
-+
-+  subject = [sourceMail decodedSubject];
-+  if (htmlComposition)
-+    subject = [subject stringByEscapingHTMLString];
-+
-+  return subject;
- }
-```
+AVANT — an invitee writes to "all participants" and the organizer is absent:
 
-`Tests/Unit/TestSOGoMailForward.m` (new) + registration in
-`Tests/Unit/GNUmakefile`.
+    recipients = ["Sogo Tests Two <sogo-tests2@sogo.local>"]
 
-### AVANT (server, live stack, current experimental)
+APRÈS — the organizer is prepended when not already among the attendees
+(no duplicate when the organizer also chairs the event):
 
-`GET .../folderINBOX/<uid>/forward` → draft `edit` text:
+    recipients = ["Sogo Tests One <sogo-tests1@sogo.local>",
+                  "Sogo Tests Two <sogo-tests2@sogo.local>"]
 
-```
-Subject: WG: <Testinhalt> 6186<br/>Date: ...<br/>References: &lt;dudpr@...&gt;<br/>...
-```
-
-The raw `<Testinhalt>` is parsed as an HTML tag by the editor.
-
-### AVANT (client, SOGo's own CKEditor 5 build 44.1.0, jsdom harness)
-
-Editing-view textContent stops right after the subject — everything else is
-swallowed by the phantom element, exactly like DevTool.png:
-
-```
-"-------- Original Message --------Subject: WG: "
-hidden spans: [ '<span data-ck-unsafe-element="testinhalt">' ]
-```
-
-### APRÈS
-
-Draft text: `Subject: WG: &lt;Testinhalt&gt; 6186<br/>...`
-
-CKEditor editing-view textContent — full content visible:
-
-```
-"-------- Original Message --------Subject: WG: <Testinhalt> 6186Date: ... References: <dudpr@...>Testinhalt 24.02.26Original message body text."
-```
-
-(The remaining `data-ck-unsafe-element="o:p"` spans are empty Outlook
-`<o:p></o:p>` markers — harmless, no content loss.)
-
-Note on the ticket summary ("Attachments are not displayed"): the received
-mail displays fine (`Received Email.png`); the missing content/preview in the
-compose window is entirely caused by the chevron-in-header injection above —
-there is no separate attachment bug.
+No backend/API change: the organizer/attendees JSON contract is unchanged; the
+merge is purely client-side, guarded by `_.findIndex(...) < 0` (same pattern as
+`Attendees.service.js:199`) and by `organizer && organizer.email` for events
+without an organizer.
 
 ## Tests
 
-`Tests/Unit/TestSOGoMailForward.m` — 9 tests, all green:
-
-- `test_htmlCompositionEscapesSubject` / `test_textCompositionKeepsSubject` /
-  `test_missingSubjectYieldsNoValue` — the fix (both branches + nil subject)
-- `test_htmlCompositionEscapesReferences` / `test_textCompositionKeepsReferences`
-  — locks the ticket's exact case (Exchange message-id, both compose modes)
-- `test_htmlCompositionEscapesOrganization`,
-  `test_htmlCompositionEscapesNewsgroups` — locks the rest of f11f34cde
-- `test_htmlCompositionEscapesAddresses` /
-  `test_textCompositionKeepsAddresses` — from/to/cc/reply-to escaping
-  (string and array headers)
-
-Verified the new tests bite: with the fix stashed,
-`test_htmlCompositionEscapesSubject` fails
-(`'WG: &lt;Testinhalt&gt; 6186' and 'WG: <Testinhalt> 6186' differs`).
+- `Tests/Unit/TestiCalEntityObjectAttributes.m` (registered in
+  `Tests/Unit/GNUmakefile`): locks the server-side JSON contract the fix
+  consumes — organizer exposed separately with name falling back to the email,
+  attendees never containing the organizer, no `organizer` key when absent.
+  The `setUp` registers a dummy `SOGoMemcachedHost` so the user-manager cache
+  path does not abort under libmemcached with a NULL host (host landmine,
+  unrelated to the fix).
+- `Tests/spec/SchedulerComponentControllerSpec.js`: stack-independent jasmine
+  spec that loads `ComponentController.js` with stubbed angular/lodash
+  dependencies and asserts the recipients of `newMessageWithAllRecipients`:
+  organizer included for an invited event, no duplicate when the organizer is
+  also a (CHAIR) attendee, attendees-only fallback without organizer. Verified
+  red on `experimental` sources and green on the fixed ones.
+- Unit suite: `local/run-worktree-tests.sh` → `Ran 99 tests, FAILED (2
+  failures, 0 errors)` — the 2 failures are the known host-noise
+  (`test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection`). The process exit code 139 after the
+  report reproduces identically on the untouched main checkout
+  (GNUstep autorelease-pool teardown quirk of this host) and is not caused by
+  this change.
 
 ## Verification steps for the orchestrator
 
-Unit suite (builds the worktree, runs 96 tests):
-
-```
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c11-6186
-```
-
-Expected: `FAILED (2 failures, 0 errors)` — only the two known host-noise
-failures (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`).
-
-End-to-end repro on the e2e stack (after deploying this branch), artifacts
-are prefixed test-6186-* and must be cleaned up:
-
-```
-# 1. send /tmp/opencode-style Outlook-style mail (chevrons in References + subject)
-python3 - <<'EOF'
-import smtplib
-msg = open('/tmp/opencode/6186/test-6186-outlook.eml','rb').read()
-s = smtplib.SMTP('127.0.0.1', 2500); s.sendmail('brwa.baban@bearingpoint.com', ['sogo-tests1@example.org'], msg); s.quit()
-EOF
-
-# 2. forward it inline and fetch the draft text (cookie auth + GETs)
-python3 /tmp/opencode/6186/repro.py
-#    APRES: raw <Testinhalt> tag present: False
-#           escaped Testinhalt present: True
-#           escaped msgid present: True   (References already escaped pre-fix)
-
-# 3. cleanup
-python3 /tmp/opencode/6186/cleanup.py
-```
-
-Client-side AVANT/APRES harness (jsdom + the repo's CKEditor build):
-
-```
-cd /tmp/opencode/6186 && npm install jsdom
-node ckeditor-check.js        # AVANT: textContent ends at "Subject: WG: "
-node ckeditor-check-fixed.js  # APRES: full body visible
-```
+1. Unit suite:
+   `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c11-6183`
+   → expect `Ran 99 tests` with only the two known failures.
+2. JS spec (after merge, inside `sogo_dev`):
+   `cd /workspace/Tests && npx jasmine --config=spec/support/jasmine.json --filter="ComponentController mail recipients"`
+3. e2e data contract (stack, any user pair) — reproduce then clean up:
+   ```
+   curl -u sogo-tests1:sogo -X PUT -H 'Content-Type: text/calendar' \
+     --data-binary @event.ics \
+     http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/test-6183-x.ics
+   # invitee-shaped copy (ORGANIZER=sogo-tests1, ATTENDEE=sogo-tests2) into sogo-tests2
+   curl -c /tmp/c -X POST -H 'Content-Type: application/json' \
+     -d '{"userName":"sogo-tests2","password":"sogo"}' http://127.0.0.1:50001/SOGo/connect
+   curl -s -b /tmp/c http://127.0.0.1:50001/SOGo/so/sogo-tests2/Calendar/personal/test-6183-x.ics/view
+   # → JSON with "organizer" (sogo-tests1) distinct from "attendees" (sogo-tests2)
+   curl -u sogo-tests1:sogo -X DELETE .../test-6183-x.ics  (both users)
+   ```
+4. UI smoke (after image rebuild): open an invited event in the web calendar,
+   click the mail icon next to Close → compose window "To" must list the
+   organizer first, then the other attendees.
 
 ## PR body draft
 
-When an email forwarded from Outlook's Sent folder is forwarded again in
-SOGo with HTML composition, the compose editor shows only the quoted header
-lines and the message body disappears. CKEditor 5 logs the content as
-"unsafe": the header block of the inline-forward template interpolated raw
-header values into the draft HTML, and any angle bracket in them (typically
-the `<message-id>` chevrons of the References header, or a subject like
-`WG: <Testinhalt>`) is parsed as a phantom HTML element which CKEditor hides
-and which swallows the rest of the forwarded content.
+L'icône courriel de la fiche événement (« Envoyer un courriel à tous les
+participants ») construisait la liste des destinataires à partir des seuls
+`attendees`. Or SOGo (comme Outlook) n'inscrit jamais l'organisateur parmi les
+participants : l'`ORGANIZER` est sérialisé à part dans le JSON `/view`
+(`iCalEntityObject+SOGo.m attributesInContext:`), et `_handleOrganizer` ne
+génère pas d'`ATTENDEE` correspondant. Résultat : un invité qui écrit à « tous
+les participants » excluait précisément l'organisateur de la réunion
+(bug 6183) — sur la démo SOGo comme en production.
 
-References, Organization and Newsgroups were already escaped on experimental
-(#6046); this PR closes the last unescaped field of the same template — the
-subject — and locks the whole header-block escaping behaviour with unit
-tests (`Tests/Unit/TestSOGoMailForward.m`), since none of the previous
-escaping had test coverage. Outlook-style replies, which reuse the same
-accessors via `SOGoMailReply`, benefit from the fix as well.
+AVANT : destinataires = participants uniquement →
+`["Sogo Tests Two <sogo-tests2@sogo.local>"]`.
 
-AVANT: `Subject: WG: <Testinhalt> 6186` → the editor renders
-`-------- Original Message --------Subject: WG: ` and nothing else
-(`data-ck-unsafe-element="testinhalt"` in the DOM, cf. ticket DevTool.png).
-APRES: the draft carries `Subject: WG: &lt;Testinhalt&gt; 6186` and the full
-forwarded body — text and attachments — stays visible and editable in
-CKEditor.
+APRÈS : `newMessageWithAllRecipients` préfixe l'organisateur lorsqu'il n'est
+pas déjà listé comme participant (pas de doublon quand il préside aussi
+l'événement via un `ATTENDEE;ROLE=CHAIR`) →
+`["Sogo Tests One <sogo-tests1@sogo.local>",
+  "Sogo Tests Two <sogo-tests2@sogo.local>"]`.
+
+Le correctif est purement côté client (`ComponentController.js` + bundle
+minifié régénéré à la main, précédent d984e4a4b) ; aucun changement d'API. Le
+contrat JSON serveur (organizer/attendees distincts, repli du nom sur
+l'adresse) est verrouillé par `Tests/Unit/TestiCalEntityObjectAttributes.m`,
+et la logique de fusion par `Tests/spec/SchedulerComponentControllerSpec.js`
+(verte sur le correctif, rouge sur `experimental`).

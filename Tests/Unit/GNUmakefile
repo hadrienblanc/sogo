@@ -20,6 +20,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
+	TestiCalEntityObjectAttributes.m \
 	TestNSCalendarDateClamping.m \
 	\
 	TestSBJsonParser.m \
