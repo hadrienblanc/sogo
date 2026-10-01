@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#import <Foundation/NSBundle.h>
 #import <Foundation/NSDate.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSString.h>
@@ -94,37 +93,14 @@ static Class
 LoadDraftClass ()
 {
   static Class draftClass = Nil;
-  NSString *baseDir, *bundlePath;
-  NSBundle *bundle;
-  NSArray *bundleNames;
-  unsigned int i;
 
-  if (draftClass)
-    return draftClass;
-
-  draftClass = NSClassFromString (DRAFT_CLASS_NAME);
-  if (draftClass)
-    return draftClass;
-
-  baseDir = [[[[NSFileManager defaultManager] currentDirectoryPath]
-                       stringByAppendingPathComponent: @"../.."]
-                     stringByStandardizingPath];
-
-  bundleNames = [NSArray arrayWithObjects: @"Contacts", @"Mailer", nil];
-  for (i = 0; i < [bundleNames count] && !draftClass; i++)
+  if (!draftClass)
     {
-      bundlePath = [[baseDir stringByAppendingPathComponent: @"SoObjects"]
-                              stringByAppendingPathComponent:
-                                [NSString stringWithFormat: @"%@/%@.SOGo",
-                                          [bundleNames objectAtIndex: i],
-                                          [bundleNames objectAtIndex: i]]];
-
-      if ([[NSFileManager defaultManager] fileExistsAtPath: bundlePath])
-        {
-          bundle = [[NSBundle alloc] initWithPath: bundlePath];
-          [bundle load];
-          draftClass = NSClassFromString (DRAFT_CLASS_NAME);
-        }
+      if (![SOGoTest loadSOGoBundle: @"Contacts"
+                          markerClass: DRAFT_CLASS_NAME])
+        [SOGoTest loadSOGoBundle: @"Mailer"
+                      markerClass: DRAFT_CLASS_NAME];
+      draftClass = NSClassFromString (DRAFT_CLASS_NAME);
     }
 
   return draftClass;

@@ -1,182 +1,100 @@
-# Bug 6189 — unable to enter text when composing an email in the mobile view (Firefox Mobile)
+# Cycle 10 clean-code pass — refactor/cycle-10
 
-Branch: `fix-6189-mantis` — commit see below — `fix(mail): report a desktop Firefox user agent to CKEditor on Firefox for Android (bug 6189)`
+Scope reviewed: `fork/experimental~11..fork/experimental` (PRs #13–#21:
+bugs 6214, 6222, 6223, 6224, 6193, 6189, 6191, 6192 + cycle-8 refactor).
 
-## Root cause (file:line)
+Method: full read of the cycle diff (ObjC, JS, wox templates, tests,
+GNUmakefile), style-checked against each surrounding file's conventions
+(GNUstep indentation, index/enumerator loops, retain/release discipline),
+then minimal edits only where the diff itself introduced the smell.
 
-The message body of the compose dialog is CKEditor 5 (`sg-ckeditor`,
-`UI/Templates/MailerUI/UIxMailEditor.wox:308-313`; bundled build
-`UI/WebServerResources/js/vendor/ckeditor/build/ckeditor.js`, v44.1.0).
-At script load, CKEditor captures the user agent once and derives its
-environment flags:
+## What I improved
 
-- `navigator.userAgent.toLowerCase()` → env module (`isAndroid` when the
-  UA contains "android", `isGecko` when it matches `gecko/\d+`) —
-  CKEditor 5 build, env module (search `isAndroid:h(i)` in
-  `js/vendor/ckeditor/build/ckeditor.js`);
-- the typing feature selects its input pipeline from that flag:
-  `const e = s.isAndroid ? dw : lw` where
-  `lw=["insertText","insertReplacementText"]` and
-  `dw=[...lw,"insertCompositionText"]`, plus an Android-only
-  `_compositionQueue` reconciliation of soft-keyboard composition
-  events (search `insertCompositionText` / `_compositionQueue.flush`).
+### 1. Deduplicated the SOGo-bundle loading fixture (test hygiene)
 
-That Android pipeline is built for Blink's IME event flow. Firefox for
-Android (Gecko) drives soft-keyboard text through a composition flow the
-pipeline mishandles: characters are swallowed, while Enter and Backspace
-— handled from `keydown` keystrokes, which Gecko reports correctly —
-still work. This matches the ticket exactly, including the reporter's
-own controlled experiment: switching SOGo to the **desktop view**
-("Request desktop site") makes Firefox send a UA without the "Android"
-token, CKEditor then uses its standard Gecko (desktop) pipeline and
-typing works on the very same browser/keyboard; Chrome on Android is
-unaffected (the Android pipeline is made for it).
+The cycle added the exact same 34-line `LoadAppointmentsBundle()`
+static (NSBundle lookup under `SoObjects/<name>/<name>.SOGo` relative to
+the test CWD, `NSBundle load`, marker-class check) to **both** new
+Appointments test files, and `TestSOGoDraftObject.m` re-implemented the
+same pattern a third time with a bundle-name loop.
 
-SOGo's own code is not at fault: instrumented replays of Firefox-Android
-key/composition/beforeinput sequences against the live stack (read-only,
-sogo-tests2, Playwright + synthetic Gecko-style events) show no SOGo or
-angular-material handler cancels or resets input in either editor
-(`beforeinput` on `.ck-content` is only cancelled by CKEditor itself,
-which is the broken path). Fixing the vendor build not being an option,
-the minimal server-side fix is to report a desktop-Firefox user agent to
-the page **before** `ckeditor.js` evaluates, only on Gecko-on-Android
-devices:
+Before: 3 copies (≈110 lines) of load-a-SOGo-bundle-and-check-a-class;
+the next calendar fix PR would have grown a fourth copy.
 
-- `SoObjects/SOGo/NSString+Utilities.m` — new
-  `-[NSString ckEditorUserAgentOverride]`: for a UA containing both
-  "Android" and `Gecko/<digits>` (Firefox on Android — Chrome's
-  "like Gecko)" token has no digits and never matches), returns an
-  equivalent desktop Firefox UA built from the Gecko version (digits
-  only, therefore injection-safe); returns nil otherwise.
-- `UI/Common/UIxPageFrame.m` — `ckEditorUserAgentOverride` /
-  `hasCKEditorUserAgentOverride` fed from
-  `[[context request] clientCapabilities] userAgent`.
-- `UI/Templates/UIxPageFrame.wox:131-133` — inside the inline script
-  that runs *before* all JS imports (ckeditor.js included):
-  `Object.defineProperty(navigator, 'userAgent', …)` restricted to that
-  override. The page-frame inline script precedes the `<script>`
-  imports, so CKEditor's env capture sees the desktop UA.
+After: one `+[SOGoTest loadSOGoBundle:markerClass:]` helper
+(SOGoTest.h/SOGoTest.m); the two Appointments files keep a one-line
+forwarder and `LoadDraftClass()` shrinks to the Contacts-then-Mailer
+fallback. Unused `NSBundle.h`/`NSFileManager.h` imports dropped from
+the three test files. Net −75 lines, identical runtime behaviour
+(class-already-loaded short-circuit preserved; Contacts/Mailer order
+preserved).
 
-Known limitation, stated honestly: no Firefox-Android engine was
-available in this environment, so the Gecko-side failure was not
-reproduced live; the root cause is established from the reporter's
-desktop/mobile-view experiment (same engine, only the UA differs),
-CKEditor 5's UA-conditional typing code, and CKEditor's history of
-Firefox-Mobile-only typing bugs. If the reporter's claim that the
-plain-text (textarea) compose mode also fails is accurate (we could not
-observe any SOGo-side blocking on that path, and the textarea path does
-not depend on the UA), that residual issue would be Gecko-internal and
-out of SOGo's reach; the UA switch cannot affect it either way.
+### 2. Fixed unidiomatic backwards loop in UIxMailListActions.m
 
-## What changed (before/after)
+The new tag-decoding loop in `headersSnapshotForMessages`-style path
+(UIxMailListActions.m:1220) iterated `for (j = [tags count] - 1; j >= 0; j--)`
+while only *replacing* elements via `replaceObjectAtIndex:withObject:` —
+nothing is removed, so the reverse iteration bought nothing and read like
+a removal-safe idiom that isn't needed. The file's own idiom is forward
+index loops.
 
-| | Before | After |
-|---|---|---|
-| page served to Firefox on Android | `navigator.userAgent` = real mobile UA → CKEditor env `isAndroid=true` → Android typing pipeline → soft-keyboard characters dropped in compose (Enter/Backspace work) | inline script (before ckeditor.js loads) overrides `navigator.userAgent` to the desktop-Firefox equivalent → CKEditor env takes the Gecko desktop pipeline used by desktop Firefox (and by the reporter's working "desktop view") → typing works |
-| page served to Chrome/Android, iOS, desktop browsers | unchanged | unchanged — override emitted only for Android+`Gecko/<digits>` UAs, i.e. Firefox on Android in mobile view |
-| Firefox on Android, "desktop site" mode | UA already desktop-shaped, no override | unchanged (nil override) |
+Before: `for (j = [tags count] - 1; j >= 0; j--)`
+After: `for (j = 0; j < [tags count]; j++)`
 
-Server-side detection (regex on the UA header) is unit-tested; the
-emitted UA string contains only digits and fixed tokens, so it cannot
-break out of the JS string literal (hostile-UA test case included).
+## What I deliberately did NOT touch (reviewed, judged fine)
 
-## Tests
+- `attachUrlsForEditor` / `setAttachUrlsFromEditor`
+  (iCalEntityObject+SOGo.m): the move from UIxComponentEditor into the
+  model is a net simplification; index loops and
+  `dictionaryWithObjectsAndKeys:` style match the host file; the
+  `isUrl` flag handling is exercised by 8 unit tests.
+- `UIxPageFrame.m` `ckEditorUserAgentOverride` +
+  `hasCKEditorUserAgentOverride`: the wox template needs both a
+  condition and a value, so the UA scan+regex runs twice per page for
+  Firefox-Android clients. Measured cost: two substring/regex passes
+  over a ~200-byte string per page render — not worth caching state in
+  the component for; left as-is.
+- `NSString+Utilities.m` new methods (imap4 label encode/decode,
+  first-occurrence replace, CKEditor UA override): manual unichar
+  handling with `NSZoneMalloc`/`NSZoneFree` pairing is consistent with
+  the file's low-level style; the `+6` constant in the Gecko-token
+  extraction is obvious in context; behaviour is locked by 20+ new
+  unit tests, so rewriting for taste would be churn.
+- `UIxMailEditor.m` `setBase64ImagesInText:` — the odd 8-space
+  continuation indentation of that block predates the cycle (verified
+  against `fork/experimental~11`); re-indenting would balloon the diff
+  for zero signal.
+- `MessageEditorController.js` / `Message.service.js`: the
+  escaped-signature regex assembly is hacky but is precisely what the
+  6214 e2e unit specs lock; no dead code left (the commented-out
+  `currentSignature` line was removed by the fix itself).
+- Tests/spec: the four new jasmine specs use distinct fixtures and
+  distinct folder names (no cross-spec duplication); the two
+  angular-stub loaders (MailerMessageFlagsSpec / MailerIdentitySignatureSpec)
+  stub different API surfaces — factoring them now would be speculative
+  infra for two files.
+- `Tests/Unit/GNUmakefile`: `before-all::` build hook for
+  Contacts/Appointments/Mailer and the new test registrations are
+  exactly the documented merge resolution.
 
-- New `Tests/Unit/TestNSString+CKEditorUserAgentOverride.m` (registered
-  in `Tests/Unit/GNUmakefile`), 8 tests: Firefox-Android phone + tablet
-  UAs masked to the desktop equivalent (two Gecko versions), Chrome on
-  Android untouched, desktop Firefox untouched, Firefox-Android
-  desktop-view UA untouched, Safari iOS / Edge Android untouched, empty
-  and partial UAs return nil, hostile UA attempting JS injection is
-  neutralised to digits-only. Execution proven by mutation (broken
-  assertion → FAIL, restored).
-- Full suite: `local/run-worktree-tests.sh
-  ~/Projets/hadrienblanc/sogo/wt/c10-6189` → **87 tests, 2 failures**,
-  both pre-documented host noise (`test_NGInternetSocketAddressFromString`,
-  `test_stringWithoutHTMLInjection`).
-- New e2e spec `Tests/spec/HTTPPageFrameCKEditorSpec.js` (jasmine,
-  cross-fetch): logs in, fetches `/SOGo/so/<user>/Mail/view` with a
-  Firefox-Android UA → asserts the override script and the desktop UA
-  literal are served; with a Chrome-Android UA and with a desktop
-  Firefox UA → asserts the override is absent. **Runs against a stack
-  deployed from this branch** (the shared stack still runs the previous
-  build; no deploys allowed for sub-agents).
-- In-app dry run (documented for reference, in `/tmp/opencode/rep6189/`):
-  Playwright loaded the real stack but injected exactly the override
-  line the patched template emits, before ckeditor.js; with the override
-  active the compose dialog opens and `hello 6189` lands in the
-  ng-model (`<p>hello 6189</p>`) in HTML mode and in the textarea in
-  text mode, with no page errors — i.e. the change is inert for
-  Chromium-class event flows and does not regress the working paths.
-- Stack hygiene: probes opened compose dialogs but never saved; Drafts
-  of sogo-tests2 verified empty (IMAP check) — no artifacts to clean.
+## Verification
 
-## Verification steps for the orchestrator
+- `local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c10-clean`
+  → **87 tests, 2 failures**, both the documented host-noise ones
+  (`test_NGInternetSocketAddressFromString`, dual-stack localhost;
+  `test_stringWithoutHTMLInjection`, GNUstep-base regex quirk) — no
+  change from the pre-cycle baseline.
+- The unit runner does not compile `UI/MailerUI`, so
+  `make -C UI/SOGoUI && make -C UI/MailerUI` was run explicitly on the
+  worktree: `UIxMailListActions.m` compiles and the `MailerUI` bundle
+  links (first link failed only on missing `-lSOGoUI`, a fresh-worktree
+  artefact, not the edit).
+- Worktree note: the generated `config.make` (host file, git-ignored)
+  was copied from the main checkout to make the fresh worktree
+  buildable; it is not part of the commit.
 
-After deploying this branch to the e2e stack (static volume reset per
-field notes), from any host:
+## Commit
 
-```bash
-# 1. session
-curl -s -c /tmp/rep6189.cookies -H 'Content-Type: application/json' \
-  -d '{"userName":"sogo-tests1","password":"sogo"}' http://127.0.0.1:50001/SOGo/connect/
-
-# 2. mail page as Firefox Mobile (mobile view): override MUST be present
-curl -s -b /tmp/rep6189.cookies \
-  -A 'Mozilla/5.0 (Android 16; Mobile; rv:149.0) Gecko/149.0 Firefox/149.0' \
-  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/view | \
-  grep -F "Object.defineProperty(navigator, 'userAgent'"
-# expected: one line ending with return 'Mozilla/5.0 (X11; Linux x86_64) Gecko/149 Firefox/149'; } });
-
-# 3. same page as Chrome Android and as desktop Firefox: override MUST be absent
-curl -s -b /tmp/rep6189.cookies \
-  -A 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36' \
-  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/view | grep -cF "defineProperty(navigator" ; echo  # expected 0
-curl -s -b /tmp/rep6189.cookies \
-  -A 'Mozilla/5.0 (X11; Linux x86_64; rv:149.0) Gecko/149.0 Firefox/149.0' \
-  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/view | grep -cF "defineProperty(navigator" ; echo  # expected 0
-
-# 4. e2e spec (inside the rebuilt container, per AGENTS.md) — covers all three assertions
-#    cd /workspace/Tests && npx jasmine --filter 'page frame ckeditor user agent override'
-```
-
-Real-device confirmation (only possible step that needs actual
-hardware): Firefox for Android → SOGo → compose → type in the body;
-characters must now appear. Before the fix they did not (Enter and
-Backspace only).
-
-Unit suite: `local/run-worktree-tests.sh
-~/Projets/hadrienblanc/sogo/wt/c10-6189` (87 tests, 2 known host-noise
-failures).
-
-## PR body draft
-
-Bug 6189 — on Firefox for Android in the mobile view, no text could be
-entered in the compose body: the keyboard opened, but characters were
-dropped, while Enter and Backspace kept working; plain Chrome on Android
-and Firefox's own "desktop view" on the same phone were fine. The body
-editor is CKEditor 5, whose typing feature picks an Android-specific
-input pipeline when its load-time environment sniff sees "android" in
-the user agent; that pipeline (an IME composition queue designed for
-Blink) mishandles Gecko's soft-keyboard composition flow — characters
-never reach the model, while keydown-driven keys such as Enter and
-Backspace still do. The reporter's workaround — switching SOGo to the
-desktop view, which simply removes "Android" from the UA — exercised
-CKEditor's desktop Gecko pipeline and worked, which pinned the root
-cause to that UA-conditional pipeline selection.
-
-AVANT: Firefox Android + mobile view → `navigator.userAgent` contains
-"Android" → CKEditor typing pipeline `isAndroid` → typed characters
-swallowed in the compose body (HTML mode), Enter/Backspace still
-functional; users must switch to desktop view to write a mail.
-APRÈS: the page frame (UIxPageFrame) detects Firefox-on-Android UAs
-server-side (Android + `Gecko/<digits>`, everything else untouched) and
-overrides `navigator.userAgent` with the equivalent desktop Firefox UA
-before ckeditor.js loads — exactly the state the reporter's working
-"desktop view" produced, now automatic; CKEditor then uses its standard
-Gecko pipeline and typing works in the mobile layout. Chrome on Android,
-iOS and desktop browsers are byte-for-byte unaffected (override not
-emitted), the emitted string is digits-only (no injection surface), 8
-unit tests cover the UA matrix including hostile inputs, and a new e2e
-spec locks the served page for Firefox-mobile vs Chrome-mobile vs
-desktop UAs.
+`refactor(tests): factor the SOGo bundle loader into SOGoTest` (+ the
+UIxMailListActions loop in the same commit, both cycle-diff cleanups).
+No push, no PR, no merge — branch `refactor/cycle-10` only.

@@ -20,8 +20,10 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#import <Foundation/NSBundle.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSException.h>
+#import <Foundation/NSFileManager.h>
 
 #import "SOGoTestRunner.h"
 
@@ -79,6 +81,33 @@ static NSString *_stringForCharacterAtIndex(NSUInteger index, NSString *str, NSU
     }
 
   return allTestClasses;
+}
+
++ (BOOL) loadSOGoBundle: (NSString *) bundleName
+            markerClass: (NSString *) className
+{
+  NSString *baseDir, *bundlePath;
+  NSBundle *bundle;
+
+  if (NSClassFromString (className))
+    return YES;
+
+  baseDir = [[[[NSFileManager defaultManager] currentDirectoryPath]
+                       stringByAppendingPathComponent: @"../.."]
+                     stringByStandardizingPath];
+  bundlePath = [[baseDir stringByAppendingPathComponent: @"SoObjects"]
+                         stringByAppendingPathComponent:
+                           [NSString stringWithFormat: @"%@/%@.SOGo",
+                                     bundleName, bundleName]];
+
+  if ([[NSFileManager defaultManager] fileExistsAtPath: bundlePath])
+    {
+      bundle = [[NSBundle alloc] initWithPath: bundlePath];
+      [bundle load];
+      [bundle release];
+    }
+
+  return (NSClassFromString (className) != Nil);
 }
 
 - (id) init
