@@ -1217,4 +1217,23 @@ static int cssEscapingCount;
   return s;
 }
 
+- (NSString *) ckEditorUserAgentOverride
+{
+  NSRange matched;
+  NSString *geckoVersion;
+
+  if ([self rangeOfString: @"Android"].location == NSNotFound)
+    return nil;
+
+  matched = [self rangeOfString: @"Gecko/[0-9]+"
+                         options: NSRegularExpressionSearch];
+  if (matched.location == NSNotFound)
+    return nil;
+
+  geckoVersion = [self substringWithRange: NSMakeRange(matched.location + 6, matched.length - 6)];
+
+  return [NSString stringWithFormat: @"Mozilla/5.0 (X11; Linux x86_64) Gecko/%@ Firefox/%@",
+                   geckoVersion, geckoVersion];
+}
+
 @end

@@ -697,6 +697,20 @@
 	   );
 }
 
+- (NSString *) ckEditorUserAgentOverride
+{
+  WEClientCapabilities *cc;
+
+  cc = [[context request] clientCapabilities];
+
+  return [[cc userAgent] ckEditorUserAgentOverride];
+}
+
+- (BOOL) hasCKEditorUserAgentOverride
+{
+  return ([self ckEditorUserAgentOverride] != nil);
+}
+
 @end /* UIxPageFrame */
 
 @interface UIxSidenavToolbarTemplate : UIxComponent
