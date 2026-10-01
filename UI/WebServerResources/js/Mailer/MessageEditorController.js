@@ -385,7 +385,6 @@
 
     this.setFromIdentity = function (identity) {
       var node, children, nl, reNl, nlNb, space, signature, previousIdentity;
-      var nl2, reNl2;
 
       if (identity && identity.full)
       {
@@ -398,10 +397,8 @@
 
       if (this.composeType == "html") {
         nl = '<br />';
-        reNl = '<br ?/>(&nbsp;)?[ \n]?';
+        reNl = '<br ?/?>(&nbsp;)?[ \n]?';
         space = '&nbsp;';
-        nl2 = '<br ?>';
-        reNl2 = '<br ?>(&nbsp;)?[ \n]?';
       } else {
         nl = '\n';
         reNl = '\n';
@@ -427,9 +424,10 @@
 
           if (currentIdentity.signature) {
             try {
-              //var currentSignature = new RegExp('(' + reNl + '){' + nlNb + '}--' + space + reNl +
-              //  currentIdentity.signature.replace(/[-\[\]{}()*+?.,\\^$|#\s]/g, '\\$&'));
-              var currentSignature = new RegExp('(<p>)?(<br ?\/?>(&nbsp;)?[ \\n]?)?--&nbsp;<br ?\/?>(&nbsp;)?[ \\n]?(<\/p>)?' + currentIdentity.signature)
+              var escapedSignature = currentIdentity.signature.replace(/[-\[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+              if (vm.composeType == "html")
+                escapedSignature = escapedSignature.replace(/<br(\\ | )?\\?\/?>/g, '<br ?\\/?>');
+              var currentSignature = new RegExp('(<p>)?(' + reNl + '){' + nlNb + '}--' + space + reNl + escapedSignature + '(<\/p>)?');
               if (vm.message.editable.text.search(currentSignature) >= 0) {
                 vm.message.editable.text = vm.message.editable.text.replace(currentSignature, signature);
                 return true;
@@ -440,7 +438,6 @@
               vm.message.editable.text += signature;
               return true;
             }
-            
           }
           return false;
         });
