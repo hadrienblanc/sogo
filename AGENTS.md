@@ -14,6 +14,22 @@ One Mantis ticket = one dev change = one PR merged into `experimental`.
 - Sub-agents never `git push`, never open PRs, never merge — they leave commits on their worktree branch and report back.
 - **Coverage goal on `experimental`: 100% of the code paths we touch** — a fix is not done until its branches (including error paths) are exercised by a test.
 
+## Autonomous orchestrator
+
+`local/orchestrator.py` drives the whole loop end to end — each cycle picks the next
+4 actionable Mantis tickets (SQLite cache in `local/issues/tickets.sqlite`, seeded from
+the scrape; recent tickets first, infra/packaging/connector topics and features
+skipped), spawns one `opencode run` fixing agent per ticket in a fresh worktree
+`wt/c<N>-<id>`, pushes one PR per fix with the ticket data and the agent's REPORT.md
+in the body, merges everything into `experimental` (auto-resolving the usual
+`Tests/Unit/GNUmakefile` conflict), runs a clean-code agent over the cycle diff,
+then rebuilds the stack (volume reset) and runs the full suites — any e2e failure
+is filed as a fixup ticket for the next cycle.
+
+- start: `nohup python3 local/orchestrator.py loop > /tmp/opencode/orch.out 2>&1 &`
+- stop:  `touch local/STOP` (remove it to allow a restart)
+- log:   `local/orchestrator.log` — subcommands: init, scrape, next [n], cycle N, loop
+
 ## Field notes (learned the hard way)
 
 - The `sogo-static-files` named volume shadows freshly built images: rebuilding the image does NOT update the running stack. Either `docker rm -f sogo_dev sogo_httpd && docker volume rm sogo-e2e_sogo-static-files && docker compose up -d`, or hot-deploy into the running container (docker cp + make + cp into /usr/local/lib/GNUstep).
