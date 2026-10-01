@@ -236,6 +236,7 @@
                 }
               else if ([o caseInsensitiveCompare: @"CUSTOM"] == NSOrderedSame)
                 {
+                  [self removeAllRecurrenceRules];
                   [self removeAllRecurrenceDates];
                   o = [repeat objectForKey: @"dates"];
                   if ([o isKindOfClass: [NSArray class]])
@@ -306,6 +307,7 @@
           if (frequency)
             {
               [rule setFrequency: frequency];
+              [self removeAllRecurrenceDates];
               [self setRecurrenceRules: [NSArray arrayWithObject: rule]];
             }
 
