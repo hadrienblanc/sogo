@@ -36,6 +36,7 @@
 #import <NGExtensions/NSString+Ext.h>
 #import <NGImap4/NGImap4Connection.h>
 #import <NGImap4/NGImap4Client.h>
+#import <NGImap4/NSString+Imap4.h>
 #import <NGImap4/NGSieveClient.h>
 #import <NGObjWeb/NSException+HTTP.h>
 
@@ -536,9 +537,23 @@ static NSString *sieveScriptName = @"sogo";
                 }
               else if ([method isEqualToString: @"fileinto"])
                 {
-                  mailbox
-                    = [[argument componentsSeparatedByString: @"/"]
-                          componentsJoinedByString: delimiter];
+                  NSEnumerator *e;
+                  NSMutableArray *components;
+                  NSString *component, *sieveFolderEncoding;
+
+                  sieveFolderEncoding = [[SOGoSystemDefaults sharedSystemDefaults] sieveFolderEncoding];
+                  components = [NSMutableArray array];
+                  e = [[argument componentsSeparatedByString: @"/"] objectEnumerator];
+                  while ((component = [e nextObject]))
+                    {
+                      if ([sieveFolderEncoding isEqualToString: @"UTF-8"])
+                        [components addObject: component];
+                      else
+                        [components addObject:
+                                       [component stringByDecodingImap4FolderName]];
+                    }
+
+                  mailbox = [components componentsJoinedByString: delimiter];
                   sieveAction = [NSString stringWithFormat: @"%@ %@",
                                           method, [mailbox asSieveQuotedString]];
                 }
