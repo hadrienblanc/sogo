@@ -85,7 +85,13 @@
 
 - (NSString *) subject
 {
-  return [sourceMail decodedSubject];
+  NSString *subject;
+
+  subject = [sourceMail decodedSubject];
+  if (htmlComposition)
+    subject = [subject stringByEscapingHTMLString];
+
+  return subject;
 }
 
 - (NSString *) date
