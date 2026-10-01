@@ -19,7 +19,12 @@
  */
 
 #import <Foundation/NSDictionary.h>
+#import <Foundation/NSString.h>
 
+#import <NGExtensions/NSString+Encoding.h>
+#import <NGExtensions/NSNull+misc.h>
+#import <NGHttp/NGHttpMessage.h>
+#import <NGMime/NGMimeType.h>
 #import <NGObjWeb/WOApplication.h>
 #import <NGObjWeb/WEClientCapabilities.h>
 #import <NGObjWeb/WORequest+So.h>
@@ -28,7 +33,59 @@
 
 #import "WORequest+SOGo.h"
 
+@interface WORequest (SOGoPrivateNGHttp)
+- (id) httpRequest;
+@end
+
 @implementation WORequest (SOGoSOPEUtilities)
+
++ (NSStringEncoding) davBodyEncodingForContentType: (NSString *) contentType
+{
+  NGMimeType *mimeType;
+  NSString *charset;
+  NSStringEncoding encoding;
+
+  if ((mimeType = [NGMimeType mimeType: contentType]) != nil)
+    {
+      charset = [mimeType valueOfParameter: @"charset"];
+      if ([charset isNotEmpty])
+        {
+          encoding = [NSString stringEncodingForEncodingNamed: charset];
+          if (encoding != 0)
+            return encoding;
+        }
+    }
+
+  return NSUTF8StringEncoding;
+}
+
+- (NSString *) davBodyAsString
+{
+  NSString *s;
+  NSData *content;
+  id body;
+
+  s = nil;
+  if ((content = [self content]) != nil)
+    {
+      s = [[[NSString alloc] initWithData: content
+                                  encoding: [WORequest davBodyEncodingForContentType:
+                                                     [self headerForKey: @"content-type"]]]
+            autorelease];
+      if (!s)
+        s = [[[NSString alloc] initWithData: content
+                                   encoding: NSISOLatin1StringEncoding]
+              autorelease];
+    }
+  else
+    {
+      body = [(NGHttpMessage *) [self httpRequest] body];
+      if ([body isKindOfClass: [NSString class]])
+        s = body;
+    }
+
+  return s;
+}
 
 - (BOOL) handledByDefaultHandler
 {

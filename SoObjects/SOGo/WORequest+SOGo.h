@@ -25,6 +25,9 @@
 
 @interface WORequest (SOGoSOPEUtilities)
 
++ (NSStringEncoding) davBodyEncodingForContentType: (NSString *) contentType;
+- (NSString *) davBodyAsString;
+
 - (BOOL) handledByDefaultHandler;
 - (NSDictionary *) davPatchedPropertiesWithTopTag: (NSString *) topTag;
 
