@@ -95,6 +95,12 @@ static EOQualifier *MailMatch(NSString *value, NSString *matchType,
              @"c_mail LIKE '*foo*'");
 }
 
+- (void) test_textMatchNegatedEqualsOnCommaSeparatedValues
+{
+  testEquals(SQLFor(MailMatch(@"a@b.c", @"equals", nil, YES, YES)),
+             @"( NOT ((UPPER(c_mail) LIKE UPPER('a@b.c')) OR (UPPER(c_mail) LIKE UPPER('a@b.c,*')) OR (UPPER(c_mail) LIKE UPPER('*,a@b.c')) OR (UPPER(c_mail) LIKE UPPER('*,a@b.c,*')))) OR (c_mail IS NULL)");
+}
+
 - (void) test_textMatchNegatedKeepsNullRows
 {
   testEquals(SQLFor(MailMatch(@"foo", @"contains", nil, NO, YES)),

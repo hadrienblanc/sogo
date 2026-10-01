@@ -374,7 +374,6 @@
   NGDOMElement *match;
   EOQualifier *qualifier;
   id <DOMNode> parentNode;
-  id <DOMNodeList> ranges;
   unsigned int i;
 
   qualifier = nil;
@@ -387,17 +386,25 @@
   if ([[(id)parentNode tagName] isEqualToString: @"filter"]
       && [self _isValidFilter: name])
     {
+      NSEnumerator *children;
+      id <DOMElement> child;
+
       qualifiers = [NSMutableArray array];
       criteria = [NSMutableArray array];
       test = [[filterElement attribute: @"test"] lowercaseString];
-      ranges = [filterElement getElementsByTagName: @"text-match"];
 
       [(id<SOGoContactFolder>)self addVCardProperty: name
                                          toCriteria: criteria];
 
-      for (i = 0; i < [ranges length]; i++)
+      children = [[filterElement childNodes] objectEnumerator];
+      while ((child = [children nextObject]))
         {
-          match = (NGDOMElement *)[ranges objectAtIndex: i];
+          if (![[child class] isSubclassOfClass: [NGDOMElement class]])
+            continue;
+          if (![(id)[child tagName] isEqualToString: @"text-match"])
+            continue;
+
+          match = (NGDOMElement *)child;
           if ([(NSArray *)[match childNodes] count])
             {
               EOQualifier *currentQualifier;
@@ -423,8 +430,20 @@
       if (![qualifiers count])
         {
           BOOL isNotDefined;
+          NSEnumerator *directChildren;
+          id <DOMElement> directChild;
 
-          isNotDefined = [[filterElement getElementsByTagName: @"is-not-defined"] length] > 0;
+          isNotDefined = NO;
+          directChildren = [[filterElement childNodes] objectEnumerator];
+          while ((directChild = [directChildren nextObject]))
+            {
+              if ([[directChild class] isSubclassOfClass: [NGDOMElement class]]
+                  && [(id)[directChild tagName] isEqualToString: @"is-not-defined"])
+                {
+                  isNotDefined = YES;
+                  break;
+                }
+            }
           if (isNotDefined)
             qualifier = [[self class] _cardDAVNotDefinedQualifierForKeys: criteria];
           else

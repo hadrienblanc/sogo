@@ -50,7 +50,7 @@ $(TEST_TOOL)_CPPFLAGS += \
 
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
-	-L/usr/local/lib  -lSaxObjC -lNGStreams -lEOControl \
+	-L/usr/local/lib  -lSaxObjC -lNGStreams -lEOControl -lDOM \
 	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj
 ADDITIONAL_LDFLAGS += -Wl,--no-as-needed
 
