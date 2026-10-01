@@ -18,6 +18,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestVersit.m \
 	TestiCalTimeZonePeriod.m \
 	TestiCalRecurrenceCalculator.m \
+	TestNSCalendarDateClamping.m \
 	\
 	TestSBJsonParser.m \
 	\
