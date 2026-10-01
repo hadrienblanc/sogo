@@ -860,13 +860,17 @@ NSString *SOGoPasswordRecoverySecondaryEmail = @"SecondaryEmail";
   // Remove possible XSS injection
   mailIdentities = [NSMutableArray arrayWithArray: [self arrayForKey: @"SOGoMailIdentities"]];
   for (i = 0 ; i < [mailIdentities count] ; i++) {
-    mailIdentity = [NSMutableDictionary dictionaryWithDictionary: [mailIdentities objectAtIndex: i]];
-    if (mailIdentity && [mailIdentity objectForKey: @"fullName"]) {
-      fullName = [NSString stringWithString: [mailIdentity objectForKey: @"fullName"]];
-      if (fullName) {
-        [mailIdentity setObject: [fullName stringWithoutHTMLInjection: YES stripAngular:NO] forKey: @"fullName"];
-        [mailIdentities setObject: mailIdentity atIndexedSubscript: i];
-      }
+    id storedIdentity;
+
+    storedIdentity = [mailIdentities objectAtIndex: i];
+    if (![storedIdentity isKindOfClass: [NSDictionary class]])
+      continue;
+
+    fullName = [storedIdentity objectForKey: @"fullName"];
+    if ([fullName isKindOfClass: [NSString class]]) {
+      mailIdentity = [NSMutableDictionary dictionaryWithDictionary: storedIdentity];
+      [mailIdentity setObject: [fullName stringWithoutHTMLInjection: YES stripAngular:NO] forKey: @"fullName"];
+      [mailIdentities replaceObjectAtIndex: i withObject: mailIdentity];
     }
   }
 
