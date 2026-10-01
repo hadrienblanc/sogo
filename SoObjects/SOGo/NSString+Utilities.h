@@ -38,6 +38,8 @@
 
 - (NSString *) urlWithoutParameters;
 
+- (NSString *) variantByUnescapingURL;
+
 - (NSString *) stringByDetectingURLs;
 
 /* escaping */
