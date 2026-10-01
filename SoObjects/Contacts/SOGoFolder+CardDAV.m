@@ -177,12 +177,31 @@
   return isValid;
 }
 
++ (EOQualifier *) _cardDAVCombineQualifiers: (NSArray *) qualifiers
+                                       test: (NSString *) test
+{
+  EOQualifier *qualifier;
+
+  if ([qualifiers count] > 1)
+    {
+      if ([test isEqualToString: @"allof"])
+        qualifier = [[[EOAndQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+      else
+        qualifier = [[[EOOrQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+    }
+  else if ([qualifiers count])
+    qualifier = [qualifiers objectAtIndex: 0];
+  else
+    qualifier = nil;
+
+  return qualifier;
+}
+
 + (EOQualifier *) _cardDAVQualifierForKeys: (NSArray *) keys
                                  operator: (SEL) operator
                                     value: (id) value
 {
   NSMutableArray *qualifiers;
-  EOQualifier *qualifier;
   NSEnumerator *e;
   NSString *key;
 
@@ -193,14 +212,7 @@
                                                       operatorSelector: operator
                                                                 value: value] autorelease]];
 
-  if ([qualifiers count] > 1)
-    qualifier = [[[EOOrQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
-  else if ([qualifiers count])
-    qualifier = [qualifiers objectAtIndex: 0];
-  else
-    qualifier = nil;
-
-  return qualifier;
+  return [self _cardDAVCombineQualifiers: qualifiers test: @"anyof"];
 }
 
 + (EOQualifier *) _cardDAVDefinedQualifierForKeys: (NSArray *) keys
@@ -213,7 +225,6 @@
 + (EOQualifier *) _cardDAVNotDefinedQualifierForKeys: (NSArray *) keys
 {
   NSMutableArray *qualifiers;
-  EOQualifier *qualifier;
   NSEnumerator *e;
   NSString *key;
 
@@ -231,14 +242,7 @@
                                                             value: nil] autorelease],
                        nil]] autorelease]];
 
-  if ([qualifiers count] > 1)
-    qualifier = [[[EOAndQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
-  else if ([qualifiers count])
-    qualifier = [qualifiers objectAtIndex: 0];
-  else
-    qualifier = nil;
-
-  return qualifier;
+  return [self _cardDAVCombineQualifiers: qualifiers test: @"allof"];
 }
 
 + (NSArray *) _cardDAVPatternsForValue: (NSString *) value
@@ -335,48 +339,23 @@
         [perKeyQualifiers addObject: match];
     }
 
-  if ([perKeyQualifiers count] > 1)
-    {
-      if (negated)
-        return [[[EOAndQualifier alloc] initWithQualifierArray: perKeyQualifiers] autorelease];
-      return [[[EOOrQualifier alloc] initWithQualifierArray: perKeyQualifiers] autorelease];
-    }
-  if ([perKeyQualifiers count])
-    return [perKeyQualifiers objectAtIndex: 0];
-  return nil;
-}
-
-+ (EOQualifier *) _cardDAVCombineQualifiers: (NSArray *) qualifiers
-                                       test: (NSString *) test
-{
-  EOQualifier *qualifier;
-
-  if ([qualifiers count] > 1)
-    {
-      if ([test isEqualToString: @"allof"])
-        qualifier = [[[EOAndQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
-      else
-        qualifier = [[[EOOrQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
-    }
-  else if ([qualifiers count])
-    qualifier = [qualifiers objectAtIndex: 0];
-  else
-    qualifier = nil;
-
-  return qualifier;
+  return [self _cardDAVCombineQualifiers: perKeyQualifiers
+                                    test: (negated ? @"allof" : @"anyof")];
 }
 
 - (EOQualifier *) _parseContactFilter: (id <DOMElement>) filterElement // a prop-filter element
 {
   NSMutableArray *qualifiers;
   NSMutableArray *criteria;
+  NSEnumerator *children;
+  id <DOMElement> child;
   NSString *name, *test;
-  NGDOMElement *match;
   EOQualifier *qualifier;
   id <DOMNode> parentNode;
-  unsigned int i;
+  BOOL isNotDefined;
 
   qualifier = nil;
+  isNotDefined = NO;
 
   parentNode = [filterElement parentNode];
   name = [[filterElement attribute: @"name"] lowercaseString];
@@ -386,9 +365,6 @@
   if ([[(id)parentNode tagName] isEqualToString: @"filter"]
       && [self _isValidFilter: name])
     {
-      NSEnumerator *children;
-      id <DOMElement> child;
-
       qualifiers = [NSMutableArray array];
       criteria = [NSMutableArray array];
       test = [[filterElement attribute: @"test"] lowercaseString];
@@ -399,27 +375,26 @@
       children = [[filterElement childNodes] objectEnumerator];
       while ((child = [children nextObject]))
         {
-          if (![[child class] isSubclassOfClass: [NGDOMElement class]])
+          if (![child conformsToProtocol: @protocol (DOMElement)])
             continue;
-          if (![(id)[child tagName] isEqualToString: @"text-match"])
-            continue;
-
-          match = (NGDOMElement *)child;
-          if ([(NSArray *)[match childNodes] count])
+          if ([[(id)child tagName] isEqualToString: @"is-not-defined"])
+            isNotDefined = YES;
+          else if ([[(id)child tagName] isEqualToString: @"text-match"]
+                   && [(NSArray *)[child childNodes] count])
             {
               EOQualifier *currentQualifier;
               NSString *currentMatchType, *currentMatch;
               BOOL negated;
 
-              currentMatch = [match textValue];
-              currentMatchType = [[match attribute: @"match-type"] lowercaseString];
-              negated = [[[match attribute: @"negate-condition"] lowercaseString]
+              currentMatch = [child textValue];
+              currentMatchType = [[child attribute: @"match-type"] lowercaseString];
+              negated = [[[child attribute: @"negate-condition"] lowercaseString]
                           isEqualToString: @"yes"];
 
               currentQualifier = [[self class] _cardDAVTextMatchQualifierForKeys: criteria
                                                                             value: currentMatch
                                                                        matchType: currentMatchType
-                                                                       collation: [[match attribute: @"collation"] lowercaseString]
+                                                                       collation: [[child attribute: @"collation"] lowercaseString]
                                                                  commaSeparated: ([name isEqualToString: @"email"]
                                                                                    || [name isEqualToString: @"mail"])
                                                                          negated: negated];
@@ -429,21 +404,6 @@
 
       if (![qualifiers count])
         {
-          BOOL isNotDefined;
-          NSEnumerator *directChildren;
-          id <DOMElement> directChild;
-
-          isNotDefined = NO;
-          directChildren = [[filterElement childNodes] objectEnumerator];
-          while ((directChild = [directChildren nextObject]))
-            {
-              if ([[directChild class] isSubclassOfClass: [NGDOMElement class]]
-                  && [(id)[directChild tagName] isEqualToString: @"is-not-defined"])
-                {
-                  isNotDefined = YES;
-                  break;
-                }
-            }
           if (isNotDefined)
             qualifier = [[self class] _cardDAVNotDefinedQualifierForKeys: criteria];
           else
