@@ -245,6 +245,7 @@
 "All day Event" = "Tot el dia";
 "check for conflicts" = "Cercar conflictes";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Afegir assistent";
 
 /* calendar modes */

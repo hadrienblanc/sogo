@@ -53,6 +53,9 @@ extern NSNumber *iCalDistantFutureNumber;
 
 - (NSArray *) attendeesWithoutUser: (SOGoUser *) user;
 
+- (NSArray *) attachUrlsForEditor;
+- (void) setAttachUrlsFromEditor: (NSArray *) attachUrls;
+
 - (int) priorityNumber;
 - (NSDictionary *) createdBy;
 

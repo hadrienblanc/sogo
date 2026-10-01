@@ -245,6 +245,7 @@
 "All day Event" = "Egun osoko ekitaldia";
 "check for conflicts" = "Aztertu gatazka";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Gehitu partaidea";
 
 /* calendar modes */

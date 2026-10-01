@@ -245,6 +245,7 @@
 "All day Event" = "Evento dia todo";
 "check for conflicts" = "Verificar conflitos";
 "URL" = "URL";
+"Document URL" = "URL do documento";
 "newAttendee" = "Adicionar participante";
 
 /* calendar modes */

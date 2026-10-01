@@ -245,6 +245,7 @@
 "All day Event" = "全天事件";
 "check for conflicts" = "檢查衝突事件";
 "URL" = "網址";
+"Document URL" = "Document URL";
 "newAttendee" = "增加出席者";
 
 /* calendar modes */

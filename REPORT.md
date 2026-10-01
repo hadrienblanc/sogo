@@ -1,129 +1,133 @@
-# Bug 6192 — Clicking "Reply" freezes Firefox (75 MB JSON response)
+# Bug 6191 — edited URL property is re-saved as ATTACH (RFC 5545 violation)
 
-Branch: `fix-6192-mantis` — commit `ca7c877db` — `fix(mail): inline a quoted image only once when replying (bug 6192)`
+Branch: `fix-6191-mantis` — commit `773a8dc61` — `fix(calendar): save edited URL property back to URL instead of ATTACH (bug 6191)`
 
 ## Root cause (file:line)
 
-When the user clicks **Reply**, the webmail makes two calls:
-`GET <message>/reply` (creates the draft, `UI/MailerUI/UIxMailActions.m:45-72`)
-then `GET <draft>/edit` (`UI/MailerUI/UIxMailEditor.m:754-796`), whose JSON
-carries the whole reply body — this is the 75 MB response.
+The web editor shows ATTACH properties **and** the VEVENT `URL` property
+(RFC 5545 §3.8.4.6) in a single editable list, but the two were
+indistinguishable in the save payload:
 
-On a thread with multiple replies, the quoted HTML contains the **same
-`<img src="cid:...">` at every quote level** (the image part exists once in
-MIME, but each quoting level re-references it). During `/edit`,
-`-setBase64ImagesInText:` (before the fix, `UI/MailerUI/UIxMailEditor.m:709-749`)
-did:
+- **Read** — `-[UIxComponentEditor attachUrls]` (before the fix,
+  `UI/Scheduler/UIxComponentEditor.m:595-625`): ATTACH values were
+  returned as `{value: ...}` dictionaries and the URL property value was
+  appended with **no marker**. (It also appended a phantom
+  `{"value": ""}` entry for events without a URL, because
+  `+[NSURL URLWithString:@""]` is non-nil on GNUstep.)
+- **Write** — `-[UIxComponentEditor setAttributes:]`
+  (`UI/Scheduler/UIxComponentEditor.m:660-687`): all existing ATTACH
+  children were removed, then every submitted value was written back as
+  an ATTACH, **except** values equal to the current URL property
+  (dedup). The URL property itself was never updated nor removable.
 
-```objc
-lText = [text stringByReplacingOccurrencesOfString: contentId     // replaces EVERY occurrence
-        withString: [NSString stringWithFormat: @"data:%@;base64,%@", ...]];
-```
+So when a user *edited* the URL row (e.g. `https://www.uni-ulm.de` →
+`https://www.uni-ulm.de/icq`), the new value no longer matched the
+original URL: it landed in ATTACH while the original URL stayed → two
+links, and iOS shows the ATTACH one as a broken attachment (an ATTACH
+that is not a downloadable document).
 
-`stringByReplacingOccurrencesOfString:` replaces **all** occurrences of the cid,
-so the full base64 image payload is duplicated **once per quote level**:
-3.5 MB mail with a ~2.5 MB inline image referenced ~21 times →
-21 × 1.33 × 2.5 MB ≈ 75 MB of `data:` URIs in the JSON. The browser must then
-parse/scrub that string (Message.service.js regexes + CKEditor) → the reported
-Firefox freeze (2 CPU cores, 3 GB RAM). The same duplication would also be sent:
-on `send`, each `data:` URI is converted back to its own MIME part
-(`SoObjects/Mailer/NSString+Mail.m:280-388`), so the outgoing reply would carry
-N identical image parts.
-
-Secondary amplifier in the same method: `[draft fetchAttachmentAttrs]` was
-evaluated twice (once in the `if`, once in the `for`); each call re-reads every
-attachment file and base64-encodes it.
+Reproduced live on the shared stack (sogo-tests3): CalDAV PUT of an
+event with `URL;VALUE=URI:https://www.uni-ulm.de`, then a web-editor
+`save` POST with `attachUrls:[{"value":"https://www.uni-ulm.de/icq"}]`
+produced exactly the ticket's ICS: unchanged `URL:` **plus**
+`ATTACH:https://www.uni-ulm.de/icq`.
 
 ## What changed (before/after)
 
-1. `SoObjects/SOGo/NSString+Utilities.h/.m` — new generic helper
-   `-stringByReplacingFirstOccurrenceOfString:withString:` (returns the receiver
-   unchanged when the target is absent, single range replacement otherwise).
-2. `UI/MailerUI/UIxMailEditor.m` (`setBase64ImagesInText:`):
+Implementation of the reporter's resolution **C** ("allow editing the
+URL property, but save it back to URL instead of ATTACH"), plus
+recommendation **2** (label). The merge/split logic moved verbatim into
+a testable category on `iCalEntityObject`
+(`SoObjects/Appointments/iCalEntityObject+SOGo.m:369-431`):
 
 | | Before | After |
 |---|---|---|
-| cid inlining | replaces **all** occurrences of the cid with the base64 `data:` URI → payload × N | replaces only the **first** occurrence → payload × 1 |
-| attachment attrs | `fetchAttachmentAttrs` called **twice** | called **once** |
+| view JSON of URL property | `{value}` — indistinguishable from ATTACH | `{value, isUrl: true}` (flag round-trips through the AngularJS editor: `ng-model` keeps object identity, `$omit` deep-copies) |
+| save of an **edited** URL row | new value written as **ATTACH**, old URL kept → two links | flagged value written back to the **URL** property (`-[iCalEntityObject setUrl:]`), no ATTACH twin |
+| save without any `isUrl` flag (legacy/API clients) | dedup: values equal to the URL property skipped, URL untouched | **identical** (legacy fallback preserved) |
+| deleting/clearing the URL row | URL property kept | unchanged (URL kept — conservative, iOS treats URL as immutable) |
+| event with ATTACH but no URL | view JSON carried a trailing phantom `{"value": ""}` row | phantom row gone |
+| editor row labels | every row labelled "URL" | URL-property row: "URL"; attachment rows: "Document URL" (`UIxAppointmentEditorTemplate.wox:144-145`, `UIxTaskEditorTemplate.wox:112-113`), key added to all 47 `UI/Scheduler/*.lproj/Localizable.strings` (translated for fr/de/es/it/pt/nl/da/sv/no, English elsewhere, following the existing untranslated-key convention) |
 
-Deep-quote occurrences of the cid are left as-is (`cid:` refs, attachment
-deleted exactly as before), so the editor shows the image at the most recent
-quote level instead of freezing; the single-reference case (the overwhelming
-majority) behaves identically to before.
+`UIxComponentEditor attachUrls` / `setAttributes:` now delegate to the
+category (`-[iCalEntityObject attachUrlsForEditor]` /
+`-setAttachUrlsFromEditor:`); invalid entries (non-dict, missing/empty
+value) are ignored instead of risking `addObject:nil`.
 
 ## Tests
 
-- `Tests/Unit/TestNSString+Utilities.m` — new
-  `test_stringByReplacingFirstOccurrenceOfString` covering both branches of the
-  helper: target absent (returns receiver unchanged, incl. empty string),
-  single occurrence, multiple occurrences (only first replaced), match at
-  start/middle/end, overlapping matches, empty replacement.
-  Execution verified by mutation (deliberately wrong assertion →
-  `FAIL: test_stringByReplacingFirstOccurrenceOfString`, then restored).
-- Full suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c10-6192`
-  → **71 tests, 2 failures**, both pre-documented host noise
+- New `Tests/Unit/TestiCalEntityObjectAttachUrls.m` (registered in
+  `Tests/Unit/GNUmakefile`), 8 tests covering every branch of both
+  methods: getter with URL+ATTACH (flag position/value), ATTACH-only
+  (no phantom entry), edited URL saved back to URL with no ATTACH,
+  edited URL + resubmitted ATTACH kept, legacy unflagged submission
+  (dedup + URL preserved), unflagged submission does not delete the URL
+  property, invalid entries ignored (non-dict, no value key, empty
+  value, empty flagged value), empty flagged value leaves URL
+  unchanged. Execution proven by mutation (broken assertion → FAIL,
+  restored).
+- Full suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c10-6191`
+  → **79 tests, 2 failures**, both pre-documented host noise
   (`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
-- `UI/MailerUI` compiles and links (`make` in `UI/SOGoUI`, `UI/Common`,
-  `UI/MailerUI` after copying the main checkout's generated `config.make` into
-  the worktree — worktrees don't carry untracked build files).
+- `UI/SOGoUI`, `UI/Common`, `UI/Scheduler` compile and link against the
+  change (copied the main checkout's generated `config.make` into the
+  worktree — worktrees don't carry untracked build files).
 
 ## Verification steps for the orchestrator
 
-Reproduced live (unfixed stack) — 0.14 MB message with a 100 KB inline image
-referenced 40 times → `/edit` response **5,485,865 bytes** containing
-`data:image/png;base64,` **40 times** (40× blowup). Script kept at
-`/tmp/opencode/test-6192-repro.py`. After deploy, rerun:
+Reproduction artifacts were cleaned up (both test events deleted,
+204). After deploying this branch to the e2e stack, rerun:
 
 ```bash
-python3 /tmp/opencode/test-6192-repro.py   # if gone: re-craft per REPORT appendix
+U=sogo-tests3; P=sogo; D=/tmp/opencode/rep6191
+curl -s -o /dev/null -w 'PUT: %{http_code}\n' -u $U:$P -X PUT \
+  -H 'Content-Type: text/calendar; charset=utf-8' \
+  --data-binary @$D/test-6191-url.ics \
+  http://127.0.0.1:50001/SOGo/dav/$U/Calendar/personal/test-6191-urlattach.ics
+curl -s -c $D/cookies.txt -H 'Content-Type: application/json' \
+  -d '{"userName":"'$U'","password":"'$P'"}' http://127.0.0.1:50001/SOGo/connect
+# 1. view must flag the URL entry:  "attachUrls":[{"value":"https://www.uni-ulm.de","isUrl":true}]
+curl -s -b $D/cookies.txt http://127.0.0.1:50001/SOGo/so/$U/Calendar/personal/test-6191-urlattach.ics/view
+# 2. save the EDITED url as the web UI would (flag round-trip)
+XSRF=$(grep XSRF $D/cookies.txt | awk '{print $7}')
+curl -s -b $D/cookies.txt -H "X-XSRF-TOKEN: $XSRF" -H 'Content-Type: application/json' -X POST \
+  -d '{"attachUrls":[{"value":"https://www.uni-ulm.de/icq","isUrl":true}],"summary":"test-6191 URL edit","location":"office","classification":"confidential","isAllDay":0,"startDate":"2026-04-30","startTime":"15:15","endDate":"2026-04-30","endTime":"16:15","timezone":"Europe/Berlin","sendAppointmentNotifications":0,"pid":"personal","destinationCalendar":"personal"}' \
+  http://127.0.0.1:50001/SOGo/so/$U/Calendar/personal/test-6191-urlattach.ics/save
+# 3. ICS must contain URL:https://www.uni-ulm.de/icq and NO ATTACH
+curl -s -u $U:$P http://127.0.0.1:50001/SOGo/dav/$U/Calendar/personal/test-6191-urlattach.ics | grep -E 'URL|ATTACH'
+# cleanup
+curl -s -o /dev/null -w 'DELETE: %{http_code}\n' -u $U:$P -X DELETE \
+  http://127.0.0.1:50001/SOGo/dav/$U/Calendar/personal/test-6191-urlattach.ics
 ```
 
-Manual equivalent (user sogo-tests2, password sogo):
-
-1. APPEND via IMAP (127.0.0.1:1430) a `multipart/related` message: subject
-   `test-6192-thread`, text/html with `<img src="cid:IMG6192@sogo">` ×40, plus
-   one `image/png` part (Content-ID `<IMG6192@sogo>`, base64, ~100 KB).
-2. `POST http://127.0.0.1:50001/SOGo/connect` with
-   `{"userName":"sogo-tests2","password":"sogo"}` → keep `0xHIGHFLYxSOGo` and
-   `XSRF-TOKEN` cookies (basic auth is NOT honoured for these `so` URLs).
-3. `GET /SOGo/so/sogo-tests2/Mail/0/folderINBOX/<uid>/reply` (Cookie header)
-   → 201 JSON `{accountId, mailboxPath, draftId}`.
-4. `GET /SOGo/so/sogo-tests2/Mail/0/folderDrafts/<draftId>/edit` (Cookie header)
-   → measure size.
-
-- BEFORE fix: 5.49 MB, `data:image/png;base64,` ×40, `cid:IMG6192@sogo` ×0.
-- AFTER fix (expected): ~135 KB (+ quoted HTML), `data:image/png;base64,` ×1,
-  `cid:IMG6192@sogo` ×39 (deep-quote refs left in place).
-5. Cleanup: `GET .../folderDrafts/<draftId>/delete` (204), IMAP
-   `STORE <uid> +FLAGS \Deleted; EXPUNGE` on INBOX and Drafts
-   (subject `test-6192`). Already done — INBOX/Drafts verified empty of
-   `test-6192*`; one ~100 KB spool dir of a draft whose HTTP delete 404'd
-  (deleted only via IMAP) may linger inside the container until volume reset.
-6. Unit suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c10-6192`.
+- BEFORE fix (measured): step 3 returns `URL;VALUE=URI:https://www.uni-ulm.de` +
+  `ATTACH:https://www.uni-ulm.de/icq`.
+- AFTER fix (expected): step 1 flags `"isUrl":true`; step 3 returns only
+  `URL:https://www.uni-ulm.de/icq` (no ATTACH).
+- Unit suite: `local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c10-6191`.
+- Source of `test-6191-url.ics` kept at `/tmp/opencode/rep6191/test-6191-url.ics`
+  (event with `URL;VALUE=URI:https://www.uni-ulm.de`, UID `test-6191-urlattach`).
 
 ## PR body draft
 
-Bug 6192 — clicking "Reply" on an email with multiple replies made SOGo answer
-the draft `/edit` request with a gigantic JSON payload (reported: 75 MB for a
-3.5 MB message), freezing Firefox (2 cores / 3 GB RAM). The cause is in
-`UIxMailEditor -setBase64ImagesInText:`: on long threads the same
-`<img src="cid:...">` is referenced at every quoting level, and the code used
-`stringByReplacingOccurrencesOfString:` to swap each cid with the full base64
-`data:` URI — duplicating the image payload once per quote level. The same
-duplication would then be sent out, since every `data:` URI is converted back
-to its own MIME part on send.
+Bug 6191 — a VEVENT carrying a URL property (RFC 5545 §3.8.4.6, e.g.
+added from iOS Calendar) is shown as a clickable link in the web
+calendar, but the editor merges it into the attachment list with no
+marker. On save, the code only skipped values *equal* to the existing
+URL property and wrote everything else to ATTACH — so editing the link
+produced both an unchanged `URL:` and a new `ATTACH:` (two links), and
+iOS then shows a broken "attachment" since the URL is not a downloadable
+document. Reproduced on the dev stack exactly as in the ticket.
 
-AVANT: reply to a thread quoting an inline image N times → `/edit` JSON ≈
-N × 1.33 × image size. Reproduced on the dev stack: 0.14 MB message (100 KB
-image referenced 40×) → 5.49 MB response, `data:image/png;base64,` ×40; with
-the reporter's 2.5 MB image ×21 levels → the 75 MB freeze.
-
-APRÈS: only the first occurrence of each content id is inlined (a new
-`-stringByReplacingFirstOccurrenceOfString:withString:` helper on NSString),
-and the draft attachment attrs are fetched once instead of twice. Same
-reproduction now yields a ~135 KB response with the image inlined once;
-deeper quote levels keep their `cid:` references (broken-image placeholder at
-worst) instead of freezing the browser. Single-reference mails (the common
-case) are strictly unchanged; covered by a new unit test in
-`Tests/Unit/TestNSString+Utilities.m` (suite: 71 tests, only the two known
-host-noise failures).
+AVANT: edit `https://www.uni-ulm.de` → `https://www.uni-ulm.de/icq` in
+the web editor → ICS keeps `URL;VALUE=URI:https://www.uni-ulm.de` and
+gains `ATTACH:https://www.uni-ulm.de/icq`; the attachment is unusable on
+iOS. APRÈS: the view payload flags the URL-sourced entry
+(`isUrl: true`, round-tripped through the AngularJS editor), and a
+flagged value is saved back to the `URL` property — the ICS ends with a
+single `URL:https://www.uni-ulm.de/icq` and no ATTACH twin. Unflagged
+payloads keep the legacy dedup behaviour (API clients unaffected),
+attachment rows are now labelled "Document URL" (47 locales), the
+phantom empty URL row is gone, and 8 new unit tests cover every branch
+of the merge/split logic (suite: 79 tests, only the two known host-noise
+failures).

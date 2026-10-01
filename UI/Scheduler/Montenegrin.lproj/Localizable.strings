@@ -245,6 +245,7 @@
 "All day Event" = "Cjelodnevni događaj";
 "check for conflicts" = "Provjeri da li ima konflikata";
 "URL" = "Link";
+"Document URL" = "Document URL";
 "newAttendee" = "Dodaj polaznika";
 
 /* calendar modes */

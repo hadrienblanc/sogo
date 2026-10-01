@@ -367,6 +367,69 @@ NSNumber *iCalDistantFutureNumber = nil;
   // - timestamps (creation/modification)
 }
 
+- (NSArray *) attachUrlsForEditor
+{
+  NSMutableArray *attachUrls;
+  NSArray *values;
+  NSString *attachUrl, *urlValue;
+  NSUInteger count, max;
+
+  values = [self attach];
+  max = [values count];
+  attachUrls = [NSMutableArray arrayWithCapacity: max];
+  for (count = 0; count < max; count++)
+    {
+      attachUrl = [values objectAtIndex: count];
+      if ([attachUrl length] > 0)
+        [attachUrls addObject: [NSDictionary dictionaryWithObject: attachUrl
+                                                           forKey: @"value"]];
+    }
+
+  urlValue = [[self url] absoluteString];
+  if ([urlValue length] > 0)
+    [attachUrls addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                             urlValue, @"value",
+                                             [NSNumber numberWithBool: YES], @"isUrl",
+                                             nil]];
+
+  return attachUrls;
+}
+
+- (void) setAttachUrlsFromEditor: (NSArray *) attachUrls
+{
+  NSMutableArray *newAttachUrls;
+  NSString *urlValue, *currentUrlValue, *value;
+  id o;
+  NSUInteger count, max;
+
+  [self removeChildren: [self childrenWithTag: @"attach"]];
+
+  currentUrlValue = [[self url] absoluteString];
+  urlValue = nil;
+  newAttachUrls = [NSMutableArray arrayWithCapacity: [attachUrls count]];
+  max = [attachUrls count];
+  for (count = 0; count < max; count++)
+    {
+      o = [attachUrls objectAtIndex: count];
+      if (![o isKindOfClass: [NSDictionary class]])
+        continue;
+      value = [o objectForKey: @"value"];
+      if (![value isKindOfClass: [NSString class]] || [value length] == 0)
+        continue;
+      if ([[o objectForKey: @"isUrl"] boolValue])
+        urlValue = value;
+      else if ([currentUrlValue isEqualToString: value])
+        continue;
+      else
+        [newAttachUrls addObject: value];
+    }
+
+  if ([urlValue length] > 0)
+    [self setUrl: urlValue];
+
+  [self setAttach: newAttachUrls];
+}
+
 - (BOOL) userIsAttendee: (SOGoUser *) user
 {
   NSEnumerator *attendees;

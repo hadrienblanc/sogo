@@ -19,6 +19,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalTimeZonePeriod.m \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
+	TestiCalEntityObjectAttachUrls.m \
 	TestNSCalendarDateClamping.m \
 	\
 	TestSBJsonParser.m \
