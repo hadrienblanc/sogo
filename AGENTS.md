@@ -14,6 +14,13 @@ One Mantis ticket = one dev change = one PR merged into `experimental`.
 - Sub-agents never `git push`, never open PRs, never merge — they leave commits on their worktree branch and report back.
 - **Coverage goal on `experimental`: 100% of the code paths we touch** — a fix is not done until its branches (including error paths) are exercised by a test.
 
+## Field notes (learned the hard way)
+
+- The `sogo-static-files` named volume shadows freshly built images: rebuilding the image does NOT update the running stack. Either `docker rm -f sogo_dev sogo_httpd && docker volume rm sogo-e2e_sogo-static-files && docker compose up -d`, or hot-deploy into the running container (docker cp + make + cp into /usr/local/lib/GNUstep).
+- jasmine `--filter` matches the full spec title (describe + it), not the file name.
+- The vacation sieve specs can flake under load (dovecot auth worker starvation from rapid managesieve logins) — rerun in isolation before blaming a change.
+- When merging several agent branches: they all touch `Tests/Unit/GNUmakefile`; resolve by keeping every added test file and every added link flag.
+
 ## Handy reference
 
 - Unit suite runner: `local/run-worktree-tests.sh <worktree>`
