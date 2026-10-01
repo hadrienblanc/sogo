@@ -49,6 +49,10 @@
 - (NSString *) asCSSIdentifier;
 - (NSString *) fromCSSIdentifier;
 
+/* IMAP mail labels */
+- (NSString *) stringByEncodingImap4LabelName;
+- (NSString *) stringByDecodingImap4LabelName;
+
 /* JavaScript safety */
 - (NSString *) asSafeJSString;
 

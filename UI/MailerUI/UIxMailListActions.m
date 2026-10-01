@@ -606,9 +606,9 @@
                   for (j = 0 ; j < [flags count] ; j++) {
                     if (j > 0)
                       searchString = [NSString stringWithFormat: @"%@ AND", searchString];
-                    searchString = [NSString stringWithFormat: @"%@ (flags = '%@')", 
-                                      searchString, 
-                                      [[flags objectAtIndex: j] stringByReplacingOccurrencesOfString: @"_$" withString:@"$"]];
+                    searchString = [NSString stringWithFormat: @"%@ (flags = '%@')",
+                                      searchString,
+                                      [[[flags objectAtIndex: j] stringByReplacingOccurrencesOfString: @"_$" withString:@"$"] stringByEncodingImap4LabelName]];
                   }
                   searchString = [NSString stringWithFormat: @"%@)", searchString];
                 }
@@ -665,7 +665,7 @@
           labelQualifiers = [NSMutableArray arrayWithCapacity: max];
             for (i = 0; i < max; i++)
             {
-              label = [labels objectAtIndex: i];
+              label = [[labels objectAtIndex: i] stringByEncodingImap4LabelName];
               qualifier = [EOQualifier qualifierWithQualifierFormat: @"(flags = %@)", label];
               [labelQualifiers addObject: qualifier];
             }
@@ -1124,7 +1124,7 @@
   NSArray *to, *from;
   NSDictionary *msgs;
   NSString *msgDate;
-  int count;
+  int count, j;
 
   count = [uids count];
   headers = [NSMutableArray arrayWithCapacity: count];
@@ -1217,6 +1217,9 @@
           [tags removeObject: @"recent"];
           [tags removeObject: @"seen"];
           [tags removeObject: @"$forwarded"];
+          for (j = [tags count] - 1; j >= 0; j--)
+            [tags replaceObjectAtIndex: j
+                            withObject: [[tags objectAtIndex: j] stringByDecodingImap4LabelName]];
           [msg addObject: tags];
 
           // UID

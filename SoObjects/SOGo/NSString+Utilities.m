@@ -632,6 +632,91 @@ static int cssEscapingCount;
 }
 
 
+- (NSString *) stringByEncodingImap4LabelName
+{
+  NSMutableString *encoded;
+  unichar currentChar;
+  NSUInteger count, max;
+  BOOL isAtomSafe;
+
+  max = [self length];
+  isAtomSafe = (max > 0);
+  for (count = 0; isAtomSafe && count < max; count++)
+    {
+      currentChar = [self characterAtIndex: count];
+      if (currentChar <= 0x20 || currentChar >= 0x7F
+          || currentChar == '(' || currentChar == ')'
+          || currentChar == '{' || currentChar == '}'
+          || currentChar == '%' || currentChar == '*'
+          || currentChar == '"' || currentChar == '\\'
+          || currentChar == ']')
+        isAtomSafe = NO;
+    }
+
+  if (isAtomSafe)
+    return self;
+
+  encoded = [NSMutableString stringWithCapacity: 4 + (max * 4)];
+  [encoded appendString: @"_u7_"];
+  for (count = 0; count < max; count++)
+    [encoded appendFormat: @"%04x", [self characterAtIndex: count]];
+
+  return encoded;
+}
+
+- (NSString *) stringByDecodingImap4LabelName
+{
+  NSString *decoded;
+  unichar *characters;
+  unichar currentChar;
+  unsigned int value;
+  NSUInteger count, digit, max;
+  BOOL isHex;
+
+  if (![self hasPrefix: @"_u7_"])
+    return self;
+
+  decoded = [self substringFromIndex: 4];
+  max = [decoded length];
+  isHex = (max > 0 && (max % 4) == 0);
+  for (count = 0; isHex && count < max; count++)
+    {
+      currentChar = [decoded characterAtIndex: count];
+      if (!((currentChar >= '0' && currentChar <= '9')
+            || (currentChar >= 'a' && currentChar <= 'f')
+            || (currentChar >= 'A' && currentChar <= 'F')))
+        isHex = NO;
+    }
+
+  if (!isHex)
+    return self;
+
+  characters = NSZoneMalloc (NULL, ((max / 4) + 1) * sizeof (unichar));
+  for (count = 0; count < max / 4; count++)
+    {
+      value = 0;
+      for (digit = 0; digit < 4; digit++)
+        {
+          currentChar = [decoded characterAtIndex: (count * 4) + digit];
+          value <<= 4;
+          if (currentChar >= '0' && currentChar <= '9')
+            value += currentChar - '0';
+          else if (currentChar >= 'a' && currentChar <= 'f')
+            value += currentChar - 'a' + 10;
+          else
+            value += currentChar - 'A' + 10;
+        }
+      characters[count] = (unichar) value;
+    }
+
+  characters[max / 4] = 0;
+  decoded = [NSString stringWithCharacters: characters length: max / 4];
+  NSZoneFree (NULL, characters);
+
+  return decoded;
+}
+
+
 - (NSString *) mailDomain
 {
   NSArray *mailSeparated;
