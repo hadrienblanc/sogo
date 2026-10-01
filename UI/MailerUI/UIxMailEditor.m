@@ -708,11 +708,13 @@ static NSArray *infoKeys = nil;
  */
 - (void) setBase64ImagesInText:(SOGoDraftObject *) draft
 {
-  NSString *contentId, *lText;
+  NSString *contentId, *lText, *inlineImage;
   NGMimeBodyPart *mime;
+  NSArray *draftFileAttachements;
 
-  if ([self isHTML] && [[draft fetchAttachmentAttrs] count] > 0) {
-        for (NSDictionary *draftFileAttachement in [draft fetchAttachmentAttrs]) {
+  if ([self isHTML]) {
+        draftFileAttachements = [draft fetchAttachmentAttrs];
+        for (NSDictionary *draftFileAttachement in draftFileAttachements) {
           mime = [draftFileAttachement objectForKey: @"part"];
           if ([mime isImage]) {
             contentId = [mime contentId];
@@ -723,10 +725,11 @@ static NSArray *infoKeys = nil;
               if ([[mime encoding] isEqualToString: @"base64"] && contentId) {
                 if ([text rangeOfString: contentId].location != NSNotFound) {
                   if (nil != [[mime body] bytes]) {
-                    lText = [text stringByReplacingOccurrencesOfString: contentId 
-                    withString: [NSString stringWithFormat: @"data:%@;base64,%@", 
-                    [[mime contentType] stringValue], 
-                    [NSString stringWithUTF8String: [[mime body] bytes]]]];
+                    inlineImage = [NSString stringWithFormat: @"data:%@;base64,%@",
+                    [[mime contentType] stringValue],
+                    [NSString stringWithUTF8String: [[mime body] bytes]]];
+                    lText = [text stringByReplacingFirstOccurrenceOfString: contentId
+                    withString: inlineImage];
                     [self setText: lText];
                     [draft deleteAttachmentWithName: [draftFileAttachement objectForKey:@"filename"]];
                   }

@@ -49,6 +49,51 @@
   failIf(count != 0);
 }
 
+- (void) test_stringByReplacingFirstOccurrenceOfString
+{
+  NSString *source, *result;
+
+  source = @"no target over here";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"cid:img"
+                                               withString: @"data:image/png;base64,QUJD"];
+  testEquals(result, source);
+
+  source = @"";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"cid:img"
+                                               withString: @"data:image/png;base64,QUJD"];
+  testEquals(result, @"");
+
+  source = @"<img src=\"cid:img\"/>";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"cid:img"
+                                               withString: @"data:image/png;base64,QUJD"];
+  testEquals(result, @"<img src=\"data:image/png;base64,QUJD\"/>");
+
+  source = @"a cid:img b cid:img c";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"cid:img"
+                                               withString: @"data:image/png;base64,QUJD"];
+  testEquals(result, @"a data:image/png;base64,QUJD b cid:img c");
+
+  source = @"cid:img b cid:img";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"cid:img"
+                                               withString: @"data:image/png;base64,QUJD"];
+  testEquals(result, @"data:image/png;base64,QUJD b cid:img");
+
+  source = @"a b cid:img";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"cid:img"
+                                               withString: @"data:image/png;base64,QUJD"];
+  testEquals(result, @"a b data:image/png;base64,QUJD");
+
+  source = @"aaaa";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"aa"
+                                               withString: @"b"];
+  testEquals(result, @"baa");
+
+  source = @"keep me";
+  result = [source stringByReplacingFirstOccurrenceOfString: @"keep"
+                                               withString: @""];
+  testEquals(result, @" me");
+}
+
 - (void) test_encryptdecrypt
 {
   NSString *secret = @"this is a secret";
