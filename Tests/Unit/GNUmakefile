@@ -18,6 +18,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestVersit.m \
 	TestiCalTimeZonePeriod.m \
 	TestiCalRecurrenceCalculator.m \
+	TestiCalRepeatableEntityObject+SOGo.m \
 	TestNSCalendarDateClamping.m \
 	\
 	TestSBJsonParser.m \
@@ -66,6 +67,7 @@ include $(GNUSTEP_MAKEFILES)/test-tool.make
 
 before-all::
 	$(MAKE) -C ../../SoObjects/Contacts --no-print-directory all
+	$(MAKE) -C ../../SoObjects/Appointments --no-print-directory all
 	$(MAKE) -C ../../SoObjects/Mailer --no-print-directory all
 
 -include GNUmakefile.postamble
