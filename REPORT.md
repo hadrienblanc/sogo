@@ -1,100 +1,177 @@
-# Cycle 10 clean-code pass — refactor/cycle-10
+# Ticket 6186 — Attachments/content not displayed in the preview when forwarding
 
-Scope reviewed: `fork/experimental~11..fork/experimental` (PRs #13–#21:
-bugs 6214, 6222, 6223, 6224, 6193, 6189, 6191, 6192 + cycle-8 refactor).
+**Branch:** `fix-6186-mantis` — commit `311b71ed8`
 
-Method: full read of the cycle diff (ObjC, JS, wox templates, tests,
-GNUmakefile), style-checked against each surrounding file's conventions
-(GNUstep indentation, index/enumerator loops, retain/release discipline),
-then minimal edits only where the diff itself introduced the smell.
+## Root cause (file:line)
 
-## What I improved
+When forwarding inline in HTML compose mode, SOGo renders the quoted-message
+header block through the `SOGoMailForward` component
+(`SoObjects/Mailer/SOGoMailForward.m`), interpolated unescaped into the draft
+HTML (`SOGoMailEnglishForward.wo/SOGoMailEnglishForward.html`, all bindings
+`escapeHTML = NO`).
 
-### 1. Deduplicated the SOGo-bundle loading fixture (test hygiene)
+On SOGo 5.12.4 (reporter's version) **every** header value was inserted raw.
+The ticket's DevTool.png shows the smoking gun: an Outlook/Exchange
+`References` message-id
+`<dudpr@imb11375a27a6d84913ed336c9e2eb74a@dudpr@imb11375.eurprddl.prod.gelabs.com>`
+was inserted unescaped, so the HTML parser turned `<dudpr@...>` into a phantom
+*element*. CKEditor 5 flags/renames it (`data-ck-unsafe-element="dudpr@..."`,
+hidden with `display:none`) — the reporter's "CKEditor classifies the text as
+unsafe content" — and everything after `Referenzen:` (the whole forwarded
+body) becomes invisible in the editor.
 
-The cycle added the exact same 34-line `LoadAppointmentsBundle()`
-static (NSBundle lookup under `SoObjects/<name>/<name>.SOGo` relative to
-the test CWD, `NSBundle load`, marker-class check) to **both** new
-Appointments test files, and `TestSOGoDraftObject.m` re-implemented the
-same pattern a third time with a bundle-name loop.
+- The `References`/`Organization`/`Newsgroups` instances of this bug were
+  already fixed on `experimental` by f11f34cde (for #6046), at
+  `SoObjects/Mailer/SOGoMailForward.m:156,208,225`.
+- **The last unescaped field of the same template was `subject`**
+  (`SoObjects/Mailer/SOGoMailForward.m:86-89`): a subject containing angle
+  brackets (e.g. `WG: <Testinhalt>`) reproduces the exact same swallow.
+  The fix escapes it in HTML composition mode. `SOGoMailReply` inherits the
+  same accessor, so Outlook-style replies are covered too.
 
-Before: 3 copies (≈110 lines) of load-a-SOGo-bundle-and-check-a-class;
-the next calendar fix PR would have grown a fourth copy.
+So: the ticket **is a real bug**; its main instance (References) was already
+fixed on `experimental` but was never locked by tests, and the identical
+subject path was still open. Both are addressed here.
 
-After: one `+[SOGoTest loadSOGoBundle:markerClass:]` helper
-(SOGoTest.h/SOGoTest.m); the two Appointments files keep a one-line
-forwarder and `LoadDraftClass()` shrinks to the Contacts-then-Mailer
-fallback. Unused `NSBundle.h`/`NSFileManager.h` imports dropped from
-the three test files. Net −75 lines, identical runtime behaviour
-(class-already-loaded short-circuit preserved; Contacts/Mailer order
-preserved).
+## What changed (before/after)
 
-### 2. Fixed unidiomatic backwards loop in UIxMailListActions.m
+`SoObjects/Mailer/SOGoMailForward.m` — `subject`:
 
-The new tag-decoding loop in `headersSnapshotForMessages`-style path
-(UIxMailListActions.m:1220) iterated `for (j = [tags count] - 1; j >= 0; j--)`
-while only *replacing* elements via `replaceObjectAtIndex:withObject:` —
-nothing is removed, so the reverse iteration bought nothing and read like
-a removal-safe idiom that isn't needed. The file's own idiom is forward
-index loops.
+```diff
+ - (NSString *) subject
+ {
+-  return [sourceMail decodedSubject];
++  NSString *subject;
++
++  subject = [sourceMail decodedSubject];
++  if (htmlComposition)
++    subject = [subject stringByEscapingHTMLString];
++
++  return subject;
+ }
+```
 
-Before: `for (j = [tags count] - 1; j >= 0; j--)`
-After: `for (j = 0; j < [tags count]; j++)`
+`Tests/Unit/TestSOGoMailForward.m` (new) + registration in
+`Tests/Unit/GNUmakefile`.
 
-## What I deliberately did NOT touch (reviewed, judged fine)
+### AVANT (server, live stack, current experimental)
 
-- `attachUrlsForEditor` / `setAttachUrlsFromEditor`
-  (iCalEntityObject+SOGo.m): the move from UIxComponentEditor into the
-  model is a net simplification; index loops and
-  `dictionaryWithObjectsAndKeys:` style match the host file; the
-  `isUrl` flag handling is exercised by 8 unit tests.
-- `UIxPageFrame.m` `ckEditorUserAgentOverride` +
-  `hasCKEditorUserAgentOverride`: the wox template needs both a
-  condition and a value, so the UA scan+regex runs twice per page for
-  Firefox-Android clients. Measured cost: two substring/regex passes
-  over a ~200-byte string per page render — not worth caching state in
-  the component for; left as-is.
-- `NSString+Utilities.m` new methods (imap4 label encode/decode,
-  first-occurrence replace, CKEditor UA override): manual unichar
-  handling with `NSZoneMalloc`/`NSZoneFree` pairing is consistent with
-  the file's low-level style; the `+6` constant in the Gecko-token
-  extraction is obvious in context; behaviour is locked by 20+ new
-  unit tests, so rewriting for taste would be churn.
-- `UIxMailEditor.m` `setBase64ImagesInText:` — the odd 8-space
-  continuation indentation of that block predates the cycle (verified
-  against `fork/experimental~11`); re-indenting would balloon the diff
-  for zero signal.
-- `MessageEditorController.js` / `Message.service.js`: the
-  escaped-signature regex assembly is hacky but is precisely what the
-  6214 e2e unit specs lock; no dead code left (the commented-out
-  `currentSignature` line was removed by the fix itself).
-- Tests/spec: the four new jasmine specs use distinct fixtures and
-  distinct folder names (no cross-spec duplication); the two
-  angular-stub loaders (MailerMessageFlagsSpec / MailerIdentitySignatureSpec)
-  stub different API surfaces — factoring them now would be speculative
-  infra for two files.
-- `Tests/Unit/GNUmakefile`: `before-all::` build hook for
-  Contacts/Appointments/Mailer and the new test registrations are
-  exactly the documented merge resolution.
+`GET .../folderINBOX/<uid>/forward` → draft `edit` text:
 
-## Verification
+```
+Subject: WG: <Testinhalt> 6186<br/>Date: ...<br/>References: &lt;dudpr@...&gt;<br/>...
+```
 
-- `local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c10-clean`
-  → **87 tests, 2 failures**, both the documented host-noise ones
-  (`test_NGInternetSocketAddressFromString`, dual-stack localhost;
-  `test_stringWithoutHTMLInjection`, GNUstep-base regex quirk) — no
-  change from the pre-cycle baseline.
-- The unit runner does not compile `UI/MailerUI`, so
-  `make -C UI/SOGoUI && make -C UI/MailerUI` was run explicitly on the
-  worktree: `UIxMailListActions.m` compiles and the `MailerUI` bundle
-  links (first link failed only on missing `-lSOGoUI`, a fresh-worktree
-  artefact, not the edit).
-- Worktree note: the generated `config.make` (host file, git-ignored)
-  was copied from the main checkout to make the fresh worktree
-  buildable; it is not part of the commit.
+The raw `<Testinhalt>` is parsed as an HTML tag by the editor.
 
-## Commit
+### AVANT (client, SOGo's own CKEditor 5 build 44.1.0, jsdom harness)
 
-`refactor(tests): factor the SOGo bundle loader into SOGoTest` (+ the
-UIxMailListActions loop in the same commit, both cycle-diff cleanups).
-No push, no PR, no merge — branch `refactor/cycle-10` only.
+Editing-view textContent stops right after the subject — everything else is
+swallowed by the phantom element, exactly like DevTool.png:
+
+```
+"-------- Original Message --------Subject: WG: "
+hidden spans: [ '<span data-ck-unsafe-element="testinhalt">' ]
+```
+
+### APRÈS
+
+Draft text: `Subject: WG: &lt;Testinhalt&gt; 6186<br/>...`
+
+CKEditor editing-view textContent — full content visible:
+
+```
+"-------- Original Message --------Subject: WG: <Testinhalt> 6186Date: ... References: <dudpr@...>Testinhalt 24.02.26Original message body text."
+```
+
+(The remaining `data-ck-unsafe-element="o:p"` spans are empty Outlook
+`<o:p></o:p>` markers — harmless, no content loss.)
+
+Note on the ticket summary ("Attachments are not displayed"): the received
+mail displays fine (`Received Email.png`); the missing content/preview in the
+compose window is entirely caused by the chevron-in-header injection above —
+there is no separate attachment bug.
+
+## Tests
+
+`Tests/Unit/TestSOGoMailForward.m` — 9 tests, all green:
+
+- `test_htmlCompositionEscapesSubject` / `test_textCompositionKeepsSubject` /
+  `test_missingSubjectYieldsNoValue` — the fix (both branches + nil subject)
+- `test_htmlCompositionEscapesReferences` / `test_textCompositionKeepsReferences`
+  — locks the ticket's exact case (Exchange message-id, both compose modes)
+- `test_htmlCompositionEscapesOrganization`,
+  `test_htmlCompositionEscapesNewsgroups` — locks the rest of f11f34cde
+- `test_htmlCompositionEscapesAddresses` /
+  `test_textCompositionKeepsAddresses` — from/to/cc/reply-to escaping
+  (string and array headers)
+
+Verified the new tests bite: with the fix stashed,
+`test_htmlCompositionEscapesSubject` fails
+(`'WG: &lt;Testinhalt&gt; 6186' and 'WG: <Testinhalt> 6186' differs`).
+
+## Verification steps for the orchestrator
+
+Unit suite (builds the worktree, runs 96 tests):
+
+```
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c11-6186
+```
+
+Expected: `FAILED (2 failures, 0 errors)` — only the two known host-noise
+failures (`test_NGInternetSocketAddressFromString`,
+`test_stringWithoutHTMLInjection`).
+
+End-to-end repro on the e2e stack (after deploying this branch), artifacts
+are prefixed test-6186-* and must be cleaned up:
+
+```
+# 1. send /tmp/opencode-style Outlook-style mail (chevrons in References + subject)
+python3 - <<'EOF'
+import smtplib
+msg = open('/tmp/opencode/6186/test-6186-outlook.eml','rb').read()
+s = smtplib.SMTP('127.0.0.1', 2500); s.sendmail('brwa.baban@bearingpoint.com', ['sogo-tests1@example.org'], msg); s.quit()
+EOF
+
+# 2. forward it inline and fetch the draft text (cookie auth + GETs)
+python3 /tmp/opencode/6186/repro.py
+#    APRES: raw <Testinhalt> tag present: False
+#           escaped Testinhalt present: True
+#           escaped msgid present: True   (References already escaped pre-fix)
+
+# 3. cleanup
+python3 /tmp/opencode/6186/cleanup.py
+```
+
+Client-side AVANT/APRES harness (jsdom + the repo's CKEditor build):
+
+```
+cd /tmp/opencode/6186 && npm install jsdom
+node ckeditor-check.js        # AVANT: textContent ends at "Subject: WG: "
+node ckeditor-check-fixed.js  # APRES: full body visible
+```
+
+## PR body draft
+
+When an email forwarded from Outlook's Sent folder is forwarded again in
+SOGo with HTML composition, the compose editor shows only the quoted header
+lines and the message body disappears. CKEditor 5 logs the content as
+"unsafe": the header block of the inline-forward template interpolated raw
+header values into the draft HTML, and any angle bracket in them (typically
+the `<message-id>` chevrons of the References header, or a subject like
+`WG: <Testinhalt>`) is parsed as a phantom HTML element which CKEditor hides
+and which swallows the rest of the forwarded content.
+
+References, Organization and Newsgroups were already escaped on experimental
+(#6046); this PR closes the last unescaped field of the same template — the
+subject — and locks the whole header-block escaping behaviour with unit
+tests (`Tests/Unit/TestSOGoMailForward.m`), since none of the previous
+escaping had test coverage. Outlook-style replies, which reuse the same
+accessors via `SOGoMailReply`, benefit from the fix as well.
+
+AVANT: `Subject: WG: <Testinhalt> 6186` → the editor renders
+`-------- Original Message --------Subject: WG: ` and nothing else
+(`data-ck-unsafe-element="testinhalt"` in the DOM, cf. ticket DevTool.png).
+APRES: the draft carries `Subject: WG: &lt;Testinhalt&gt; 6186` and the full
+forwarded body — text and attachments — stays visible and editable in
+CKEditor.
