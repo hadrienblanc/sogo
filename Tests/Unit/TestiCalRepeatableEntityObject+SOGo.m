@@ -18,9 +18,6 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#import <Foundation/NSBundle.h>
-#import <Foundation/NSFileManager.h>
-
 #import <NGCards/iCalCalendar.h>
 #import <NGCards/iCalEvent.h>
 #import <NGCards/iCalRecurrenceRule.h>
@@ -40,36 +37,8 @@
 static BOOL
 LoadAppointmentsBundle ()
 {
-  static BOOL loaded = NO, attempted = NO;
-  NSString *baseDir, *bundlePath;
-  NSBundle *bundle;
-
-  if (!attempted)
-    {
-      attempted = YES;
-
-      if (NSClassFromString (@"SOGoAppointmentObject"))
-        loaded = YES;
-      else
-        {
-          baseDir = [[[[NSFileManager defaultManager] currentDirectoryPath]
-                               stringByAppendingPathComponent: @"../.."]
-                             stringByStandardizingPath];
-          bundlePath = [[baseDir stringByAppendingPathComponent:
-                                  @"SoObjects/Appointments/Appointments.SOGo"]
-                                stringByStandardizingPath];
-
-          if ([[NSFileManager defaultManager] fileExistsAtPath: bundlePath])
-            {
-              bundle = [[NSBundle alloc] initWithPath: bundlePath];
-              [bundle load];
-              [bundle release];
-              loaded = (NSClassFromString (@"SOGoAppointmentObject") != Nil);
-            }
-        }
-    }
-
-  return loaded;
+  return [SOGoTest loadSOGoBundle: @"Appointments"
+                       markerClass: @"SOGoAppointmentObject"];
 }
 
 - (iCalEvent *) _eventWithContent: (NSString *) content

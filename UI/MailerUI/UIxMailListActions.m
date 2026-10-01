@@ -1217,7 +1217,7 @@
           [tags removeObject: @"recent"];
           [tags removeObject: @"seen"];
           [tags removeObject: @"$forwarded"];
-          for (j = [tags count] - 1; j >= 0; j--)
+          for (j = 0; j < [tags count]; j++)
             [tags replaceObjectAtIndex: j
                             withObject: [[tags objectAtIndex: j] stringByDecodingImap4LabelName]];
           [msg addObject: tags];

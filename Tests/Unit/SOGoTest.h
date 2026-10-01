@@ -39,6 +39,9 @@
 
 + (NSArray *) allTestClasses;
 
++ (BOOL) loadSOGoBundle: (NSString *) bundleName
+            markerClass: (NSString *) className;
+
 - (void) setTestRunner: (SOGoTestRunner *) newTestRunner;
 
 - (void) setUp;
