@@ -1,173 +1,157 @@
-# Fix 6222 — Cyrillic tags cannot be added
+# Fix report — Mantis 6214 (branch `fix-6214-mantis`, commit `3b397622e`)
 
-Ticket: https://bugs.sogo.nu/view.php?id=6222 (minor, [SOGo] Web Mail)
-Branch: `fix-6222-mantis`
-Verdict: **real bug, server-side** — reproduced, fixed.
+**Summary duplicated when switching identity in compose (regression from the 0005695/0006168 fix, commit 71d865b)**
 
-## Root cause
+## Root cause (file:line)
 
-Two stacked defects, both triggered when a tag name contains non-ASCII
-characters (Cyrillic, accents, CJK, emoji…):
+`UI/WebServerResources/js/Mailer/MessageEditorController.js`, `setFromIdentity()` (line 386).
 
-1. **IMAP keywords are 7-bit atoms (RFC 3501)**. SOGo sent the label name
-   verbatim in the STORE command: `UI/MailerUI/UIxMailFolderActions.m`
-   `addOrRemoveLabelAction` unescaped the client flag with `fromCSSIdentifier`
-   and passed it straight to `NGImap4Client storeFlags:forUIDs:addOrRemove:`,
-   producing `UID STORE <uid> +FLAGS (тест)`. Verified against the e2e stack's
-   Dovecot:
+When the From identity changes, the previous signature is located with a regexp and
+replaced. Commit 71d865b (fix for 6168, layered on b7e529d for 5695) replaced the
+original mode-aware pattern with:
 
-   ```
-   a3 UID STORE 1 +FLAGS (тест)   →  a3 BAD Error in IMAP command UID STORE: 8bit data in atom
-   ```
-
-   The normalized result then carries `result = 0` and the action falls into
-   its 500 error branch.
-
-2. **The 500 branch crashed with the exception from the ticket log**:
-   `NGImap4ResponseNormalizer.normalizeResponse:` stores the raw IMAP response
-   under `RawResponse` (an `NGMutableHashMap`, SOPE's own map class), and
-   `addOrRemoveLabelAction` serialized the whole dictionary with
-   `responseWithStatus:500 andJSONRepresentation:`. `[NSDictionary jsonRepresentation]`
-   recurses into values, hits `NSObject(SOGoObjectUtilities) jsonRepresentation`
-   (SoObjects/SOGo/NSObject+Utilities.m:41) which calls `subclassResponsibility:`
-   → `NSInvalidArgumentException: [NGMutableHashMap-jsonRepresentation] should be
-   overridden by subclass` → the dispatcher converts the uncaught exception into
-   **HTTP 501**, exactly as reported.
-
-Reproduced live on the e2e stack (before the fix, code at `experimental`):
-
-```sh
-curl -s -c /tmp/cj -X POST http://127.0.0.1:50001/SOGo/connect \
-  -H 'Content-Type: application/json' \
-  -d '{"userName":"sogo-tests1","password":"sogo"}'
-TOKEN=$(awk '$6=="XSRF-TOKEN"{print $7}' /tmp/cj)
-curl -s -b /tmp/cj -o /dev/null -w "%{http_code}\n" -X POST \
-  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/foldertest-6222/addOrRemoveLabel \
-  -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $TOKEN" \
-  --data-binary '{"operation":"add","msgUIDs":[1],"flags":"тест"}'
-# → 501   (control: flags "testlabel" → 204, flags "café" → 501)
+```js
+new RegExp('(<p>)?(<br ?\/?>(&nbsp;)?[ \\n]?)?--&nbsp;<br ?\/?>(&nbsp;)?[ \\n]?(<\/p>)?' + currentIdentity.signature)
 ```
+
+Two regressions:
+
+1. **Hardcoded HTML regardless of compose mode** — the function correctly computes
+   `nl`/`reNl`/`space` per mode (`\n`/`' '` for plain text, `<br />`/`&nbsp;` for
+   HTML) but the pattern ignored those variables. In plain text the draft body is
+   `\n\n-- \n<sig>` while the pattern only matches `--&nbsp;<br />` → never matches →
+   `previousIdentity` stays undefined → the fallback paths (append at end, or
+   insert-before-quote) add the new signature **without removing the old one**.
+2. **No regex escaping** — `currentIdentity.signature` was concatenated raw, so
+   `. + ( ) / ?` from URLs and phone numbers alter or break the pattern (invalid
+   regex → catch → plain append → duplication).
+
+The `nl2`/`reNl2` variables added by 71d865b were dead code.
+
+The ticket's analysis is confirmed. This is a real bug, 100% reproducible in plain
+text mode (`SOGoMailComposeMessageType = text`).
 
 ## What changed (before/after)
 
-### 1. New label codec — `SoObjects/SOGo/NSString+Utilities.{h,m}`
+`UI/WebServerResources/js/Mailer/MessageEditorController.js` (minimal diff, 3 hunks):
 
-`stringByEncodingImap4LabelName` / `stringByDecodingImap4LabelName`:
-names that are already valid IMAP atoms (`[!-~]` minus `( ) { } % * " \ ]`)
-pass through unchanged — **existing ASCII keywords are bit-identical, zero
-migration**. Anything else (non-ASCII, or atom-specials such as spaces) is
-encoded as `_u7_` + 4 hex digits per UTF-16 code unit, e.g.
-`тест → _u7_0442043504410442`, `👍 → _u7_d83ddc4d` (surrogate pairs
-supported). Decoding only fires on the `_u7_` marker followed by valid hex,
-so legacy keywords (even ones containing `&` or `_`) are never touched.
+- Restored the mode-aware, escaped pattern, keeping the 5695 try/catch fallback:
 
-Verified against Dovecot: `STORE +FLAGS (_u7_0442043504410442)` → OK,
-`SEARCH KEYWORD _u7_0442043504410442` → hit, `-FLAGS` → OK.
+```js
+var escapedSignature = currentIdentity.signature.replace(/[-\[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+if (vm.composeType == "html")
+  escapedSignature = escapedSignature.replace(/<br(\\ | )?\\?\/?>/g, '<br ?\\/?>');
+var currentSignature = new RegExp('(<p>)?(' + reNl + '){' + nlNb + '}--' + space + reNl + escapedSignature + '(<\/p>)?');
+```
 
-### 2. `UI/MailerUI/UIxMailFolderActions.m`
+  - plain text: `(\n){2}-- \n<escapedSig>` → matches the draft exactly (ticket's suggested fix).
+  - HTML: `(<p>)?(<br ?/?>(&nbsp;)?[ \n]?){2}--&nbsp;<br ?/?>(&nbsp;)?[ \n]?<sig>(</p>)?`
+    - `reNl` changed `<br ?/>` → `<br ?/?>`: CKEditor 5 `getData()` serializes soft
+      breaks as `<br>` (no trailing slash) — this was the part of 6168 that the
+      original pre-71d865b pattern missed; keeping 71d865b's `<br ?\/?>` tolerance.
+    - `(<p>)?` … `(</p>)?`: CKEditor 5 auto-paragraphs the signature block.
+    - the escaped signature's own `<br />` markers are made normalization-tolerant
+      (`<br(\\ | )?\\?\/?>` → `<br ?\/?>`) so a multi-line HTML signature written
+      `<br />` still matches after the editor rewrote it to `<br>`.
+- Removed the dead `var nl2, reNl2;` and the commented-out old code.
+- `Mailer.services.js` / `Mailer.services.js.map`: regenerated with the same
+  toolchain as the committed artifact (uglify-js 3.17.4, source order taken from the
+  committed sourcemap; the pristine regeneration is byte-identical to the committed
+  bundle, validating the toolchain before rebuilding with the fix).
 
-- `addOrRemoveLabelAction`: flags are now
-  `[[flag fromCSSIdentifier] stringByEncodingImap4LabelName]` before
-  `storeFlags` — a Cyrillic tag now issues a valid `UID STORE` and returns
-  **204**.
-- `removeAllLabelsAction`: the user's `SOGoMailLabelsColors` keys (which the
-  Preferences UI allows to be non-ASCII — `mailLabelKeyRE` only blocks atom
-  specials) are encoded the same way before `storeFlags`.
-- `getLabelsAction`: each folder keyword is decoded before the system-keyword
-  check, the `SOGoMailLabelsColors` lookup (prefs keys hold decoded names) and
-  the `imapName` reported to the UI — so the client round-trips decoded names.
-- Both failure branches of `addOrRemoveLabel`/`removeAllLabels` now log the
-  IMAP reason (`errorWithFormat`) and return a sanitized
-  `{"reason": …}` 500 body — the `RawResponse`/`NGMutableHashMap` is never fed
-  to `jsonRepresentation` anymore, killing the 501 crash for *any* future
-  STORE failure.
-
-### 3. `UI/MailerUI/UIxMailListActions.m`
-
-- `getHeadersForUIDs:inFolder:` (used by the `headers` and `changes` actions):
-  the per-message tags array is decoded, so the list/viewer chips show `тест`.
-- `searchQualifier` (label filter + advanced-search `flags` filter): client
-  label names are encoded before building the `(flags = …)` qualifier, so
-  `SEARCH KEYWORD _u7_…` is issued instead of an invalid raw UTF-8 keyword.
-
-Before → after (end to end):
+AVANT (plain text, switch From personal → shared mailbox without signature):
 
 ```
-AVANT  POST addOrRemoveLabel {"flags":"тест"}
-       → UID STORE 1 +FLAGS (тест) → BAD
-       → [NGMutableHashMap-jsonRepresentation] … → HTTP 501, no tag stored
-APRÈS  POST addOrRemoveLabel {"flags":"тест"}
-       → UID STORE 1 +FLAGS (_u7_0442043504410442) → OK → HTTP 204
-       GET …/labels      → [{"imapName":"тест"}]
-       POST …/headers    → tags: ["тест"]
-       POST …/view {"labels":["тест"]} → the message is found
+\n\n-- \nRobert Frost\nCTO (Example) +33 1 23 45 67 89\nhttps://example.com/?from=sig
+→ (switch) → signature stays, a second copy is appended on the next switch/typing
+```
+
+APRÈS:
+
+```
+\n\n-- \nRobert Frost\n…
+→ (switch) → (empty body — previous signature and its "-- " marker fully removed)
 ```
 
 ## Tests
 
-- New unit suite `Tests/Unit/TestNSString+Imap4LabelName.m` (registered in
-  `Tests/Unit/GNUmakefile`), 6 test methods covering every branch of the
-  codec: atom-safe passthrough (`testlabel`, `$Label1`, `R&D`), encoding of
-  Cyrillic/accents/space/`%`/parens/emoji, round-trips (incl. surrogate
-  pairs), uppercase-hex decoding, and all decode guards (`_u7_`, non-hex,
-  wrong length, legacy keywords with `&`), plus an atom-safety sweep of every
-  produced keyword.
-- New e2e spec `Tests/spec/MailerCyrillicLabelsSpec.js` (jasmine, needs the
-  stack): creates folder `test-6222-labels` + one message, then locks the full
-  flow — add Cyrillic tag → 204 (was 501), `labels` exposes the decoded name,
-  message headers show the decoded tag, list filtering by the Cyrillic label
-  finds the message, removal → 204. Cleanup in `afterAll`.
-- Worktree unit suite (`local/run-worktree-tests.sh wt/c8-6222`):
-  `Ran 67 tests` — only the 4 documented pre-existing failures remain
-  (`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`,
-  2 × `TestSOGoDraftObject` setUp "Mailer.SOGo bundle missing"), identical to
-  the pristine base tree. `UI/MailerUI` and `UI/SOGoUI` bundles compile and
-  link with the change.
+- New `Tests/spec/MailerIdentitySignatureSpec.js` — pure-node jasmine spec (no stack
+  needed, style of `MailerMessageFlagsSpec.js`): loads the real
+  `MessageEditorController.js` with a stubbed angular module registry, instantiates
+  the controller and calls `setFromIdentity` directly. 8 specs:
+  1. plain text: previous signature removed when switching to a signature-less identity (#6214 exact scenario)
+  2. plain text: signature A → signature B replaced, `from` updated
+  3. signaturePlacement `below` (nlNb=1) replaced
+  4. HTML: untouched server draft (`<br />` + `&nbsp;`) replaced
+  5. HTML: CKEditor 5-normalized draft (`<br>`, `<p>` wrappers, `<br />` vs `<br>` inside the signature) replaced (#6168)
+  6. HTML: normalized signature removed when switching to a signature-less identity
+  7. fallback: signature appended when no previous signature is found
+  8. fallback: signature inserted above the quoted message on a reply
+- Verified the suite fails on the broken code: 8 specs / 6 failures before the fix,
+  8/8 after.
+- No `Tests/Unit` (ObjC) addition: the change is pure client-side JS; the ObjC unit
+  suite has no JS engine. The jasmine spec above is the unit test for this fix.
+- The 5695 "regex too big" catch branch is intentionally unchanged (per ticket) and
+  cannot be exercised on Node/V8, which does not throw on oversized patterns —
+  that failure mode is WebKit/Safari-specific.
 
 ## Verification steps for the orchestrator
 
-Unit (fast, on the merged tree):
+Unit suite (ran clean; only known host noise + pre-existing runner limitation):
 
-```sh
-local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/sogo
-# expect: Ran 67 tests, only the 4 known host-noise failures
+```
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c8-6214
+# Ran 67 tests — FAILED (2 failures, 2 errors)
+#  - test_NGInternetSocketAddressFromString, test_stringWithoutHTMLInjection: known host noise (AGENTS.md)
+#  - TestSOGoDraftObject setUp x2: "Mailer.SOGo bundle missing" — pre-existing; the
+#    minimal runner builds SOPE + SOGo framework only, never SoObjects/Mailer
+#    (the main checkout has the bundle built, worktrees don't). Unrelated to this JS-only change.
 ```
 
-E2e (inside the rebuilt `sogo_dev` container, per field notes):
+Signature spec (pure node, no stack):
 
-```sh
-cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
-npx jasmine --config=spec/support/jasmine.json --filter="Mailer cyrillic labels (bug 6222)"
-# expect: 5 specs, 0 failures (restore lib/config.js afterwards)
+```
+cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c8-6214/Tests
+/home/hadrienblanc/Projets/hadrienblanc/sogo/sogo/Tests/node_modules/.bin/jasmine \
+  --config=spec/support/jasmine.json --filter="MessageEditorController signature handling"
+# or, to avoid loading stack-dependent specs: see Tests/spec/MailerIdentitySignatureSpec.js
+# → 8 specs, 0 failures
 ```
 
-Manual curl check against the rebuilt stack (same flow as the reproduction
-above): the `addOrRemoveLabel` POST with `"flags":"тест"` must return **204**
-(it returned 501 on `experimental`), and `GET …/labels` must list
-`{"imapName":"тест"}`. All `test-6222*` stack artifacts used during
-investigation were removed (folders `test-6222` and `foldertest-6222`
-deleted).
+(In the e2e container the file is picked up automatically by the jasmine glob
+`**/*[sS]pec.?(m)js`; no stack required.)
+
+Manual UI check (needs a browser, optional): user with a personal identity whose
+signature contains a URL, plus a shared mailbox identity without signature,
+`SOGoMailComposeMessageType = text`: compose → switch From to the shared mailbox →
+body becomes empty (signature and `-- ` marker removed); switch back → exactly one
+signature. HTML mode: type in the body first (forces CKEditor normalization), then
+switch → old signature replaced, no duplicate.
 
 ## PR body draft
 
-Adding a tag with non-ASCII characters (e.g. Cyrillic) from the webmail UI
-failed with an HTTP 501 and an `NSInvalidArgumentException
-[NGMutableHashMap-jsonRepresentation] should be overridden by subclass`.
-Two problems stacked up: IMAP keywords are 7-bit atoms per RFC 3501, so the
-raw UTF-8 name made the IMAP server reject the `UID STORE` command; and the
-error branch of the action then tried to JSON-serialize the raw IMAP response
-(an SOPE `NGMutableHashMap`) which no JSON serializer implements, turning a
-clean 500 into an uncaught exception and a 501.
-
-AVANT: open a message, type "тест" in the tag field, press Enter →
-`POST …/addOrRemoveLabel` returns 501, the exception lands in sogod.log, no
-tag is stored (same for any accented/CJK label, and for any label defined in
-Preferences with a non-ASCII IMAP key).
-APRÈS: label names that are not valid IMAP atoms are transparently encoded to
-a `_u7_<hex>` ASCII keyword on write (`UID STORE … +FLAGS (_u7_0442…)`) and
-decoded back everywhere they surface (folder labels list, per-message tags,
-list filtering); existing pure-ASCII keywords are untouched, so nothing
-changes for current users. IMAP failures on these actions now return a proper
-500 JSON body with the server's reason instead of crashing. Covered by 6 new
-unit tests on the codec and a new e2e spec locking the add → list → filter →
-remove flow with a Cyrillic tag.
+> ### fix(mail): stop duplicating signatures when switching identity in compose (bug 6214)
+>
+> When switching the From address while composing, the previous signature was left
+> in place and the new identity's signature was appended, duplicating both the
+> `-- ` marker and the signature block. The regression came from the fix for
+> #5695/#6168 (71d865b): it replaced the compose-mode-aware regexp used to locate
+> the previous signature with a pattern hardcoding HTML markup (`--&nbsp;<br />`)
+> regardless of the compose mode, and dropped the escaping of regex
+> metacharacters, so plain-text drafts (`-- \n`) and signatures containing
+> `. + ( ) / ?` (URLs, phone numbers) could never match. The signature is escaped
+> again, the pattern is rebuilt from the mode-aware variables (`reNl`, `nlNb`,
+> `space`), and the "regex too big" fallback for oversized signatures (#5695) is
+> kept.
+>
+> AVANT (plain text, `SOGoMailComposeMessageType = text`, signature with a URL) :
+> composer avec l'identité personnelle, basculer le From vers une boîte partagée
+> puis revenir → le corps contient deux blocs `-- \n<signature>` ; le marqueur
+> HTML codé en dur ne matche jamais `-- \n`. APRÈS : la signature précédente (et
+> son marqueur) est localisée et remplacée/supprimée dans les deux modes ; en
+> HTML, le motif tolère en plus la sérialisation CKEditor 5 (`<br>` sans slash,
+> paragraphes `<p>` automatiques, `<br />` réécrit en `<br>` à l'intérieur de la
+> signature), couvrant aussi le scénario #6168 après normalisation de l'éditeur.
+> Un test jasmine unitaire (`MailerIdentitySignatureSpec.js`) instancie le vrai
+> contrôleur et verrouille les 8 chemins (suppression, remplacement, placement
+> haut/bas, HTML brut/normalisé, fallbacks) : 6 des 8 échouent sur le code cassé.
