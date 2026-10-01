@@ -321,6 +321,51 @@
       len = [d length];
     }
 
+  bytes = [d bytes];
+  len = [d length];
+  i = 0;
+
+  while (i < len)
+    {
+      if ((i + 4) < len
+          && *bytes == '<'
+          && (*(bytes+1) == 'o' || *(bytes+1) == 'O')
+          && *(bytes+2) == ':'
+          && (*(bytes+3) == 'p' || *(bytes+3) == 'P'))
+        {
+          j = 4;
+          while ((i + j) < len && *(bytes+j) != '>')
+            j++;
+          if ((i + j) < len)
+            {
+              [d replaceBytesInRange: NSMakeRange(i, j + 1)
+                          withBytes: NULL
+                              length: 0];
+              bytes = [d bytes] + i;
+              len = [d length];
+              continue;
+            }
+        }
+      else if ((i + 5) < len
+               && *bytes == '<'
+               && *(bytes+1) == '/'
+               && (*(bytes+2) == 'o' || *(bytes+2) == 'O')
+               && *(bytes+3) == ':'
+               && (*(bytes+4) == 'p' || *(bytes+4) == 'P')
+               && *(bytes+5) == '>')
+        {
+          [d replaceBytesInRange: NSMakeRange(i, 6)
+                      withBytes: NULL
+                          length: 0];
+          bytes = [d bytes] + i;
+          len = [d length];
+          continue;
+        }
+
+      bytes++;
+      i++;
+    }
+
   /*
    * Replace badly formatted void tags
    *
