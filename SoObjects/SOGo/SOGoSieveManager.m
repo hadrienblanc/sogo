@@ -536,9 +536,17 @@ static NSString *sieveScriptName = @"sogo";
                 }
               else if ([method isEqualToString: @"fileinto"])
                 {
-                  mailbox
-                    = [[argument componentsSeparatedByString: @"/"]
-                          componentsJoinedByString: delimiter];
+                  NSEnumerator *e;
+                  NSMutableArray *components;
+                  NSString *component;
+
+                  components = [NSMutableArray array];
+                  e = [[argument componentsSeparatedByString: @"/"] objectEnumerator];
+                  while ((component = [e nextObject]))
+                    [components addObject:
+                                   [component stringByDecodingImap4FolderName]];
+
+                  mailbox = [components componentsJoinedByString: delimiter];
                   sieveAction = [NSString stringWithFormat: @"%@ %@",
                                           method, [mailbox asSieveQuotedString]];
                 }

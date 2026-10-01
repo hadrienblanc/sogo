@@ -57,4 +57,50 @@ describe('preferences', function() {
       .withContext(`Set/get Settings/Calendar/PreventInvitationsWhitelist`)
       .toEqual(config.white_listed_attendee)
   })
+
+  it('#6243 saving defaults without mail identities keeps the account usable', async function() {
+    const identity = { fullName: 'Identity Probe', email: `probe-${Date.now()}@example.org`, isDefault: 1 }
+
+    try {
+      await prefs.loadPreferences()
+      const accounts = await prefs.get('AuxiliaryMailAccounts')
+      const previousIdentities = (accounts[0] && accounts[0].identities) || []
+      const previousOutgoing = await prefs.get('SOGoMailAddOutgoingAddresses')
+      const previousSelected = await prefs.get('SOGoSelectedAddressBook')
+
+      if (accounts[0])
+        accounts[0].identities = [identity]
+      await prefs.setOrCreate('SOGoMailAddOutgoingAddresses', 1)
+      await prefs.setOrCreate('SOGoSelectedAddressBook', 'collected')
+      let response = await prefs.save()
+      expect(response.status)
+        .withContext(`HTTP status of the save holding identities`)
+        .toEqual(200)
+
+      await prefs.loadPreferences()
+      delete prefs.preferences.defaults.SOGoMailIdentities
+      response = await prefs.save()
+      expect(response.status)
+        .withContext(`HTTP status of Preferences/save without identities`)
+        .toEqual(200)
+
+      response = await prefs.save()
+      expect(response.status)
+        .withContext(`HTTP status of a subsequent save`)
+        .toEqual(200)
+
+      await prefs.loadPreferences()
+      const accountsRestore = await prefs.get('AuxiliaryMailAccounts')
+      if (accountsRestore[0])
+        accountsRestore[0].identities = previousIdentities
+      await prefs.setOrCreate('SOGoMailAddOutgoingAddresses', previousOutgoing)
+      await prefs.setOrCreate('SOGoSelectedAddressBook', previousSelected)
+      await prefs.save()
+    }
+    catch (e) {
+      await prefs.loadPreferences().catch(() => {})
+      await prefs.save().catch(() => {})
+      throw e
+    }
+  })
 })
