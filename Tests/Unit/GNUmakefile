@@ -35,6 +35,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSURL+misc.m \
 	TestNGMailAddressParser.m \
 	TestNGInternetSocketAddress.m \
+	TestSOGoSieveManager.m \
 	TestWORequest+SOGo.m \
 	\
 	TestRTFHandler.m \

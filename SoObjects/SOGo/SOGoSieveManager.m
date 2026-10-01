@@ -216,6 +216,18 @@ static NSString *sieveScriptName = @"sogo";
     }
 }
 
++ (NSString *) sieveFlagForArgument: (NSString *) argument
+                         mailLabels: (NSDictionary *) mailLabels
+{
+  NSString *flag;
+
+  flag = [sieveFlags objectForKey: argument];
+  if (!flag && [mailLabels objectForKey: argument])
+    flag = argument;
+
+  return flag;
+}
+
 + (id) sieveManagerForUser: (SOGoUser *) newUser
 {
   SOGoSieveManager *newManager;
@@ -500,7 +512,6 @@ static NSString *sieveScriptName = @"sogo";
                          delimiter: (NSString *) delimiter
 {
   NSString *sieveAction, *method, *requirement, *argument, *flag, *mailbox;
-  NSDictionary *mailLabels;
 
   sieveAction = nil;
 
@@ -518,13 +529,8 @@ static NSString *sieveScriptName = @"sogo";
             {
               if ([method isEqualToString: @"addflag"])
                 {
-                  flag = [sieveFlags objectForKey: argument];
-                  if (!flag)
-                    {
-                      mailLabels = [[user userDefaults] mailLabelsColors];
-                      if ([mailLabels objectForKey: argument])
-                        flag = argument;
-                    }
+                  flag = [SOGoSieveManager sieveFlagForArgument: argument
+                                                       mailLabels: [[user userDefaults] mailLabelsColors]];
                   if (flag)
                     sieveAction = [NSString stringWithFormat: @"%@ %@",
                                             method, [flag asSieveQuotedString]];
