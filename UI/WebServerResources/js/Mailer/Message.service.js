@@ -22,6 +22,7 @@
     // Data is immediately available
     if (typeof futureMessageData.then !== 'function') {
       //console.debug(JSON.stringify(futureMessageData, undefined, 2));
+      this.flags = [];
       if (angular.isUndefined(lazy) || !lazy) {
         this.init(futureMessageData);
       }
@@ -29,7 +30,6 @@
       this.selected = !!futureMessageData.selected;
       this.level = parseInt(futureMessageData.level);
       this.first = parseInt(futureMessageData.first) === 1;
-      this.flags = [];
       if (this.first) {
         this.threadCount = parseInt(futureMessageData.count);
         this.collapsed = (futureMessageData.collapsed === true);
