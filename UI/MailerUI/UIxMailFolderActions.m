@@ -1176,6 +1176,23 @@
   return response;
 }
 
+- (WOResponse *) _storeFlagsErrorResponse: (NSDictionary *) result
+                                     flags: (NSArray *) flags
+                                    action: (NSString *) action
+{
+  id o;
+
+  [self errorWithFormat: @"%@: unable to store flags %@: %@",
+                     action, flags, [result objectForKey: @"reason"]];
+  o = [result objectForKey: @"reason"];
+  if (!o)
+    o = [NSNull null];
+
+  return [self responseWithStatus: 500
+              andJSONRepresentation: [NSDictionary dictionaryWithObject: o
+                                                                 forKey: @"reason"]];
+}
+
 - (WOResponse *) addOrRemoveLabelAction
 {
   WOResponse *response;
@@ -1233,15 +1250,9 @@
       if ([[result valueForKey: @"result"] boolValue])
         response = [self responseWith204];
       else
-        {
-          [self errorWithFormat: @"addOrRemoveLabel: unable to store flags %@: %@",
-                             flags, [result objectForKey: @"reason"]];
-          o = [result objectForKey: @"reason"];
-          if (!o)
-            o = [NSNull null];
-          result = [NSDictionary dictionaryWithObject: o forKey: @"reason"];
-          response = [self responseWithStatus: 500 andJSONRepresentation: result];
-        }
+        response = [self _storeFlagsErrorResponse: result
+                                            flags: flags
+                                           action: @"addOrRemoveLabel"];
     }
 
   return response;
@@ -1258,7 +1269,6 @@
   NSDictionary *v, *content, *result;
   NSEnumerator *labels;
   NSString *label;
-  id o;
 
   request = [context request];
   content = [[request contentAsString] objectFromJSONString];
@@ -1281,15 +1291,9 @@
   if ([[result valueForKey: @"result"] boolValue])
     response = [self responseWith204];
   else
-    {
-      [self errorWithFormat: @"removeAllLabels: unable to store flags %@: %@",
-                         flags, [result objectForKey: @"reason"]];
-      o = [result objectForKey: @"reason"];
-      if (!o)
-        o = [NSNull null];
-      result = [NSDictionary dictionaryWithObject: o forKey: @"reason"];
-      response = [self responseWithStatus:500 andJSONRepresentation:result];
-    }
+    response = [self _storeFlagsErrorResponse: result
+                                        flags: flags
+                                       action: @"removeAllLabels"];
 
   return response;
 }

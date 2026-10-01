@@ -64,7 +64,7 @@ endif
 -include GNUmakefile.preamble
 include $(GNUSTEP_MAKEFILES)/test-tool.make
 
-before::
+before-all::
 	$(MAKE) -C ../../SoObjects/Contacts --no-print-directory all
 	$(MAKE) -C ../../SoObjects/Mailer --no-print-directory all
 
