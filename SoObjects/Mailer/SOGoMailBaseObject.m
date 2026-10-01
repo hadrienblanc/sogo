@@ -149,6 +149,32 @@
   return [NGImap4ConnectionManager defaultConnectionManager: imapAuthMech];
 }
 
+- (NSString *) _preLoginIDParameters
+{
+  NSCharacterSet *addressCharacters;
+  NSString *address;
+
+  address = [[context request] headerForKey: @"x-webobjects-remote-addr"];
+  if (!address)
+    address = [[context request] headerForKey: @"x-webobjects-remote-host"];
+  if (!address)
+    return nil;
+
+  address = [[address componentsSeparatedByString: @","] objectAtIndex: 0];
+  address = [address stringByTrimmingCharactersInSet:
+                          [NSCharacterSet whitespaceCharacterSet]];
+
+  addressCharacters = [NSCharacterSet characterSetWithCharactersInString:
+                                         @"0123456789abcdefABCDEF.:"];
+
+  if (![address length]
+      || [[address componentsSeparatedByCharactersInSet: addressCharacters]
+           componentsJoinedByString: @""].length)
+    return nil;
+
+  return [NSString stringWithFormat: @"(\"x-originating-ip\" \"%@\")", address];
+}
+
 - (NGImap4Connection *) _createIMAP4Connection
 {
   NGImap4ConnectionManager *manager;
@@ -183,15 +209,21 @@
   password = [self imap4PasswordRenewed: NO];
   if (password)
     {
+      NSString *idParameters;
+
+      idParameters = [self _preLoginIDParameters];
+
       newConnection = [manager connectionForURL: imap4URL
-                                       password: password];
+                                      password: password
+                          preLoginIDParameters: idParameters];
       if (!newConnection)
         {
           [self logWithFormat: @"renewing imap4 password"];
           password = [self imap4PasswordRenewed: YES];
           if (password)
             newConnection = [manager connectionForURL: imap4URL
-                                             password: password];
+                                            password: password
+                                preLoginIDParameters: idParameters];
         }
     }
   else
@@ -204,22 +236,6 @@
         [NSException raise: @"IOException" format: @"IMAP connection failed"];
       else
         [self errorWithFormat:@"Could not connect IMAP4"];
-    }
-  else
-    {
-      // If the server has the ID capability (RFC 2971), we set the x-originating-ip
-      // accordingly for the IMAP connection.
-      NSString *remoteHost;
-
-      remoteHost = [[context request] headerForKey: @"x-webobjects-remote-host"];
-
-      if (remoteHost)
-	{
-	  if ([[[[newConnection client] capability] objectForKey: @"capability"] containsObject: @"id"])
-	    {
-	      [[newConnection client] processCommand: [NSString stringWithFormat: @"ID (\"x-originating-ip\" \"%@\")", remoteHost]];
-	    }
-	}
     }
 
   return newConnection;
