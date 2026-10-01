@@ -38,10 +38,9 @@
    * @desc The factory we'll use to register with Angular.
    * @returns the Card constructor
    */
-  Card.$factory = ['$q', '$timeout', 'sgSettings', 'sgCard_STATUS', 'encodeUriFilter', 'Resource', 'Preferences', function($q, $timeout, Settings, Card_STATUS, encodeUriFilter, Resource, Preferences) {
+  Card.$factory = ['$q', '$timeout', 'sgSettings', 'sgCard_STATUS', 'Resource', 'Preferences', function($q, $timeout, Settings, Card_STATUS, Resource, Preferences) {
     angular.extend(Card, {
       STATUS: Card_STATUS,
-      encodeUri: encodeUriFilter,
       $$resource: new Resource(Settings.activeUser('folderURL') + 'Contacts', Settings.activeUser()),
       $q: $q,
       $timeout: $timeout,
@@ -286,8 +285,8 @@
     }
 
     return Card.$$resource.save([
-      Card.encodeUri(this.pid),
-      Card.encodeUri(this.id) || '_new_'
+      this.pid,
+      this.id || '_new_'
     ].join('/'),
                                 data,
                                 { action: action })

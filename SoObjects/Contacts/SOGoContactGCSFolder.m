@@ -174,7 +174,7 @@ static NSArray *folderListingFields = nil;
           acquire: (BOOL)_flag
 {
   id obj;
-  NSString *url;
+  NSString *url, *unescapedKey;
   BOOL handledLater;
 
   /* first check attributes directly bound to the application */
@@ -184,6 +184,12 @@ static NSArray *folderListingFields = nil;
   else
     {
       obj = [super lookupName:_key inContext:_ctx acquire:NO];
+      if (!obj)
+        {
+          unescapedKey = [_key variantByUnescapingURL];
+          if (unescapedKey)
+            obj = [super lookupName:unescapedKey inContext:_ctx acquire:NO];
+        }
       if (!obj)
         {
 	  if ([self isValidContentName: _key])

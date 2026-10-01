@@ -35,6 +35,7 @@
 #import "SOGoGCSFolder.h"
 #import "SOGoPermissions.h"
 #import "SOGoContentObject.h"
+#import "WORequest+SOGo.h"
 
 @interface SOGoContentObject(ETag)
 - (NSArray *)parseETagList:(NSString *)_c;
@@ -370,7 +371,7 @@
 
       /* attempt a save */
       
-      error = [self saveComponent: [(id)[self parsingClass] parseSingleFromSource: [rq contentAsString]]
+      error = [self saveComponent: [(id)[self parsingClass] parseSingleFromSource: [rq davBodyAsString]]
                       baseVersion: baseVersion];
       if (error)
 	response = (WOResponse *) error;

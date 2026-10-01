@@ -866,7 +866,7 @@ static NSArray *childRecordFields = nil;
 	  if ([[request method] isEqualToString: @"PUT"])
 	    {
 	      obj = [self createChildComponentWithName: key
-                                            andContent: [request contentAsString]];
+                                            andContent: [request davBodyAsString]];
 	      [obj setIsNew: YES];
 	    }
 	}
