@@ -245,6 +245,7 @@
 "All day Event" = "Afspraak duurt de hele dag";
 "check for conflicts" = "Op conflicten controleren";
 "URL" = "URL";
+"Document URL" = "Document-URL";
 "newAttendee" = "Voeg deelnemer toe";
 
 /* calendar modes */

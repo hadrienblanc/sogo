@@ -245,6 +245,7 @@
 "All day Event" = "Tam gün süren etkinlik";
 "check for conflicts" = "Çakışmaları denetle";
 "URL" = "Adres";
+"Document URL" = "Document URL";
 "newAttendee" = "Katılımcı ekle";
 
 /* calendar modes */

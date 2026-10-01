@@ -245,6 +245,7 @@
 "All day Event" = "終日のイベント";
 "check for conflicts" = "競合を検査";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "参加者を追加";
 
 /* calendar modes */

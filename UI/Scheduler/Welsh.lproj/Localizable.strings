@@ -245,6 +245,7 @@
 "All day Event" = "Digwyddiad drwy'r dydd";
 "check for conflicts" = "Gwirio am wrthdaro";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Ychwanegu mynychwr";
 
 /* calendar modes */

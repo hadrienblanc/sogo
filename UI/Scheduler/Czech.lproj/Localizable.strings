@@ -245,6 +245,7 @@
 "All day Event" = "Celodenní událost";
 "check for conflicts" = "Zkontrolovat překrývání";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Přidat účastníka";
 
 /* calendar modes */

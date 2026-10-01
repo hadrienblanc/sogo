@@ -245,6 +245,7 @@
 "All day Event" = "Koko päivän tapahtuma";
 "check for conflicts" = "Tarkista ristiriitojen varalta";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Lisää osallistuja";
 
 /* calendar modes */

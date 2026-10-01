@@ -245,6 +245,7 @@
 "All day Event" = "Egésznapos esemény";
 "check for conflicts" = "Ütközés ellenőrzése";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Résztvevő hozzáadása";
 
 /* calendar modes */
