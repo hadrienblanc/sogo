@@ -1342,6 +1342,16 @@ static NSString    *userAgent      = nil;
   return error;
 }
 
+- (void) deleteAttachmentsWithNames: (NSArray *) theNames
+{
+  NSEnumerator *names;
+  NSString *currentName;
+
+  names = [theNames objectEnumerator];
+  while ((currentName = [names nextObject]))
+    [self deleteAttachmentWithName: currentName];
+}
+
 //
 // Only called when converting text/html to text/plain parts
 //

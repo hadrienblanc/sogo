@@ -83,6 +83,7 @@
   NSArray  *attachmentAttrs;
   NSString *currentAttachment;
   NSMutableArray *attachedFiles;
+  NSMutableArray *savedAttachments;
 }
 
 @end
@@ -112,6 +113,7 @@ static NSArray *infoKeys = nil;
       currentAttachment = nil;
       attachmentAttrs = nil;
       attachedFiles = nil;
+      savedAttachments = [[NSMutableArray alloc] init];
     }
   
   return self;
@@ -135,6 +137,7 @@ static NSArray *infoKeys = nil;
   [currentAttachment release];
   [attachmentAttrs release];
   [attachedFiles release];
+  [savedAttachments release];
   [currentFolder release];
   [super dealloc];
 }
@@ -588,6 +591,8 @@ static NSArray *infoKeys = nil;
     {
       error = [co saveAttachment: (NSData *) [attrs objectForKey: @"body"]
                     withMetadata: attrs];
+      if (!error)
+        [savedAttachments addObject: [attrs objectForKey: @"filename"]];
       // Keep the name of the last attachment saved
       ASSIGN(currentAttachment, [attrs objectForKey: @"filename"]);
     }
@@ -832,7 +837,10 @@ static NSArray *infoKeys = nil;
                               andString: [data jsonRepresentation]];
     }
   else
-    result = [self failedToSaveFormResponse: [result reason]];
+    {
+      [co deleteAttachmentsWithNames: savedAttachments];
+      result = [self failedToSaveFormResponse: [result reason]];
+    }
 
   return result;
 }
