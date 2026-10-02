@@ -14,6 +14,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	SOGoTest.m \
 	SOGoTestRunner.m \
 	SaxXMLReaderFactory+SOGoTests.m \
+	../../SoObjects/Mailer/NSString+Mail.m \
 	\
 	TestVersit.m \
 	TestiCalTimeZonePeriod.m \
@@ -72,6 +73,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestApacheAliasDirectives.m \
 	\
 	TestRTFHandler.m \
+	TestNSStringMailFilename.m \
 	\
 	../../UI/MailPartViewers/UIxHTMLMailContentHandler.m \
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
