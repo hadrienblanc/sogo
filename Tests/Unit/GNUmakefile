@@ -22,6 +22,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalEvent+SOGo.m \
 	TestiCalEvent+ActiveSync.m \
+	TestiCalToDo+ActiveSync.m \
 	TestiCalPerson+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
@@ -69,6 +70,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../UI/MailPartViewers/UIxHTMLMailContentHandler.m \
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
+	../../ActiveSync/iCalToDo+ActiveSync.m \
 	../../ActiveSync/NSString+ActiveSync.m \
 	../../ActiveSync/NSDate+ActiveSync.m \
 	\
