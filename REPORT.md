@@ -1,185 +1,163 @@
-# Ticket 6144 — DAV client: shared email alias attributes the event to the wrong user ("visible in SOGo" aliases)
+# Ticket 6143 — Data Loss When Exporting Contacts with Multiple Phone Numbers
 
-Branch: `fix-6144-mantis` (worktree `wt/c13-6144`)
+Branch: `fix-6143-mantis` (worktree `wt/c13-6143`)
 
 ## Root cause (file:line)
 
-When several mailboxes publish the same email address in the authentication
-source (an alias with the "visible in SOGo" option — i.e. the address ends up
-in each account's mail fields / `emails` list), SOGo's reverse resolution
-**email → user** returns an arbitrary account:
+The bug is real and was reproduced live on the e2e stack. The stored vCard
+keeps every `TEL` element (the web editor stores one child per phone,
+`UI/Contacts/UIxContactEditor.m:311-327`), but the **web UI export** — both
+"Export" on a single contact (`UI/WebServerResources/js/Contacts/Card.service.js:323`)
+and "Export Address Book" (`AddressBook.service.js:731`) — posts to
+`UIxContactFolderActions.exportAction` (`UI/Contacts/UIxContactFolderActions.m:74`),
+which serializes each card through `-[SOGoContactGCSEntry ldifRecord]` →
+`-[NGVCard (SOGoExtensions) asLDIFRecord]` (the reporter's "VCard" export is
+this LDIF stream; SOGo 5's UI names the file `.ldif`).
 
-- `SoObjects/SOGo/SOGoUserManager.m:962` (`_fillContactInfosForUser:`) — the
-  source lookup `lookupContactEntryWithUIDorEmail:` matches the first entry
-  whose `mail`/alias field equals the address (SQL: first row of
-  `c_uid = X OR mail = X OR <mailFields> = X`; LDAP: first entry of
-  `(|(uid=X)(mail=X)...)`). With N accounts sharing the alias, the winner is
-  database/directory order — "it could be any user which has the same alias".
-- `SoObjects/SOGo/SOGoUserManager.m:1040` (`_retainUser:withLogin:`) — every
-  user entry is additionally cached in memcached under **each** of the user's
-  emails, so the cache entry for the shared alias flips between accounts
-  depending on who logged in / was resolved last.
-
-The calendar scheduling code, however, decides identity with
-`-[SOGoUser hasEmail:]` (`userIsOrganizer:`, `userIsAttendee:`,
-`userAsAttendee:` in `SoObjects/Appointments/iCalEntityObject+SOGo.m:441-513`)
-— for the current user that answer is unambiguous. The defect sits in the two
-spots that used the ambiguous directory lookup instead:
-
-- `SoObjects/Appointments/iCalEntityObject+SOGo.m:594`
-  (`attendeesWithoutUser:`) — compared the *resolved uid* of each attendee to
-  the owner's login. A DAV client that includes the organizer's address in the
-  attendee list (Thunderbird/Outlook do) with a shared alias resolved the entry
-  to some *other* mailbox, so the entry was **not** filtered out: the invite
-  flow then treated that arbitrary account as a real attendee — freebusy
-  conflict checks against the wrong calendar and an event copy filed into the
-  wrong user's calendar (`_addOrUpdateEvent:forUID:`).
-- `SoObjects/Appointments/iCalPerson+SOGo.m:59-78` (`uid`, `uidInContext:`) —
-  the organizer/attendee→uid resolution handed to the UI
-  (`attributesInContext:` → `organizer.uid`, used for freebusy lookups) and to
-  the scheduling paths (`_handleAttendeesConflicts`, `_handleAttendee`,
-  `_updateAttendee:` …) returned the arbitrary account: the "creator" shown
-  and acted upon was not the own user.
+In `SoObjects/Contacts/NGVCard+SOGo.m:428-460`
+(`_simpleValueForType:inArray:excluding:`, now shifted to ~line 471), the
+vCard→LDIF conversion resolved each phone key (`telephonenumber`, `homephone`,
+`mobile`, `facsimiletelephonenumber`, `pager`) to a **single** value: it
+enumerated the `TEL` children of the wanted type and stopped at the first
+non-excluded match. The five `_setValue:to:` calls in `asLDIFRecord`
+(pre-fix lines 576-595) therefore emitted only the first number of each
+type; subsequent same-type numbers were silently dropped from the export —
+exactly the reported data loss. Everything around this path already
+supported multi-values: the LDIF writer renders one line per array element
+(`SoObjects/Contacts/NSDictionary+LDIF.m:44-61`), the LDIF importer collects
+repeated keys into arrays (`UIxContactFolderActions.m:263-271`), and the
+LDIF→vCard importer expands arrays back into one `TEL` each
+(`NGVCard+SOGo.m:189-238`, `_setPhoneValues:` / `addElementWithTag:ofType:withValue:`
+— same pattern as past fixes 513d81eb5 / 96c22b6b9 for titles and other
+multi-value attributes). Only the export collapsed the values.
 
 ## What changed (before/after)
 
-### `SoObjects/Appointments/iCalPerson+SOGo.h/.m`
+`SoObjects/Contacts/NGVCard+SOGo.m` only (plus tests):
 
-New `- (NSString *) uidForUser: (SOGoUser *) user`: if the given user owns the
-person's email address (`hasEmail:`, aliases included), return that user's
-login; otherwise fall back to the unchanged directory lookup (`uid`).
+- New `_valuesForType:inArray:excluding:` — same matching/exclusion rules as
+  `_simpleValueForType:inArray:excluding:` (which remains for emails/URLs),
+  but collects **every** matching `TEL` value, skipping empty values.
+- New `_setValue:toValues:inLDIFRecord:` — stores the array, or `@""` when
+  empty (preserving the old "missing phone → empty key" behavior).
+- `asLDIFRecord` now sets `telephonenumber`, `homephone`, `mobile`,
+  `facsimiletelephonenumber` and `pager` to **arrays**, and the "voice"
+  fallback (no work/home phone → use `TEL;TYPE=VOICE`) emits all voice
+  numbers too; its emptiness check uses the collected arrays instead of
+  `length` (which would not apply to arrays).
 
-`uidInContext:` now applies the same preference for the **active user** before
-falling back to `uidInDomain:`.
-
-**Before** (organizer = shared alias `team@example.org`, active user
-`mailbox-one` who owns that alias, `mailbox-two` owns it too):
+**AVANT** (live repro on the e2e stack, card stored with
+`TEL;TYPE=WORK:+1 514 111 2222`, `TEL;TYPE=WORK:+1 514 333 4444`,
+2× `CELL`, 1× `HOME`, 1× `FAX`; `POST …/Contacts/personal/export`):
 
 ```
-[[event organizer] uidInContext: context]  →  @"mailbox-two"   (arbitrary: cache/directory order)
+telephonenumber: +1 514 111 2222      ← second WORK number lost
+mobile: +1 514 777 8888               ← second CELL number lost
 ```
 
-**After**:
+**APRÈS** (unit-tested through `asLDIFRecord` + `ldifRecordAsString`):
 
 ```
-[[event organizer] uidInContext: context]  →  @"mailbox-one"   (deterministic: the acting user owns the address)
+telephonenumber: +1 514 111 2222
+telephonenumber: +1 514 333 4444
+mobile: +1 514 777 8888
+mobile: +1 514 999 0000
 ```
 
-When the acting user does *not* own the address, the previous lookup is used
-unchanged — no behavior change for unambiguous addresses.
-
-### `SoObjects/Appointments/iCalEntityObject+SOGo.m`
-
-- `attendeesWithoutUser:` drops an attendee not only when its resolved uid
-  equals the user's login (unchanged) but **also when the user owns the
-  attendee's email** — making it consistent with `userIsOrganizer:` /
-  `userAsAttendee:` / `userIsAttendee:`, which are all email-based. Before: an
-  attendee entry `mailto:team@example.org` belonging to the owner via a shared
-  alias stayed in the list and was scheduled as another mailbox; after: it is
-  recognized as the owner themself.
-- `attributesInContext:` resolves the exposed `organizer.uid` through
-  `uidForUser: [context activeUser]` instead of the raw directory lookup, so
-  the creator/organizer identity served to the web UI is the acting user
-  whenever they own the organizer address (nil-context safe: falls back to the
-  previous behavior).
-
-The write paths in `SOGoAppointmentObject.m` are not touched; they become
-correct through `uidInContext:`/`attendeesWithoutUser:`
-(`_handleAttendeesConflicts`, `_handleSequenceUpdateInEvent`,
-`_handleUpdatedEvent`, `_handleAttendee`/`_updateAttendee`,
-`saveComponent:`, `updateContentWithCalendar:`).
+Re-importing such an LDIF recreates one `TEL` per line (round-trip test
+below), and `TEL;TYPE=WORK,FAX` keeps being excluded from `telephonenumber`
+and routed to `facsimiletelephonenumber`. `asLDIFRecord` has exactly one
+consumer (`SOGoContactGCSEntry.ldifRecord`), whose only readers are the
+export writer and the (template-unused) legacy editor accessor — both
+array-safe.
 
 ## Tests
 
-New `Tests/Unit/TestiCalPerson+SOGo.m` (registered in `Tests/Unit/GNUmakefile`),
-using a stub `SOGoUser` subclass (fixed `allEmails` = primary address + shared
-`test-6144-alias@example.org`, `trust:YES` init so no source is needed) and a
-real `WOContext` with `setActiveUser:`:
+New `Tests/Unit/TestNGVCard+SOGo.m` (class `TestNGVCard_plus_SOGo`,
+registered in `Tests/Unit/GNUmakefile`), loading the Contacts bundle and
+parsing real vCard sources:
 
-- `test_uidForUserPrefersUserOwningTheAlias` — exact ticket scenario at the
-  resolution level: shared alias resolves to the owning user.
-- `test_uidForUserFallsBackOnForeignEmail` — foreign address never resolves to
-  the user; equals the plain directory lookup.
-- `test_uidInContextResolvesOwnAliasToActiveUser` /
-  `test_uidInContextIgnoresForeignEmail` — both branches of `uidInContext:`.
-- `test_attendeesWithoutUserDropsAttendeeWithOwnAlias` — the DAV PUT scenario:
-  the organizer-as-attendee alias entry is filtered out, the real guest stays.
-- `test_attendeesWithoutUserKeepsForeignAttendees` — unrelated attendees are
-  kept (no over-filtering).
-- `test_attributesExposeOrganizerUidOfActiveUser` — the API payload exposes
-  `organizer.uid` = the acting user for their own alias.
-- `test_attributesOmitOrganizerUidWithoutOwner` — nil-context/foreign fallback:
-  no `uid` key, previous behavior preserved.
+- `test_asLDIFRecordExportsAllPhonesOfSameType` — exact ticket scenario:
+  2 WORK / 2 CELL / 1 HOME / 1 FAX / 1 pager all exported, in order.
+- `test_asLDIFRecordExcludesFaxFromTypedPhones` — `WORK,FAX` stays out of
+  `telephonenumber` and both fax numbers land in
+  `facsimiletelephonenumber` (exclusion branch).
+- `test_asLDIFRecordSkipsEmptyPhonesAndKeepsEmptyKeys` — empty `TEL:` values
+  are skipped; a type with no numbers still yields `@""` keys (empty branch
+  of `_setValue:toValues:`).
+- `test_asLDIFRecordFallsBackOnVoicePhones` — the v2.1 `VOICE` fallback now
+  emits every voice number.
+- `test_ldifRecordAsStringRendersOneLinePerPhone` — final LDIF output: one
+  `telephonenumber:`/`mobile:` line per number (counts checked).
+- `test_updateFromLDIFRecordExpandsPhoneArrays` — import round-trip: the
+  exported arrays recreate one `TEL;TYPE=WORK` per number.
 
-Full suite: `Ran 165 tests — FAILED (2 failures)`, the 2 being the known
+Full suite: `Ran 171 tests — FAILED (2 failures)`, the 2 being the known
 host-noise `test_NGInternetSocketAddressFromString` and
-`test_stringWithoutHTMLInjection`. (The test binary also segfaults during the
-final autorelease-pool drain of `main` on this host; that crash reproduces on
-the **untouched baseline** of this worktree and on other worktrees' binaries,
-after the summary is printed — pre-existing host noise, unrelated to this
-change.)
-
-Live repro on the e2e stack was not possible read-only: the stack's LDAP has
-no shared alias between `sogo-tests1/2/3` and adding one would require
-container/config changes (orchestrator-only). The unit tests encode the
-scenario at the exact resolution seam instead.
+`test_stringWithoutHTMLInjection` (165 → 171 with the 6 new tests, all
+passing).
 
 ## Verification steps for the orchestrator
 
 ```
-# full unit suite (build + run; 165 tests, only the 2 known host-noise failures)
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6144
+# full unit suite (build + run; 171 tests, only the 2 known host-noise failures)
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6143
 # expected last lines:
-#   Ran 165 tests
+#   Ran 171 tests
 #   FAILED (2 failures, 0 errors)
-# (exit status 139 of the runner is the pre-existing pool-drain segfault at
-#  process exit — also present on a clean checkout; judge by the summary)
 
-# eyeball the new tests specifically (157 -> 165 tests when the file is added;
-# failures stay at the 2 known ones):
-cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6144/Tests/Unit
+# eyeball the new tests (165 -> 171 tests; failures stay at the 2 known ones):
+cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6143/Tests/Unit
 source /home/hadrienblanc/Projets/hadrienblanc/sogo/local/env.sh
 export LD_LIBRARY_PATH="../SOPE/NGCards/obj:../SOPE/GDLContentStore/obj:../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
 ./obj/sogo-tests 2>/dev/null | tail -3
 ```
 
-Post-deploy check on the e2e stack (needs two users sharing an alias in the
-source, e.g. both listing `team@example.org`): CalDAV-PUT a new VEVENT with
-`ORGANIZER:mailto:team@example.org` and `ATTENDEE:mailto:team@example.org`
-(Thunderbird-style self-attendee) into user A's calendar, then verify in the
-web UI that the event's organizer resolves to A and that no copy of the event
-appears in user B's calendar.
+Post-deploy check on the e2e stack (read/write reproduction; artifacts
+`test-6143-*` were created and cleaned up during this session — nothing
+remains):
+
+```
+# 1. session
+curl -s -c /tmp/c.txt -X POST -H "Content-Type: application/json" \
+  -d '{"userName":"sogo-tests1","password":"sogo"}' http://127.0.0.1:50001/SOGo/connect
+# 2. store a card with two WORK phones
+printf 'BEGIN:VCARD\r\nVERSION:3.0\r\nN:Doe;John;;;\r\nFN:John Doe\r\nTEL;TYPE=WORK:+1 514 111 2222\r\nTEL;TYPE=WORK:+1 514 333 4444\r\nEND:VCARD\r\n' > /tmp/test-6143.vcf
+curl -s -b /tmp/c.txt -X PUT -H "Content-Type: text/vcard" \
+  --data-binary @/tmp/test-6143.vcf \
+  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Contacts/personal/test-6143-card.vcf
+# 3. export — AVANT: one telephonenumber line; APRÈS: two
+curl -s -b /tmp/c.txt -X POST -H "Content-Type: application/json" \
+  -d '{"uids":["test-6143-card.vcf"]}' \
+  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Contacts/personal/export
+# 4. cleanup
+curl -s -b /tmp/c.txt -X DELETE \
+  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Contacts/personal/test-6143-card.vcf
+```
 
 ## PR body draft
 
-When an email alias is published to SOGo from several mailboxes ("visible in
-SOGo"), the reverse resolution from an email address to a user account is
-ambiguous: the authentication sources return the first entry matching the
-address, and the memcached email→user mapping is overwritten by whichever
-account was resolved last. Calendar scheduling and the web UI therefore
-attributed events to an arbitrary account sharing the address: after a DAV
-client created an appointment whose organizer (or self-attendee entry) used
-the alias, SOGo could file attendee copies into another mailbox's calendar,
-run freebusy checks against the wrong user, and expose a wrong
-`organizer.uid` — "the creator of the appointment is not the own user as it
-should be, it could be any user which has the same alias".
+When a contact holds several phone numbers of the same type (e.g. two
+"Work" numbers), the address book export dropped every number after the
+first of its type: the vCard→LDIF conversion behind the web UI export
+(`exportAction` → `asLDIFRecord`) resolved each phone key to a single value
+via `_simpleValueForType:inArray:excluding:`, which stops at the first
+matching `TEL` child. The stored vCard was never affected — the numbers are
+all present via CardDAV and in the editor — but any `.ldif` export (single
+contact or whole address book) silently lost the extra numbers, and
+re-importing that file into another system made the loss permanent.
 
-**AVANT**: `ORGANIZER;CN=A:mailto:team@example.org` +
-`ATTENDEE:mailto:team@example.org` PUT via CalDAV by `mailbox-one` →
-`[attendee uidInContext:]` resolves the alias to `mailbox-two` (directory/cache
-order) → the alias entry is *not* filtered by `attendeesWithoutUser:`;
-`mailbox-two` is treated as a distinct attendee: conflict check against
-`mailbox-two`'s freebusy, event copy saved into `mailbox-two`'s calendar, and
-the UI's `organizer.uid` points at `mailbox-two` — the creator shown is any of
-the alias holders, varying over time with the cache.
+**AVANT**: a card with `TEL;TYPE=WORK:+1 514 111 2222` and
+`TEL;TYPE=WORK:+1 514 333 4444` exports as a single
+`telephonenumber: +1 514 111 2222` line; same collapse for repeated
+`homephone`/`mobile`/`facsimiletelephonenumber`/`pager` values.
 
-**APRÈS**: identity resolution prefers the user that actually owns the
-address: `uidInContext:`/`uidForUser:` return the acting user's login whenever
-`hasEmail:` matches (aliases included), and `attendeesWithoutUser:` drops
-attendee entries whose address belongs to the owner — consistent with the
-pre-existing email-based `userIsOrganizer:`/`userAsAttendee:` semantics. The
-creator/organizer resolves to the own user deterministically, no spurious
-copies land in other alias holders' calendars, and unambiguous addresses keep
-the exact previous behavior (foreign emails fall back to the unchanged
-directory lookup; covered by unit tests on `iCalPerson` and
-`attendeesWithoutUser:`).
+**APRÈS**: `asLDIFRecord` collects every value per phone type (same
+matching and FAX-exclusion rules as before, empty values skipped) and the
+LDIF writer — which already rendered one line per array element for other
+multi-valued attributes — emits one `telephoneNumber:` line per number:
+`+1 514 111 2222` and `+1 514 333 4444` both survive the export, and
+re-importing the LDIF recreates one `TEL` per line (round-trip covered by
+unit tests). LDIF's `telephoneNumber`/`homePhone`/`mobile` are multi-valued
+in the Mozilla LDAP schema, so the output stays standards-compliant for
+Thunderbird/Outlook imports.
