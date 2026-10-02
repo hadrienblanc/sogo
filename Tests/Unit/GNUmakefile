@@ -54,6 +54,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoMailForward.m \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
+	TestSOGoUserProfile.m \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \
 	TestSOGoContactSourceFolder.m \
