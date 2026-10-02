@@ -35,6 +35,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNGMimeHeaderFieldGenerator.m \
 	TestNGMimeMessageGenerator.m \
 	TestNGMimeType.m \
+	TestNGMimeTypeUnknownParameters.m \
 	TestNGMimeBodyPart+SOGo.m \
 	\
 	TestNGNetUtlilities.m \
