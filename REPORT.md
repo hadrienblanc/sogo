@@ -1,184 +1,112 @@
-# Bug 6153 — "Sending mail results in HTTP 405 and 'Sent is not an IMAP4 folder'"
+# Cycle-15 clean-code pass
 
-Branch: `fix-6153-mantis` (commit `f293a2758`), based on `experimental`.
+Scope: the cycle-15 diff, reviewed in this worktree (`refactor/cycle-15`).
 
-## Root cause (file:line)
+Range note: the orchestrator range `fork/experimental~11..fork/experimental`
+resolves to `e25690d44` (PR #35's merge) because `~11` follows first parents
+and each PR is one merge hop. That tree-diff would re-sweep PRs #36–#41, which
+the cycle-14 pass already covered (see its REPORT.md). The actual cycle-15
+content — the 11 commits of PRs #42–#46 listed by the orchestrator — is
+`3ab37dc92..c126ff5b0` (18 files, +1104/−97), and that is what this pass
+reviewed. The two commits inside PR #42 are the cycle-14 pass's own output and
+were only sanity-checked.
 
-The error is raised in `-[SOGoMailFolder postData:flags:]`
-(`SoObjects/Mailer/SOGoMailFolder.m:1046`, before the fix at lines 1046–1059),
-called from `-[SOGoDraftObject sendMail]` (`SoObjects/Mailer/SOGoDraftObject.m:2384`)
-when copying the message to the Sent folder. `UIxMailEditor sendAction`
-(`UI/MailerUI/UIxMailEditor.m:954`) renders any error of that send as
-HTTP 405 + `{"status": "failure", "message": "<reason>"}` — exactly the
-response shown in the ticket.
+## Verdict: no code changes — zero commits over the diff
 
-The pre-fix logic was:
+After a method-by-method review against each file's prevailing style, I found
+no defect worth a commit. An empty-commit-for-the-sake-of-committing would be
+worse than none. Everything verified is documented below, including the
+candidates I deliberately rejected.
 
-1. `[self exists]` → IMAP `STATUS "Sent" (UIDVALIDITY)` (via
-   `-[NGImap4Connection doesMailboxExistAtURL:]`). A **transient** failure of
-   this probe returns NO even though the mailbox exists (Courier refuses some
-   STATUS calls — e.g. on the selected mailbox — and pooled connections can
-   blip; this matches the "1 in 20-30 sends, multiple accounts" pattern).
-2. Fall back to `createMailbox:atURL:` → IMAP `CREATE "Sent"`. Since the
-   mailbox **does** exist, every server refuses with `NO ... already exists`
-   (verified live on the e2e Dovecot: `NO [ALREADYEXISTS] Mailbox already
-   exists`; Courier/UW/Cyrus emit the same wording without the response code).
-3. Both operations having "failed", SOGo concluded "Sent is not an IMAP4
-   folder" and **skipped the APPEND**, while SMTP had already delivered the
-   message.
+## What was reviewed and deliberately left alone
 
-So the ticket IS a real SOGo bug: a CREATE refused with "already exists" is
-proof that the mailbox exists, yet the old code treated it as proof that it
-does not. (The admin's suggestion `NGImap4DisableIMAP4Pooling = YES;` merely
-reduces the frequency of the transient STATUS failure; it does not fix the
-misclassification.)
+### PR #43 — unparsable JSON save payload (bug 6211, `abc1a32db`)
 
-## What changed (before/after)
+- `saveAction` (`UI/PreferencesUI/UIxPreferences.m:1756`): the new 400 return
+  matches the file's existing `responseWithStatus:andJSONRepresentation:`
+  error paths (TOTP/factor validation below use the same shape). The
+  continuation indent is one space off strict colon alignment, but the file's
+  own call sites (lines 1974, 2016) are inconsistent among themselves — a
+  one-space diff would be noise, not consistency.
+- `TestNSString+Utilities.m` additions follow the file's `testEquals` /
+  `testWithMessage` conventions and lock the exact ticket payload.
 
-`SoObjects/Mailer/SOGoMailFolder.m`, `-[SOGoMailFolder postData:flags:]` only:
+### PR #44 — remote images from known senders (bug 6170, `79f7fdb13` + `906d3030c`)
 
-- **AVANT** — if the folder "doesn't exist" and CREATE returns an exception
-  (any exception), the append is aborted and a 502/405
-  `"<folder> is not an IMAP4 folder"` error is raised. Message sent via SMTP
-  but not saved in Sent; UI shows the error from the ticket.
+- `_senderIsInAddressBook` (`UI/MailerUI/UIxMailView.m:275`): this is NOT a
+  reimplementation of the existing `-[SOGoContactFolders contactForEmail:]`
+  (`SoObjects/Contacts/SOGoContactFolders.m:506`). That method takes
+  `lastObject` of the fuzzy `allContactsFromFilter:` result with no exact
+  verification — precisely the substring-spoof vector the commit message says
+  it defends against. The explicit exact-match loop is the security decision;
+  factoring it onto `contactForEmail:` would reintroduce the bug.
+- Loop idiom (`for (count = 0; !known && count < max; count++)`) mirrors the
+  sibling early-exit loops in the same file (lines 458 and 508). The lookup is
+  gated on the `known` preference, so other configurations pay nothing.
+- `Message.service.js`: `Message.$displayRemoteInlineImages` now carries the
+  raw preference string instead of a boolean — verified the minified
+  `Mailer.services.js` was regenerated to mirror it exactly (old `=!0` branch
+  replaced by the junk-folder/known-sender policy).
+- `MailerRemoteImagesPolicySpec.js` reuses the stub-Message-service pattern
+  already established by `MailerMessageFlagsSpec.js` /
+  `MailerIdentitySignatureSpec.js`. Each spec carries its own lodash/angular
+  stubs; the duplication predates this diff, so factoring a shared helper is
+  out of scope for this pass (candidate for a future cycle).
+- `906d3030c` (missing semicolons after `ASSIGNCOPY`): correct as landed,
+  nothing further.
 
-  ```
-  if ([self exists]
-      || ![[self imap4Connection] createMailbox: ... atURL: ...])
-    return [[self imap4Connection] postData: _data flags: _flags
-                                toFolderURL: [self imap4URL]];
-  return [NSException exceptionWithHTTPStatus: 502
-      reason: [NSString stringWithFormat: @"%@ is not an IMAP4 folder", ...]];
-  ```
+### PR #45 — sanitize categories after JSON decoding (bug 6158, `d550d93ec`)
 
-- **APRÈS** — when CREATE fails but its reason contains "already exists"
-  (case-insensitive; covers Courier, Dovecot `[ALREADYEXISTS]`, Cyrus, UW), the
-  mailbox is known to exist and the APPEND proceeds normally. Any other CREATE
-  failure (permissions, dead connection, quota…) keeps the previous error
-  path. No behavioural change for folders that genuinely do not exist
-  (CREATE succeeds → APPEND).
+- `stringsWithoutHTMLInjection:stripAngular:` (`NSArray+Utilities.m:175`)
+  uses the same `objectEnumerator` walk as `flattenedArray`/`uniqueObjects`
+  in the same file; capacity hint on the mutable array; correct
+  autorelease discipline.
+- The `SOGoCalendarCategoriesColors` key-sanitization loop
+  (`UIxPreferences.m:1793`) repeats `[categoryNames objectAtIndex: count]`
+  twice per iteration and structurally echoes the pre-existing mail-labels
+  loop 60 lines below (line 1860). Both are the file's local idiom; rewriting
+  only the new copy would diverge from its sibling, and the dictionaries are
+  tiny (category colors), so there is no performance to reclaim. Left as is.
+- `[v setObject: sanitizedCategoriesColors  forKey: ...]` double space matches
+  the surrounding `setObject:...  forKey:` calls (lines 1806, 1873, 1880).
+- `TestNSArray+Utilities.m`: it imports `Foundation/NSValue.h` and
+  `Foundation/NSDictionary.h` without referencing either class directly —
+  harmless over-importing that GNUstep test files in this tree commonly
+  carry; trimming it is below the signal threshold for a commit.
 
-  ```
-  error = nil;
-  if (![self exists])
-    {
-      error = [[self imap4Connection] createMailbox: ... atURL: ...];
-      if (error
-          && [[error reason] rangeOfString: @"already exists"
-                                    options: NSCaseInsensitiveSearch].length > 0)
-        error = nil;
-    }
-  if (!error)
-    return [[self imap4Connection] postData: _data flags: _flags
-                                toFolderURL: [self imap4URL]];
-  ```
+### PR #46 — append to Sent when CREATE reports "already exists" (bug 6153, `f293a2758`)
 
-No public API change, no comment added, GNUstep retain/release style, 1 file
-touched in production code.
+- `postData:flags:` (`SoObjects/Mailer/SOGoMailFolder.m:1046`): declare-then-
+  `error = nil;` matches the file's existing idiom (line 859–863). The
+  case-insensitive "already exists" probe handles a nil `reason` safely
+  (message-to-nil returns an empty range). Error paths (502 otherwise,
+  append error propagated) are all covered by `TestSOGoMailFolder.m`.
+- `TestSOGoMailFolder.m`: the `objc_allocateClassPair` stub is self-contained,
+  its statics have correct retain/release discipline (retained for captured
+  arguments, plain assignment for scenario configuration reset in `setUp`),
+  and it duplicates no fixture from other test files.
 
-## Tests
+## Test hygiene
 
-New `Tests/Unit/TestSOGoMailFolder.m` (registered in `Tests/Unit/GNUmakefile`).
-The Mailer bundle cannot be statically linked into the test tool (see the note
-in `Tests/Unit/GNUmakefile`), so the test loads `Mailer.SOGo` at runtime and
-drives the **real** `-[SOGoMailFolder postData:flags:]` through a runtime
-subclass (`objc_allocateClassPair`) that stubs `exists`, `imap4Connection`,
-`imap4URL`, `mailAccountFolder` and `relativeImap4Name`, with a fake
-NGImap4-shaped connection recording CREATE/APPEND calls:
+- `Tests/Unit/GNUmakefile`: `TestNSArray+Utilities.m` and
+  `TestSOGoMailFolder.m` each appear exactly once; no duplicated link flags or
+  merge debris from the five-way PR merge.
+- No duplicated fixtures between `MailerRemoteImagesSpec.js`,
+  `MailerRemoteImagesPolicySpec.js` and `HTTPPreferencesSpec.js` — each owns
+  distinct messages/cards/mailboxes with unique `test-6170-*` identifiers.
 
-- `test_postDataAppendsWhenFolderExists` — exists → APPEND, no CREATE.
-- `test_postDataAppendsAfterSuccessfulCreate` — missing folder → CREATE then APPEND.
-- `test_postDataAppendsWhenCreateReportsAlreadyExists` — **the fix**: CREATE
-  refused with "Failed to create folder: Mailbox already exists" → APPEND
-  still happens, no error.
-- `test_postDataFailsWhenCreateFailsOtherwise` — CREATE failed otherwise →
-  "Sent is not an IMAP4 folder", no APPEND (error path preserved).
-- `test_postDataPropagatesAppendError` — an APPEND failure is propagated as-is.
+## Unit suite (baseline = after review, no changes)
 
-All 4 code branches of the touched method are exercised (100 % coverage of the
-change).
+`local/run-worktree-tests.sh wt/c15-clean` — **Ran 202 tests, 2 failures,
+0 errors**, exactly the two known host-noise failures:
 
-Result: `local/run-worktree-tests.sh wt/c15-6153` → `Ran 202 tests, FAILED (2
-failures)` — the only failures are the documented host noise
-(`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
+- `test_NGInternetSocketAddressFromString` (dual-stack localhost)
+- `test_stringWithoutHTMLInjection` (GNUstep-base empty-template regex quirk)
 
-Note (environment, not this change): running the suite with `-f junit` on this
-worktree segfaults late in the run inside `class_getMethodImplementation`
-(gnustep-base/libobjc). Verified pre-existing: with this branch's changes
-stashed and the test tool force-relinked without the new test file, the
-junit-format run still crashes at the same point (`Tests/Unit/ActiveSync/`
-build artifacts). The official text-format harness is unaffected. The other
-worktree (6242-uid-at) completes junit fine; likely related to the current
-experimental tip, worth a separate look.
-
-## Verification steps for the orchestrator
-
-1. Unit suite (already green on this branch):
-
-   ```
-   /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-     /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c15-6153
-   # expect: Ran 202 tests, only the 2 known host-noise failures
-   ```
-
-2. IMAP fact backing the root cause (read-only against the stack's Dovecot,
-   port 1430):
-
-   ```
-   exec 3<>/dev/tcp/127.0.0.1/1430 && printf 'a1 LOGIN sogo-tests1 sogo\r\na2 CREATE test-6153-sent\r\na3 CREATE test-6153-sent\r\na4 DELETE test-6153-sent\r\na5 LOGOUT\r\n' >&3 && timeout 5 cat <&3
-   # a3 must answer: NO [ALREADYEXISTS] Mailbox already exists
-   ```
-
-3. Live send regression check (run **after** deploying experimental — the
-   sogo_dev/sogo_httpd containers were down while this agent worked, backends
-   only):
-
-   ```
-   D="test-6153-orch-$(date +%s)"
-   # save a draft
-   curl -su sogo-tests1:sogo -X POST \
-     "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/folderDrafts/newDraft${D}-1/save" \
-     --data "to=sogo-tests2@sogo.local&subject=${D}&text=hello" -w "\nsave HTTP %{http_code}\n"
-   # send it -> expect {"status":"success"...} and HTTP 200
-   curl -su sogo-tests1:sogo -X POST \
-     "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/folderDrafts/newDraft${D}-1/send" \
-     --data "to=sogo-tests2@sogo.local&subject=${D}&text=hello" -w "\nsend HTTP %{http_code}\n"
-   # the message must sit in Sent
-   exec 3<>/dev/tcp/127.0.0.1/1430 && printf 'a1 LOGIN sogo-tests1 sogo\r\na2 STATUS "Sent" (MESSAGES)\r\na3 SEARCH HEADER SUBJECT "${D}"\r\na4 LOGOUT\r\n' >&3 && timeout 5 cat <&3
-   # cleanup: flag the found UID(s) \Deleted in Sent (tests1) and INBOX (tests2), then EXPUNGE
-   ```
-
-4. Force-trigger the exact ticket path (optional, white-box): temporarily make
-   the existence probe fail (e.g. `STATS`-refusing stub as in the unit test)
-   — covered deterministically by
-   `TestSOGoMailFolder.test_postDataAppendsWhenCreateReportsAlreadyExists`, no
-   live stack needed.
-
-All `test-6153-*` IMAP artifacts created during investigation were deleted
-(verified with `LIST "" test-6153-*` → empty).
-
-## PR body draft
-
-Sending a message from the web mail occasionally popped up
-`"Sent is not an IMAP4 folder"` (HTTP 405), while the message **was** sent but
-never saved in Sent (bug 6153, Courier, ~1 send in 20-30). The cause is in the
-save-to-Sent flow: SOGo probes the mailbox with `STATUS <folder>
-(UIDVALIDITY)` and, when the probe fails — which happens transiently with
-Courier or a pooled-connection hiccup on a mailbox that exists — it falls back
-to `CREATE`. The server then legitimately refuses with `NO ... already
-exists`, and SOGo misread that refusal as "the folder cannot exist",
-aborting the APPEND after SMTP had already delivered the message.
-
-**AVANT**: transient STATUS failure on an existing Sent mailbox →
-`CREATE "Sent"` → `NO Mailbox already exists` → error surfaced to the user as
-`{"status": "failure", "message": "Sent is not an IMAP4 folder"}` (HTTP 405),
-message lost from Sent.
-
-**APRÈS**: a CREATE refused with "already exists" (Courier wording, Dovecot
-`[ALREADYEXISTS]`, Cyrus, UW) is now treated as proof that the mailbox exists,
-and the APPEND proceeds — the message is saved in Sent and the send succeeds.
-Any other CREATE failure (permissions, broken connection, …) still reports the
-previous error. The change is confined to `-[SOGoMailFolder postData:flags:]`
-and is covered by 5 new unit tests in `Tests/Unit/TestSOGoMailFolder.m`
-exercising every branch, including the error paths; the full unit suite passes
-(only the two documented host-specific failures remain).
+Note: the test binary segfaults during process teardown *after* the summary
+is printed (exit 139, inside `libgnustep-base` class cleanup — coredump
+backtrace shows `class_getMethodImplementation` from gnustep-base at exit).
+This predates this pass: identical coredumps exist from the `wt/c15-6153`
+worktree at 07:56, before this agent started. It is host/runtime noise, not a
+regression from the cycle diff. No code was changed, so the suite state is by
+definition unchanged from the cycle's merged state.
