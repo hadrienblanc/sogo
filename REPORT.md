@@ -1,131 +1,131 @@
-# Bug 6152 — Incorrect display of signature with SVG image
+# Ticket 6142 — "Refresh does not work anymore" — REPORT
 
-**Verdict: NOT A BUG (intentional security behavior).** Tests-only change — no
-production code was modified.
+**Verdict: NOT A BUG in this codebase.** The regression shipped by upstream in
+SOGo 5.12.3 never landed in the `experimental` lineage; our tree is already
+byte-identical to upstream's fixed (reverted) state on every refresh call site.
+Per the ticket rules, this lands **tests only**, locking the string contract
+that the regression violated.
 
-## Root cause
+## Root cause (file:line)
 
-There is no defect in the send path. When a message containing
-`<img src="data:image/svg+xml;base64,...">` (the case of this ticket's HTML
-signature) is sent, `htmlByExtractingImages:` extracts the payload as a proper
-inline `image/svg+xml` MIME part with a `cid:` reference
-(`SoObjects/Mailer/NSString+Mail.m:280-387`). The sent message is well-formed —
-which is why it "displays normally in many other web interfaces", as the
-reporter notes. This was confirmed live on the e2e stack (see Verification).
+The upstream regression, commit `55dbae6` ("fix(view): automatically refresh
+view only if a number is set", shipped in v5.12.3), added
+`&& !isNaN(refreshViewCheck)` to the five auto-refresh timers:
 
-What the reporter sees in SOGo's own reader is a deliberate, three-layer XSS
-defense (SVG documents can embed `<script>`), matching the administrator's
-feedback on the ticket (~0018355: "this is on purposed because SVG file can
-have executable code"):
+- `UI/WebServerResources/js/Mailer/Mailbox.service.js:465`
+- `UI/WebServerResources/js/Mailer/Account.service.js:159`
+- `UI/WebServerResources/js/Preferences/Preferences.service.js:590`
+- `UI/WebServerResources/js/Contacts/AddressBook.service.js:461`
+- `UI/WebServerResources/js/Scheduler/Component.service.js:132`
 
-| Symptom | Code |
-| --- | --- |
-| empty rectangle (cid never resolved) | `UI/MailerUI/UIxMailView.m:227-237` — SVG/XML attachments are excluded from `attachmentIds`, so the `cid:` in the HTML body has no resolvable URL and the display sanitizer drops the `src` attribute |
-| shown as an attached file | `UI/MailPartViewers/UIxMailRenderingContext.m:226-227` — subtype `svg+xml` is forced to the link viewer, never the image viewer |
-| XSS neutering when fetched | `SoObjects/Mailer/SOGoMailBodyPart.m:524-527` — body parts whose type contains xml/html/css/javascript are served as `text/plain` |
+`SOGoRefreshViewCheck` is a **documented string token** (`manually`,
+`every_minute`, `every_2/5/10/20/30_minutes`, `once_per_hour` —
+Documentation/SOGoInstallationGuide.asciidoc:2608) mapped to seconds by
+`String.prototype.timeInterval()` (UI/WebServerResources/js/Common/utils.js:168).
+`isNaN("every_minute")` is `true`, so `!isNaN(...)` disabled every timer: no
+`/Mail/0/folderINBOX/changes` polling, no auto-refresh. Upstream resolved the
+ticket by reverting (`b9f6b9074`, Mantis note ~0018314 "I've reverted it").
 
-The editor displays the SVG only because CKEditor shows the raw `data:` URI in
-an `<img>` context (a context where browsers never execute SVG scripts), and
-`NGMimeBodyPart+SOGo.m:30-39` classifies `image/svg+xml` as an image for the
-draft-reopen `cid:`→`data:` roundtrip.
+Evidence this never affected our lineage:
 
-## What changed
+- `git merge-base --is-ancestor 55dbae6 HEAD` → exit 1 (regression absent)
+- `git merge-base --is-ancestor b9f6b9074 HEAD` → exit 1 (revert absent too — not needed)
+- `git diff HEAD b9f6b9074 -- <the 5 service files>` restricted to the guard
+  lines → empty: our guard is already
+  `if (refreshViewCheck && refreshViewCheck != 'manually')`
 
-**Before:** none of the above behaviors were covered by tests; a future
-refactor could silently start rendering SVG inline and re-open the XSS vector,
-or drop SVG parts on send and break interop with other clients.
+Server side is type-safe by construction: `-[SOGoUserDefaults refreshViewCheck]`
+(SoObjects/SOGo/SOGoUserDefaults.m:564) goes through
+`-[SOGoDefaultsSource stringForKey:]` (SoObjects/SOGo/SOGoDefaultsSource.m:265),
+which warns and returns nil for any non-string value, and
+`-[UIxJSONPreferences jsonDefaults]` (UI/PreferencesUI/UIxJSONPreferences.m:186)
+injects that string into the JSON defaults when the user source lacks the key.
 
-**After:** behavior locked by tests, no production change:
-- `Tests/Unit/TestNSString+Mail.m` — new
-  `test_htmlByExtractingImagesExtractsSVGDataURLOfTicket6152`: an SVG data URI
-  from a signature is extracted on send as an `image/svg+xml` part, `src`
-  rewritten to `cid:`, `type` attribute and dimensions preserved.
-- `Tests/Unit/TestNGMimeBodyPart+SOGo.m` (new) — `isImage` accepts
-  `image/svg+xml` (with and without parameters) and still rejects non-images.
-- `Tests/Unit/TestUIxMailRenderingContext.m` (new, with a WOComponent mock) —
-  `image/svg+xml` always selects the link viewer (with or without a body id),
-  while `image/png` still selects the image viewer.
-- `Tests/spec/MailSvgInlineImageSpec.js` (new e2e) — on a live stack: the cid
-  reference of an inline SVG is not resolved in the HTML body, the part is
-  presented as a downloadable attachment (link viewer), and fetching the part
-  returns `text/plain`.
-- `Tests/Unit/GNUmakefile` — registers the two new test files, links
-  `UIxMailRenderingContext.m` into the test tool, adds `-I../../` for its
-  `<SoObjects/...>` imports.
+Adjacent hazard observed but intentionally not fixed here (misconfiguration
+required, pattern shared by ~10 sibling keys — separate concern): a *numeric*
+`SOGoRefreshViewCheck` in `sogo.conf` makes `refreshViewCheck` return nil, and
+jsonDefaults' `setObject:nil` injection would raise; likewise a number stored
+directly in the user's own defaults blob would reach the browser as a JSON
+number. Neither is reachable through the Preferences UI, which only stores
+dropdown string tokens.
+
+## What changed (before/after)
+
+No production code changed. Added contract locks:
+
+- **AVANT** (upstream 5.12.3): `RefreshViewCheck = "every_minute"` in sogo.conf,
+  webmail open → devtools Network shows **zero** requests to
+  `/SOGo/so/USER/Mail/0/folderINBOX/changes`; new mail appears only on F5,
+  which then dumps 40 unread messages.
+- **APRÈS** (our tree, unchanged): same config → the client polls
+  `.../folderINBOX/changes` every `timeInterval()` = 60 s and the mailbox
+  refreshes itself; the delivered `jsonDefaults.SOGoRefreshViewCheck` is always
+  a string token (`"manually"` observed live on the e2e stack).
 
 ## Tests
 
-Unit suite (before and after the change, worktree built with
-`local/run-worktree-tests.sh`):
+- `Tests/Unit/TestSOGoUserDefaults.m` (new, registered in
+  `Tests/Unit/GNUmakefile`) — 6 tests locking the accessor contract:
+  user-level string returned; parent-source (domain) fallback; nil when unset
+  everywhere; **NSNumber value rejected** (the guard that keeps numbers out of
+  the JSON layer); `setRefreshViewCheck:` stores the string; legacy
+  `RefreshViewCheck` key migrates to `SOGoRefreshViewCheck`
+  (SoObjects/SOGo/SOGoUserDefaults.m:235).
+- `Tests/spec/HTTPRefreshViewCheckSpec.js` (new, auto-discovered by
+  jasmine.json) — locks the browser-facing contract: `jsonDefaults` must always
+  deliver `SOGoRefreshViewCheck` as a string, and a valid token must round-trip
+  unchanged through `Preferences/save`. Restores the user's original value in
+  `afterAll`.
 
-```
-Ran 209 tests
-FAILED (2 failures, 0 errors)
-  test_NGInternetSocketAddressFromString   <- documented host noise
-  test_stringWithoutHTMLInjection          <- documented host noise
-```
-
-All 8 new test methods pass (verified individually via `-f junit`):
-`test_htmlByExtractingImagesExtractsSVGDataURLOfTicket6152`,
-`test_isImageWithSVGMimeTypeOfTicket6152`, `test_isImageWithKnownImageMimeTypes`,
-`test_isImageWithNonImageMimeTypes`, `test_svgImagesAreNeverRenderedThroughImageViewerOfTicket6152`,
-`test_inlineSvgImagesAreRenderedThroughLinkViewerOfTicket6152`,
-`test_plainImagesAreRenderedThroughImageViewer`, plus the e2e spec
-`Mail inline SVG images (bug 6152)` (3 cases, self-cleaning mailbox
-`test-6152-svg`, to be run by the orchestrator's jasmine pass on a rebuilt
-stack).
+Full unit suite: **215 tests, 2 failures — both known host noise**
+(`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
 
 ## Verification steps for the orchestrator
 
-1. Unit suite:
-   `/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c16-6152`
-   — expect 209 tests, only the two documented host-noise failures.
+Unit suite (already run on this worktree):
 
-2. e2e jasmine (inside `sogo_dev`, rebuilt stack):
-   `cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && npx jasmine --config=spec/support/jasmine.json --filter "Mail inline SVG images (bug 6152)"` (restore `lib/config.js` afterwards).
-   Note: on the *current* stack instance (restarted mid-cycle), sogod returns
-   500 on DAV PUT into non-INBOX folders (stale folder cache, visible as
-   doubled `folderfolder*` entries in PROPFIND); the spec follows the same
-   makeCollection+PUT pattern as `MailHtmlRenderingSpec` and is expected to be
-   green on a rebuilt stack.
+    /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c16-6142
 
-3. Manual live reproduction (already executed, artifacts cleaned up —
-   message deleted+expunged, folders removed):
-   ```sh
-   # deliver a message whose HTML body references cid:<id> with an inline
-   # image/svg+xml part (e.g. via swaks/python to 127.0.0.1:2500), then:
-   curl -s -c /tmp/c.txt -X POST http://127.0.0.1:50001/SOGo/connect \
-        -H 'Content-Type: application/json' \
-        -d '{"userName":"sogo-tests1","password":"sogo"}'
-   curl -s -b /tmp/c.txt \
-        http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/<UID>/view
-   # -> parts[].content for text/html shows <img width="391" height="232"/>
-   #    WITHOUT any src (empty rectangle), and the image/svg+xml part is
-   #    rendered by UIxMailPartLinkViewer with an /asAttachment/ download link
-   curl -s -L -b /tmp/c.txt -o /dev/null -w '%{content_type}\n' \
-        http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/<UID>/1/2/2/sig.svg
-   # -> text/plain  (scripts inside the SVG can never execute)
-   ```
+E2e spec (inside the rebuilt `sogo_dev` container):
+
+    cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
+      npx jasmine --config=spec/support/jasmine.json --filter="refresh view check defaults (bug 6142)" ; \
+      sed -i 's/port: "50000"/port: "50001"/' lib/config.js
+
+Read-only spot-check of the live contract (validated during this session, value
+restored afterwards):
+
+    curl -s -c /tmp/c.txt -X POST http://127.0.0.1:50001/SOGo/connect \
+      -H 'Content-Type: application/json' \
+      -d '{"userName":"sogo-tests1","password":"sogo"}'
+    curl -s -b /tmp/c.txt http://127.0.0.1:50001/SOGo/so/sogo-tests1/jsonDefaults \
+      | python3 -c "import sys,json; v=json.load(sys.stdin)['SOGoRefreshViewCheck']; print(repr(v), type(v).__name__)"
+    # observed: 'manually' str
+
+Guards (no source regression possible without CI noticing):
+
+    grep -rn "isNaN(refreshViewCheck)" UI/WebServerResources/js/   # → no matches
 
 ## PR body draft
 
-Since 5.x, SOGo sends HTML-signature images as real MIME parts but deliberately
-refuses to render inline SVG images in its own message view: SVG documents can
-embed JavaScript, so resolving their `cid:` reference would let a crafted mail
-execute script in the reader (bug 6152, see the administrator's note ~0018355).
-Reported symptoms — empty rectangle plus an attached file in the Sent/received
-view — are exactly this defense at work: the `cid:` stays unresolved
-(`UIxMailView.m`), the part goes through the link viewer
-(`UIxMailRenderingContext.m`), and it is served as `text/plain` when fetched
-(`SOGoMailBodyPart.m`), so any embedded script is neutralized. The sent message
-itself is standards-compliant and displays fine in mailers that render SVG
-safely, which the reporter confirmed.
+Bug 6142 reported that auto-refresh silently stopped in 5.12.3: with
+`SOGoRefreshViewCheck = "every_minute"`, no `/Mail/0/folderINBOX/changes`
+polling ever fired and new mail only appeared on a manual F5. Root cause was
+upstream commit 55dbae6, which guarded every refresh timer with
+`!isNaN(refreshViewCheck)` although the setting is a documented *string* token
+consumed by `String.prototype.timeInterval()` — `isNaN("every_minute")` is
+true, so every timer was disabled. Upstream fixed it by reverting; that
+regression never existed in our lineage, so this PR changes **no production
+code** and instead locks the contract the bug violated.
 
-AVANT: a regression could silently re-enable inline SVG rendering (XSS) or drop
-SVG parts on send (breaking interop), nothing locked these paths.
-APRES: bug 6152 is closed as not-a-bug with the rationale recorded in tests:
-unit tests lock the send-side extraction (`image/svg+xml` part + `cid:`
-rewrite), the `isImage` classification used by the editor roundtrip, and the
-viewer selection (SVG → link viewer, PNG → image viewer); an e2e spec locks the
-full stack behavior — unresolved `cid:`, attachment-only presentation, and
-`text/plain` serving of SVG parts.
+Two test layers now pin the behavior: a unit suite
+(`TestSOGoUserDefaults.m`) covering the `refreshViewCheck` accessor —
+user-level value, domain-source fallback, non-string rejection, and the legacy
+`RefreshViewCheck` key migration — and an e2e spec
+(`HTTPRefreshViewCheckSpec.js`) asserting `jsonDefaults` always delivers
+`SOGoRefreshViewCheck` as a string token that round-trips unchanged. If anyone
+re-introduces a numeric guard or a numeric value slips into the delivery path,
+the suites fail instead of the users' mailboxes going stale. AVANT (upstream
+5.12.3): zero `changes` requests, 40 mails dumped on F5. APRÈS: polling every
+60 s, `jsonDefaults.SOGoRefreshViewCheck` observed as `'manually'` (str) on the
+e2e stack.
