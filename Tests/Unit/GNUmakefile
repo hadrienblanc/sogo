@@ -16,6 +16,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	SaxXMLReaderFactory+SOGoTests.m \
 	\
 	TestVersit.m \
+	TestNGCardsGeo.m \
 	TestiCalTimeZonePeriod.m \
 	TestiCalRecurrenceCalculator.m \
 	\
