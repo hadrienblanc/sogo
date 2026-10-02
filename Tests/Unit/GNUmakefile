@@ -33,6 +33,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNGMimeHeaderFieldGenerator.m \
 	TestNGMimeMessageGenerator.m \
 	TestNGMimeType.m \
+	TestNGMimeBodyPart+SOGo.m \
 	\
 	TestNGNetUtlilities.m \
 	TestNSData+Crypto.m \
@@ -57,11 +58,13 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
 	TestUIxHTMLMailContentHandler.m \
+	TestUIxMailRenderingContext.m \
 	TestWORequest+SOGo.m \
 	\
 	TestRTFHandler.m \
 	\
 	../../UI/MailPartViewers/UIxHTMLMailContentHandler.m \
+	../../UI/MailPartViewers/UIxMailRenderingContext.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/NSString+ActiveSync.m \
 	../../ActiveSync/NSDate+ActiveSync.m \
@@ -72,7 +75,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 TEST_TOOL_NAME = $(TEST_TOOL)
 
 $(TEST_TOOL)_CPPFLAGS += \
-	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../UI/MailPartViewers -I../../OpenChange -I../../ActiveSync \
+	-Wall -D_GNU_SOURCE -I../../ -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../UI/MailPartViewers -I../../OpenChange -I../../ActiveSync \
 	$(shell xml2-config --cflags)
 
 ADDITIONAL_LIB_DIRS += \
