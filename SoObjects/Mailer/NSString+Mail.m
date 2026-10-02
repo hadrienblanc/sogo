@@ -604,13 +604,11 @@
 
 - (BOOL) isFullHTMLDocument
 {
-  NSString *lowercased;
   NSRange r;
 
-  lowercased = [self lowercaseString];
-  r = [lowercased rangeOfString: @"<!doctype"];
+  r = [self rangeOfString: @"<!doctype" options: NSCaseInsensitiveSearch];
   if (r.length == 0)
-    r = [lowercased rangeOfString: @"<html"];
+    r = [self rangeOfString: @"<html" options: NSCaseInsensitiveSearch];
 
   return (r.length > 0);
 }

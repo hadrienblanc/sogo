@@ -844,6 +844,7 @@ static NSArray *infoKeys = nil;
 
       // Prepare response
       attachmentAttrs = nil;
+      [savedAttachments removeAllObjects];
       attrs = [self attachmentAttrs];
       data = [NSDictionary dictionaryWithObjectsAndKeys:
                              [self sourceUID], @"uid",
