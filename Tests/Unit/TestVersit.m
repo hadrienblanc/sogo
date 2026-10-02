@@ -22,6 +22,7 @@
 
 #import <NGCards/CardVersitRenderer.h>
 #import <NGCards/CardGroup.h>
+#import <NGCards/NGVCard.h>
 
 #import "SOGoTest.h"
 
@@ -213,6 +214,183 @@
 
 #pragma clang diagnostic pop
 
+}
+
+- (void) test_parsing_grouped_properties
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+  CardElement *element;
+  NSString *versit;
+
+  versit = @"BEGIN:VCARD\r\nITEM1.TEL;TYPE=HOME:1234\r\nEND:VCARD";
+  card = [NGVCard parseSingleFromSource: versit];
+  element = [card firstChildWithTag: @"tel"];
+  testEquals([element group], @"ITEM1");
+  testEquals([element value: 0 ofAttribute: @"type"], @"HOME");
+  testEquals([element flattenedValuesForKey: @""], @"1234");
+  testEquals([element versitString], @"ITEM1.TEL;TYPE=HOME:1234");
+
+  versit = @"BEGIN:VCARD\r\nITEM2.EMAIL:x@y.z\r\nTEL:99\r\nEND:VCARD";
+  card = [NGVCard parseSingleFromSource: versit];
+  element = [card firstChildWithTag: @"email"];
+  testEquals([element group], @"ITEM2");
+  testEquals([card versitString],
+             @"BEGIN:VCARD\r\nITEM2.EMAIL:x@y.z\r\nTEL:99\r\nVERSION:3.0\r\nEND:VCARD");
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_quoted_printable
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+  CardElement *element;
+
+  card = [NGVCard parseSingleFromSource:
+                    @"BEGIN:VCARD\r\nNOTE;ENCODING=QUOTED-PRINTABLE:Caf=C3=A9\r\nEND:VCARD"];
+  element = [card firstChildWithTag: @"note"];
+  testEquals([element flattenedValuesForKey: @""], @"Café");
+  testEquals([element value: 0 ofAttribute: @"encoding"], @"");
+
+  card = [NGVCard parseSingleFromSource:
+                    @"BEGIN:VCARD\r\nNOTE;ENCODING=QUOTED-PRINTABLE;CHARSET=UTF-8:one=2Ctwo\r\nEND:VCARD"];
+  element = [card firstChildWithTag: @"note"];
+  testEquals([element flattenedValuesForKey: @""], @"one,two");
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_folded_lines
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+  CardElement *element;
+
+  card = [NGVCard parseSingleFromSource:
+                    @"BEGIN:VCARD\r\nNOTE:this is a very long note which\r\n is folded across two lines\r\nEND:VCARD"];
+  element = [card firstChildWithTag: @"note"];
+  testEquals([element flattenedValuesForKey: @""],
+             @"this is a very long note whichis folded across two lines");
+
+  card = [NGVCard parseSingleFromSource:
+                    @"BEGIN:VCARD\nNOTE:lf-folded\n continued part\nEND:VCARD\n"];
+  element = [card firstChildWithTag: @"note"];
+  testEquals([element flattenedValuesForKey: @""],
+             @"lf-foldedcontinued part");
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_multiple_cards
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NSArray *cards;
+  NGVCard *card;
+
+  cards = [CardGroup parseFromSource:
+                      @"BEGIN:VCARD\r\nUID:abc\r\nEND:VCARD\r\nBEGIN:VCARD\r\nUID:def\r\nEND:VCARD"];
+  test([cards count] == 2);
+  card = [NGVCard parseSingleFromSource:
+                      @"BEGIN:VCARD\r\nUID:abc\r\nEND:VCARD\r\nBEGIN:VCARD\r\nUID:def\r\nEND:VCARD"];
+  testEquals([card uid], @"abc");
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_nested_groups
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+  NSArray *found;
+
+  card = [NGVCard parseSingleFromSource:
+                    @"BEGIN:VCARD\r\nUID:u\r\nBEGIN:X-TEAM\r\nX-VAL:1\r\nEND:X-TEAM\r\nEND:VCARD"];
+  found = [card childrenGroupWithTag: @"x-team"
+                            withChild: @"x-val"
+                  havingSimpleValue: @"1"];
+  test([found count] == 1);
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_error_lines
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+
+  card = [NGVCard parseSingleFromSource:
+                    @"BEGIN:VCARD\r\nNOSEMICOLON\r\nUID:abc\r\nEND:VCARD"];
+  testEquals([card uid], @"abc");
+
+  card = [NGVCard parseSingleFromSource: @"BEGIN:VCARD\r\n:colonfirst\r\nEND:VCARD"];
+  test([[card children] count] == 0);
+
+  card = [NGVCard parseSingleFromSource: @"END:VCARD"];
+  test(card == nil);
+
+  card = [NGVCard parseSingleFromSource: @"TEL:123\r\nEND:VCARD"];
+  test(card == nil);
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_mismatched_end
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+
+  card = [NGVCard parseSingleFromSource: @"BEGIN:VCARD\r\nUID:abc\r\nEND:VLIST"];
+  test(card != nil);
+  testEquals([card uid], @"abc");
+
+  card = [NGVCard parseSingleFromSource: @"BEGIN:VCARD\r\nUID:abc\r\nEND:VCARD"];
+  testEquals([card uid], @"abc");
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_unterminated_last_line
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+
+  card = [NGVCard parseSingleFromSource: @"BEGIN:VCARD\r\nUID:abc\r\nEND:VCARD"];
+  testEquals([card uid], @"abc");
+
+  card = [NGVCard parseSingleFromSource: @"BEGIN:VCARD\nUID:abc\nEND:VCARD\n"];
+  testEquals([card uid], @"abc");
+
+#pragma clang diagnostic pop
+}
+
+- (void) test_parsing_begin_with_parameters
+{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-string-compare"
+
+  NGVCard *card;
+
+  card = [NGVCard parseSingleFromSource: @"BEGIN;X=1:VCARD\r\nUID:abc\r\nEND:VCARD"];
+  testEquals([card uid], @"abc");
+
+#pragma clang diagnostic pop
 }
 
 @end
