@@ -109,4 +109,20 @@
               @"<div>a<br>b</div>");
 }
 
+- (void) test_ticket6135ForwardedSkeletonKeepsParagraphTag
+{
+  NSString *html;
+
+  html = @"<html><head>\n"
+         @"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"></head>"
+         @"<body><img width=\"1\" height=\"1\" src=\"https://t.example.com/tr/op/upMbUhF8\" style=\"mso-hide:all\">"
+         @"<p>guckst Du hier</p></body></html>\n";
+
+  testEquals ([self sanitized: html],
+              @"<html><head>\n"
+              @"<meta http-equiv=\"Content-Type\" content=\"text/html; \"></head>"
+              @"<body><img width=\"1\" height=\"1\" src=\"https://t.example.com/tr/op/upMbUhF8\" style=\"mso-hide:all\">"
+              @"<p>guckst Du hier</p></body>\n</html>");
+}
+
 @end

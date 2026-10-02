@@ -602,6 +602,19 @@
   return [handler result];
 }
 
+- (BOOL) isFullHTMLDocument
+{
+  NSString *lowercased;
+  NSRange r;
+
+  lowercased = [self lowercaseString];
+  r = [lowercased rangeOfString: @"<!doctype"];
+  if (r.length == 0)
+    r = [lowercased rangeOfString: @"<html"];
+
+  return (r.length > 0);
+}
+
 - (NSString *) htmlByExtractingImages: (NSMutableArray *) theImages
 {
   _SOGoHTMLContentHandler *handler;

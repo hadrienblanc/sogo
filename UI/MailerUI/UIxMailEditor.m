@@ -48,6 +48,7 @@
 #import <Mailer/SOGoMailObject+Draft.h>
 #import <Mailer/SOGoMailFolder.h>
 #import <Mailer/SOGoMailAccount.h>
+#import <Mailer/NSString+Mail.h>
 
 #import <UI/MailPartViewers/UIxMailSizeFormatter.h>
 
@@ -631,7 +632,9 @@ static NSArray *infoKeys = nil;
           // Set a base font size if mail is HTML and user has set a default font-size
           ud = [[context activeUser] userDefaults];
           fontSize = [ud mailComposeFontSize];
-          if (fontSize > 0)
+          if ([text isFullHTMLDocument])
+            content = text;
+          else if (fontSize > 0)
             content = [NSString stringWithFormat: @"<html><span style=\"font-size: %ipx;\">%@</span></html>",
                                 fontSize, text];
           else
