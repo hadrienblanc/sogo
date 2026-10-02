@@ -17,6 +17,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	\
 	TestVersit.m \
 	TestiCalTimeZonePeriod.m \
+	TestiCalTimeZoneFallback.m \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalEvent+SOGo.m \
