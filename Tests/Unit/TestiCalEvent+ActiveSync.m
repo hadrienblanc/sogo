@@ -106,6 +106,66 @@
   testEquals ([event activeSyncEndTimeInContext: context], @"20251029T140000Z");
 }
 
+- (void) test_missingAttendeeRoleDefaultsToRequiredOnTheWire
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6132-norole\r\n"
+                     @"SUMMARY:Termin\r\n"
+                     @"DTSTART:20251029T130000Z\r\n"
+                     @"DTEND:20251029T140000Z\r\n"
+                     @"ORGANIZER;CN=Beate Luther:mailto:beate@example.com\r\n"
+                     @"ATTENDEE;CN=Office;RSVP=TRUE:mailto:office@example.com\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage ([s rangeOfString:
+                      @"<Attendee_Type xmlns=\"Calendar:\">1</Attendee_Type>"].length > 0,
+                   @"an absent ROLE defaults to REQ-PARTICIPANT (RFC 5545) "
+                   @"and must map to a required attendee");
+  testWithMessage ([s rangeOfString:
+                      @"<Attendee_Status xmlns=\"Calendar:\">5</Attendee_Status>"].length > 0,
+                   @"an absent PARTSTAT defaults to NEEDS-ACTION (RFC 5545) "
+                   @"and must map to attendee status 5");
+}
+
+- (void) test_explicitOptionalAttendeeRoleStaysOptionalOnTheWire
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6132-optrole\r\n"
+                     @"SUMMARY:Termin\r\n"
+                     @"DTSTART:20251029T130000Z\r\n"
+                     @"DTEND:20251029T140000Z\r\n"
+                     @"ORGANIZER;CN=Beate Luther:mailto:beate@example.com\r\n"
+                     @"ATTENDEE;CN=Office;ROLE=OPT-PARTICIPANT;RSVP=TRUE:mailto:office@example.com\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage ([s rangeOfString:
+                      @"<Attendee_Type xmlns=\"Calendar:\">2</Attendee_Type>"].length > 0,
+                   @"an explicit OPT-PARTICIPANT role must still map to an "
+                   @"optional attendee");
+}
+
 - (void) test_allDayRepresentationsAreMidnightBased
 {
   iCalEvent *event;

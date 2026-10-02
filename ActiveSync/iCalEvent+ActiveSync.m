@@ -242,7 +242,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           [s appendFormat: @"<Attendee_Status xmlns=\"Calendar:\">%d</Attendee_Status>", attendee_status];
 
           // FIXME: handle resource
-          if ([[attendee role] caseInsensitiveCompare: @"REQ-PARTICIPANT"] == NSOrderedSame)
+          if ([[attendee roleWithDefault] caseInsensitiveCompare: @"REQ-PARTICIPANT"] == NSOrderedSame)
             attendee_type = 1;
           else
             attendee_type = 2;
