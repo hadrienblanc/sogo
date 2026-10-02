@@ -47,6 +47,9 @@
 
 - (NSArray *) trimmedComponents;
 
+- (NSArray *) stringsWithoutHTMLInjection: (BOOL) stripHTMLCode
+                              stripAngular: (BOOL) stripAngular;
+
 #ifdef GNUSTEP_BASE_LIBRARY
 - (void) makeObjectsPerform: (SEL) selector
                  withObject: (id) object1

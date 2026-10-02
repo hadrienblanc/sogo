@@ -1763,7 +1763,7 @@ static NSArray *reminderValues = nil;
     {
       NSMutableDictionary *sanitizedLabels;
       NSArray *allKeys, *accounts, *identities, *forwardMails;
-      NSDictionary *newLabels, *forwardPref;
+      NSDictionary *newLabels, *forwardPref, *categoriesColors;
       NSString *name;
       id loginModule;
 
@@ -1771,6 +1771,35 @@ static NSArray *reminderValues = nil;
 
       // We convert our object into a mutable one
       v = [[v mutableCopy] autorelease];
+
+      if ([[v objectForKey: @"SOGoContactsCategories"] isKindOfClass: [NSArray class]])
+        [v setObject: [[v objectForKey: @"SOGoContactsCategories"] stringsWithoutHTMLInjection: YES stripAngular: NO]
+              forKey: @"SOGoContactsCategories"];
+
+      if ([[v objectForKey: @"SOGoCalendarCategories"] isKindOfClass: [NSArray class]])
+        [v setObject: [[v objectForKey: @"SOGoCalendarCategories"] stringsWithoutHTMLInjection: YES stripAngular: NO]
+              forKey: @"SOGoCalendarCategories"];
+
+      categoriesColors = [v objectForKey: @"SOGoCalendarCategoriesColors"];
+      if ([categoriesColors isKindOfClass: [NSDictionary class]])
+        {
+          NSMutableDictionary *sanitizedCategoriesColors;
+          NSArray *categoryNames;
+          NSString *categoryName;
+          int count;
+
+          categoryNames = [categoriesColors allKeys];
+          sanitizedCategoriesColors = [NSMutableDictionary dictionaryWithCapacity: [categoryNames count]];
+          for (count = 0; count < [categoryNames count]; count++)
+            {
+              categoryName = [categoryNames objectAtIndex: count];
+              if ([categoryName isKindOfClass: [NSString class]])
+                categoryName = [categoryName stringWithoutHTMLInjection: YES stripAngular: NO];
+              [sanitizedCategoriesColors setObject: [categoriesColors objectForKey: [categoryNames objectAtIndex: count]]
+                                            forKey: categoryName];
+            }
+          [v setObject: sanitizedCategoriesColors  forKey: @"SOGoCalendarCategoriesColors"];
+        }
 
       if ([[v objectForKey: @"SOGoLoginModule"] isEqualToString: @"Last"])
         {

@@ -23,6 +23,7 @@
 #import <Foundation/NSValue.h>
 
 #import "NSArray+Utilities.h"
+#import "NSString+Utilities.h"
 
 @implementation NSArray (SOGoArrayUtilities)
 
@@ -169,6 +170,27 @@
 - (NSArray *) trimmedComponents
 {
   return [self resultsOfSelector: @selector (stringByTrimmingSpaces)];
+}
+
+- (NSArray *) stringsWithoutHTMLInjection: (BOOL) stripHTMLCode
+                              stripAngular: (BOOL) stripAngular
+{
+  NSMutableArray *sanitizedStrings;
+  NSEnumerator *objects;
+  id currentObject;
+
+  sanitizedStrings = [NSMutableArray arrayWithCapacity: [self count]];
+
+  objects = [self objectEnumerator];
+  while ((currentObject = [objects nextObject]))
+    {
+      if ([currentObject isKindOfClass: [NSString class]])
+        currentObject = [currentObject stringWithoutHTMLInjection: stripHTMLCode
+                                                      stripAngular: stripAngular];
+      [sanitizedStrings addObject: currentObject];
+    }
+
+  return sanitizedStrings;
 }
 
 #ifdef GNUSTEP_BASE_LIBRARY

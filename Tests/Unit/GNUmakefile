@@ -41,6 +41,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Mail.m \
 	TestNSString+URLEscaping.m \
 	TestNSString+Utilities.m \
+	TestNSArray+Utilities.m \
 	TestNSString+CKEditorUserAgentOverride.m \
 	TestNSString+Imap4LabelName.m \
 	TestNSURL+misc.m \
