@@ -14,6 +14,9 @@ $(TEST_TOOL)_OBJC_FILES += \
 	SOGoTest.m \
 	SOGoTestRunner.m \
 	SaxXMLReaderFactory+SOGoTests.m \
+	../../SoObjects/Contacts/NGVCard+SOGo.m \
+	../../SoObjects/Contacts/NSDictionary+LDIF.m \
+	../../SoObjects/Contacts/NSString+LDIF.m \
 	\
 	TestVersit.m \
 	TestiCalTimeZonePeriod.m \
@@ -31,6 +34,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Crypto.m \
 	TestNSString+URLEscaping.m \
 	TestNSString+Utilities.m \
+	TestNGVCardLDIFPhones.m \
 	TestNSURL+misc.m \
 	TestNGMailAddressParser.m \
 	TestNGInternetSocketAddress.m \
@@ -43,7 +47,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 TEST_TOOL_NAME = $(TEST_TOOL)
 
 $(TEST_TOOL)_CPPFLAGS += \
-	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange
+	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange -I../../SoObjects/Contacts
 
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \

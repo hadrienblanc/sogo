@@ -218,6 +218,33 @@ convention:
     }
 }
 
+- (NSArray *) _allValuesForType: (NSString *) aType
+                        inArray: (NSArray *) anArray
+                      excluding: (NSString *) aTypeToExclude
+{
+  NSArray *elements;
+  NSMutableArray *values;
+  CardElement *ce;
+  int i;
+
+  elements = [anArray cardElementsWithAttribute: @"type"
+                                    havingValue: aType];
+  values = [NSMutableArray array];
+
+  for (i = 0; i < [elements count]; i++)
+    {
+      ce = [elements objectAtIndex: i];
+
+      if (aTypeToExclude
+          && [ce hasAttribute: @"type" havingValue: aTypeToExclude])
+        continue;
+
+      [values addObject: [ce flattenedValuesForKey: @""]];
+    }
+
+  return values;
+}
+
 - (void) _setPhoneValues: (NSDictionary *) ldifRecord
 {
   [self addElementWithTag: @"tel"
@@ -469,6 +496,28 @@ convention:
   [ldifRecord setObject: aValue forKey: key];
 }
 
+- (void) _setValues: (NSString *) key
+                 to: (NSArray *) aValues
+       inLDIFRecord: (NSMutableDictionary *) ldifRecord
+{
+  if ([aValues count] > 0)
+    [ldifRecord setObject: aValues forKey: key];
+  else
+    [ldifRecord setObject: @"" forKey: key];
+}
+
+- (BOOL) _isEmptyLDIFValue: (id) aValue
+{
+  BOOL isEmpty;
+
+  if ([aValue isKindOfClass: [NSArray class]])
+    isEmpty = ([aValue count] == 0);
+  else
+    isEmpty = ([aValue length] == 0);
+
+  return isEmpty;
+}
+
 - (void) _setupEmailFieldsInLDIFRecord: (NSMutableDictionary *) ldifRecord
 {
   NSArray *elements;
@@ -573,26 +622,26 @@ convention:
   elements = [self childrenWithTag: @"tel"];
   // We do this (exclude FAX) in order to avoid setting the WORK number as the FAX
   // one if we do see the FAX field BEFORE the WORK number.
-  [self _setValue: @"telephonenumber"
-               to: [self _simpleValueForType: @"work" inArray: elements
+  [self _setValues: @"telephonenumber"
+                 to: [self _allValuesForType: @"work" inArray: elements
                                    excluding: @"fax"]
-      inLDIFRecord: ldifRecord];
-  [self _setValue: @"homephone"
-               to: [self _simpleValueForType: @"home" inArray: elements
+       inLDIFRecord: ldifRecord];
+  [self _setValues: @"homephone"
+                 to: [self _allValuesForType: @"home" inArray: elements
                                    excluding: @"fax"]
-      inLDIFRecord: ldifRecord];
-  [self _setValue: @"mobile"
-               to: [self _simpleValueForType: @"cell" inArray: elements
+       inLDIFRecord: ldifRecord];
+  [self _setValues: @"mobile"
+                 to: [self _allValuesForType: @"cell" inArray: elements
                                    excluding: nil]
-      inLDIFRecord: ldifRecord];
-  [self _setValue: @"facsimiletelephonenumber"
-               to: [self _simpleValueForType: @"fax" inArray: elements
+       inLDIFRecord: ldifRecord];
+  [self _setValues: @"facsimiletelephonenumber"
+                 to: [self _allValuesForType: @"fax" inArray: elements
                                    excluding: nil]
-      inLDIFRecord: ldifRecord];
-  [self _setValue: @"pager"
-               to: [self _simpleValueForType: @"pager" inArray: elements
+       inLDIFRecord: ldifRecord];
+  [self _setValues: @"pager"
+                 to: [self _allValuesForType: @"pager" inArray: elements
                                    excluding: nil]
-      inLDIFRecord: ldifRecord];
+       inLDIFRecord: ldifRecord];
 
   // If we don't have a "home" and "work" phone number but
   // we have a "voice" one defined, we set it to the "work" value
@@ -608,8 +657,8 @@ convention:
   // ADR;HOME:;;;;;;
   // ADR;WORK:;;;;;;
   // ADR:;;;;;;
-  if ([[ldifRecord objectForKey: @"telephonenumber"] length] == 0 &&
-      [[ldifRecord objectForKey: @"homephone"] length] == 0 &&
+  if ([self _isEmptyLDIFValue: [ldifRecord objectForKey: @"telephonenumber"]] &&
+      [self _isEmptyLDIFValue: [ldifRecord objectForKey: @"homephone"]] &&
       [elements count] > 0)
     [self _setValue: @"telephonenumber"
                  to: [self _simpleValueForType: @"voice" inArray: elements
