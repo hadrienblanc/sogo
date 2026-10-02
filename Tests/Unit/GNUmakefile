@@ -53,6 +53,11 @@ $(TEST_TOOL)_OBJC_FILES += \
 	\
 	TestRTFHandler.m \
 	TestSOGoHTMLSanitizer.m \
+	../../SoObjects/Contacts/NGVCard+SOGo.m \
+	../../SoObjects/Contacts/NSDictionary+LDIF.m \
+	../../SoObjects/Contacts/NSString+LDIF.m \
+	../../SoObjects/SOGo/SOGoDateFormatter.m \
+	TestContactsLDIF.m \
 	\
     # I don't know how to link against -l:SOGoBackend \
 	     undefined reference to `__objc_class_name_SOGoMailFolder'
