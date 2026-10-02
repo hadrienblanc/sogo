@@ -331,8 +331,8 @@ static NSString *sieveScriptName = @"sogo";
               if ([customHeader length])
                 *field = [customHeader asSieveQuotedString];
               else
-                scriptError = (@"Pseudo-header field 'header' without"
-                               @" 'custom_header' parameter.");
+                ASSIGN(scriptError, @"Pseudo-header field 'header' without"
+                        @" 'custom_header' parameter.");
             }
           else if ([jsonField isEqualToString: @"body"] ||
                    [jsonField isEqualToString: @"size"])
@@ -345,12 +345,12 @@ static NSString *sieveScriptName = @"sogo";
             [requirements addObjectUniquely: requirement];
         }
       else
-        scriptError
-          = [NSString stringWithFormat: @"Rule based on unknown field '%@'",
-                      jsonField];
+        ASSIGN(scriptError,
+               ([NSString stringWithFormat: @"Rule based on unknown field '%@'",
+                                        jsonField]));
     }
   else
-    scriptError = @"Rule without any specified field.";
+    ASSIGN(scriptError, @"Rule without any specified field.");
 
   return (scriptError == nil);
 }
@@ -385,12 +385,13 @@ static NSString *sieveScriptName = @"sogo";
           *operator = baseOperator;
         }
       else
-        scriptError = [NSString stringWithFormat:
-                                  @"Rule has unknown operator '%@'",
-                                baseOperator];
+        ASSIGN(scriptError,
+               ([NSString stringWithFormat:
+                           @"Rule has unknown operator '%@'",
+                         baseOperator]));
     }
   else
-    scriptError = @"Rule without any specified operator";
+    ASSIGN(scriptError, @"Rule without any specified operator");
 
   return (scriptError == nil);
 }
@@ -426,7 +427,7 @@ static NSString *sieveScriptName = @"sogo";
         *value = [extractedValue asSieveQuotedString];
     }
   else
-    scriptError = @"Rule lacks a 'value' parameter";
+    ASSIGN(scriptError, @"Rule lacks a 'value' parameter");
 
   return (scriptError == nil);
 }
@@ -535,10 +536,10 @@ static NSString *sieveScriptName = @"sogo";
                     sieveAction = [NSString stringWithFormat: @"%@ %@",
                                             method, [flag asSieveQuotedString]];
                   else
-                    scriptError
-                      = [NSString stringWithFormat:
-                                    @"Action with invalid flag argument '%@'",
-                                  argument];
+                    ASSIGN(scriptError,
+                           ([NSString stringWithFormat:
+                                       @"Action with invalid flag argument '%@'",
+                                     argument]));
                 }
               else if ([method isEqualToString: @"fileinto"])
                 {
@@ -563,12 +564,13 @@ static NSString *sieveScriptName = @"sogo";
                 sieveAction = [NSString stringWithFormat: @"%@ %@",
                                 method, [argument asSieveQuotedString]];
               else
-                scriptError
-                  = [NSString stringWithFormat: @"Action has unknown method '%@'",
-                              method];
+                ASSIGN(scriptError,
+                       ([NSString stringWithFormat:
+                                   @"Action has unknown method '%@'",
+                                 method]));
             }
           else
-            scriptError = @"Action missing 'argument' parameter";
+            ASSIGN(scriptError, @"Action missing 'argument' parameter");
         }
       if (method)
         {
@@ -578,7 +580,7 @@ static NSString *sieveScriptName = @"sogo";
         }
     }
   else
-    scriptError = @"Action missing 'method' parameter";
+    ASSIGN(scriptError, @"Action missing 'method' parameter");
 
   return sieveAction;
 }
@@ -627,13 +629,15 @@ static NSString *sieveScriptName = @"sogo";
                        match,
                        [sieveRules componentsJoinedByString: @", "]];
           else
-            scriptError = [NSString stringWithFormat:
-                                    @"Test '%@' used without any"
-                                    @" specified rule",
-                                    match];
+            ASSIGN(scriptError,
+                   ([NSString stringWithFormat:
+                              @"Test '%@' used without any"
+                              @" specified rule",
+                              match]));
         }
       else
-        scriptError = [NSString stringWithFormat: @"Bad test: %@", match];
+        ASSIGN(scriptError,
+               ([NSString stringWithFormat: @"Bad test: %@", match]));
     }
   sieveActions = [self _extractSieveActions: [newScript objectForKey: @"actions"]
                                   withReq: req
@@ -680,7 +684,6 @@ static NSString *sieveScriptName = @"sogo";
         }
     }
 
-  [scriptError retain];
   DESTROY(requirements);
 
   if (scriptError)
