@@ -169,6 +169,23 @@
   testEquals([[NSString stringWithString:@"&#123;&#123;1337*1337&#125;&#125;"] stringWithoutHTMLInjection: NO stripAngular: YES], @"{\\{1337*1337}/}");
 }
 
+- (void) test_stringWithoutHTMLInjectionOnJSONPayloads
+{
+  NSString *json, *sanitized;
+  id parsed;
+
+  json = @"{ \"signature\": \"<div>sig</div><meta http-equiv=\\\"content-type\\\" content=\\\"text/html; charset=UTF-8\\\">\" }";
+  sanitized = [json stringWithoutHTMLInjection: NO stripAngular: NO];
+  testEquals(sanitized, json);
+  testWithMessage([sanitized objectFromJSONString] != nil, @"sanitized JSON payload must stay parsable");
+
+  json = @"{ \"signature\": \"<img src=x onerror=alert(1)>\" }";
+  sanitized = [json stringWithoutHTMLInjection: NO stripAngular: NO];
+  parsed = [sanitized objectFromJSONString];
+  testWithMessage(parsed != nil, @"sanitized JSON payload must stay parsable");
+  testEquals([parsed objectForKey: @"signature"], @"<img src=x data-blocked=alert(1)>");
+}
+
 - (void) test_stringCleanInvalidHTMLTags
 {
   testEquals([[NSString stringWithString:@"<div>Test<!--></div>"] cleanInvalidHTMLTags], @"<div>Test</div>");

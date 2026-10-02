@@ -1,100 +1,146 @@
-# Cycle-14 clean-code pass
+# Ticket 6211 — HTML sanitization corrupts JSON in preferences
 
-Scope: `fork/experimental~11..fork/experimental` (PRs #31–#41), reviewed in this
-worktree (`refactor/cycle-14`). Light pass over style/consistency, dead code,
-duplicated logic introduced by the diff, performance smells in new code, and
-test hygiene.
+## Root cause
 
-## What I changed (2 commits)
+Two defects were reported:
 
-### 1. `perf(mailer): detect full HTML documents without lowercasing the whole body`
-`SoObjects/Mailer/NSString+Mail.m` — `isFullHTMLDocument` (introduced by the
-bug 6135 fix) built a full lowercased copy of the message body on every HTML
-draft save, only to run two substring searches:
+1. **JSON corruption (fixed upstream before this branch).** Commit
+   `67ce01ec2` ("fix(mail): sanitise mail with ics") replaced the per-handler
+   regexes in `stringWithoutHTMLInjection`
+   (SoObjects/SOGo/NSString+Utilities.m:1161) with
+   `(on\w+)\s*=\s*(["'][^"']*["']|[^\s>]+)` → `on***=""`. Lacking a `\b`
+   anchor, `(on\w+)` matched **inside** attribute names — in `content=`, the
+   substring `ontent=` matched — and the template swallowed the attribute
+   value *including its backslash-escaped quotes*. Applied to the raw JSON
+   body in `saveAction` (UIxPreferences.m:1752-1754), this destroyed the JSON
+   escaping (`\"content-type\"` → `con***="" charset`), so
+   `objectFromJSONString` failed. This was fixed on `experimental` by
+   `c45233c11` (the "next nightly" fix noted in the ticket) and refined by
+   `10dc17334` (current `\bon(click|error|focus|load|mouseover|animationstart)[...]*=`
+   → `data-blocked=`). I verified with a standalone probe against this
+   worktree's framework that the ticket's exact payload now passes through the
+   sanitizer **unchanged and still parses**: the regex regression is gone.
+
+2. **Silent data loss on unparseable JSON (still live — fixed here).** When
+   `objectFromJSONString` failed, `o` was `nil`, both `if ((v = [o objectForKey:...]))`
+   blocks in `saveAction` (UIxPreferences.m:1757, 1997) were skipped, and the
+   method fell through to `results = [self responseWithStatus: 200]`
+   (UIxPreferences.m:2011): an empty **HTTP 200** with the user's changes
+   silently discarded and no error surfaced — exactly what the ticket reports.
+
+## What changed
+
+`UI/PreferencesUI/UIxPreferences.m` — `saveAction`:
 
 ```objc
 /* before */
-lowercased = [self lowercaseString];
-r = [lowercased rangeOfString: @"<!doctype"];
-if (r.length == 0)
-  r = [lowercased rangeOfString: @"<html"];
+o = [requestStr objectFromJSONString];
+results = nil;
+/* ...both branches silently skipped when o == nil... */
+if (!results)
+  results = (id <WOActionResults>) [self responseWithStatus: 200];
 
 /* after */
-r = [self rangeOfString: @"<!doctype" options: NSCaseInsensitiveSearch];
-if (r.length == 0)
-  r = [self rangeOfString: @"<html" options: NSCaseInsensitiveSearch];
+o = [requestStr objectFromJSONString];
+if (!o)
+  return [self responseWithStatus: 400
+           andJSONRepresentation: [NSDictionary dictionaryWithObjectsAndKeys: @"Invalid JSON payload", @"message", nil]];
 ```
 
-For a large HTML body this removes one O(n) allocation + copy per save while
-keeping identical semantics (case-insensitive literal search for the same two
-needles). Covered by `test_isFullHTMLDocumentIsCaseInsensitive` and the other
-`isFullHTMLDocument` tests in `Tests/Unit/TestNSString+Mail.m`, all green.
+- **AVANT**: `POST /SOGo/so/user/Preferences/save` with a body the sanitizer
+  (or anything else) makes unparsable → `200` empty body, save silently
+  dropped, UI shows "Preferences saved".
+- **APRÈS**: same request → `400` + `{"message":"Invalid JSON payload"}`; the
+  AngularJS client's `$save().catch()` suppresses the success toast, so the
+  user is no longer told the save succeeded. (Verified in
+  `PreferencesController.js:476-490`: non-2xx rejects the promise and skips
+  the "Preferences saved" toast; 485 already handled the same way.)
 
-### 2. `fix(mailer): don't revert attachments committed by an earlier successful draft save`
-`UI/MailerUI/UIxMailEditor.m` — the bug 6124 fix tracks uploaded attachment
-names in the `savedAttachments` ivar and reverts them when a draft save fails.
-The array was never cleared after a *successful* save, so within one editor
-session (repeated saves / autosave) a later failure would also delete
-attachment files belonging to the last good draft:
+The apidoc block of the endpoint gains the `@apiError (Error 400)` entry.
 
-- save #1 uploads A, draft save succeeds → `savedAttachments = [A]` (committed)
-- save #2 uploads B, draft save fails → both A and B deleted from the spool,
-  corrupting the previously saved draft
+No change to `NSString+Utilities.m`: the regex regression was already fixed
+upstream; this branch locks it with tests instead.
 
-One line in the success branch of `saveAction`, next to the existing
-`attachmentAttrs = nil;` reset:
+## Tests
 
-```objc
-attachmentAttrs = nil;
-[savedAttachments removeAllObjects];
-```
+- `Tests/Unit/TestNSString+Utilities.m` — new
+  `test_stringWithoutHTMLInjectionOnJSONPayloads` (no GNUmakefile change
+  needed, file already registered):
+  - the ticket's exact payload (`meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\"`
+    inside a JSON string) survives sanitization byte-identical **and** still
+    parses via `objectFromJSONString`;
+  - a real event handler inside a JSON string value is still neutralized
+    (`onerror=` → `data-blocked=`) while the JSON stays parsable.
+- `Tests/spec/HTTPPreferencesSpec.js` — two new e2e cases:
+  - round-trip of a preference holding the ticket's escaped-quote HTML
+    through `Preferences/save` + `jsonDefaults` (reuses the spec's
+    `_setTextPref` helper — same raw-JSON escaping path as a signature,
+    without polluting `SOGoMailIdentities` for other specs);
+  - malformed JSON body → expects `400` (covers the new error branch; would
+    fail with `200` before the fix).
 
-Reverting now only ever touches attachments persisted by the failed save
-itself, which is the intent of the 6124 fix.
+## Verification steps for the orchestrator
 
-## What I reviewed and deliberately left alone
-
-- **`iCalEvent+ActiveSync.m`** (6156/6132): the new
-  `_activeSyncRepresentationOfDate:inContext:` / `hasActiveSyncScheduleChange`
-  helpers replace the previously duplicated StartTime/EndTime wire-format
-  blocks; declarations, colon alignment and retain style match the file. No
-  duplicated `userTimeZone` fetch worth folding (one call is behind the
-  all-day branch).
-- **`SOGoActiveSyncDispatcher+Sync.m`**: `itemStatus` reset per change, read
-  once at emission — correct; the mixed tabs/spaces in the new block match the
-  already-inconsistent neighbourhood, so no whitespace-only churn.
-- **`SOPE/NGCards/iCalPerson.m`**: `roleWithDefault` mirrors the pre-existing
-  `partStatWithDefault` exactly (good consistency).
-- **`NGVCard+SOGo.m`** (6143): `_valuesForType:inArray:excluding:` follows the
-  sibling `_simpleValueForType:` structure; `_simpleValueForType:` still has
-  live call sites (emails, URLs) so it is *not* dead code. The
-  `workPhones`/`homePhones` hoisting actually removes redundant lookups.
-- **`SOGoContactSourceFolder.m`** (6161), **`iCalEntityObject+SOGo.m`**
-  (6144/6131), **`SOGoDraftObject.m`** (6114/6124): minimal, consistent with
-  surrounding GNUstep style; `attachAsString` dead branch and its variables
-  were already removed by the fix itself.
-- **Tests**: new files use per-file fixture helpers (`_eventWithContent:`,
-  `_attendeeEvent`, `_cardWithSource:`) rather than copy-pasted blobs; the
-  duplicated `LoadAppointmentsBundle()`/`LoadContactsBundle()` statics follow
-  the suite's pre-existing pattern (5+ older files do the same), so factoring
-  them would be churn beyond this diff. The 6135 HTML skeleton appears in both
-  `TestNSString+Mail.m` and `TestNSData+Mail.m`, but the two files exercise
-  different layers (parser vs sanitizer); sharing would require new cross-file
-  test infrastructure for two short literals — not worth it.
-- **`Tests/Unit/GNUmakefile`**: additions are the minimum needed (ActiveSync
-  sources + Appointments link), mirroring the existing structure.
-
-## Test results
-
-`local/run-worktree-tests.sh wt/c14-clean` (after this pass):
+Unit (host-noise: `test_NGInternetSocketAddressFromString`,
+`test_stringWithoutHTMLInjection` are known failures on this machine; the
+`sogo-tests` binary also segfaults at exit on this host — output is complete
+before the crash, ignore the 139 exit code):
 
 ```
-Ran 193 tests
-FAILED (2 failures, 0 errors)
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
+  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c15-6211
+# expected: "Ran 194 tests / FAILED (2 failures, 0 errors)" — only the 2 known ones
 ```
 
-The 2 failures are the documented host-noise ones (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`) — same as a clean tree, no regressions.
+Manual build check of the touched UI bundle (needs `UI/SOGoUI` built once in
+the worktree):
 
-(Note: the worktree was missing the untracked `config.make`; copied from the
-main checkout to build, as the other worktrees already had.)
+```
+(cd UI/SOGoUI && make -s) && (cd UI/PreferencesUI && make -s)
+```
+
+e2e (stack must be up; jasmine filter matches full spec title):
+
+```
+# inside the sogo_dev container:
+cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js
+npx jasmine --config=spec/support/jasmine.json --filter="preferences"
+# restore lib/config.js afterwards
+```
+
+Direct HTTP check of the new branch once the stack runs this build:
+
+```
+curl -s -c /tmp/cj -X POST http://127.0.0.1:50001/SOGo/connect \
+     -H 'Content-Type: application/json' \
+     -d '{"userName":"sogo-tests1","password":"sogo"}'
+curl -s -b /tmp/cj -o /dev/null -w '%{http_code}\n' \
+     -X POST http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
+     -H 'Content-Type: application/json' \
+     -d '{ "defaults": { "signature": "con***='
+# expected: 400   (was: 200)
+```
+
+## PR body draft
+
+Since 5.12.8, saving preferences with an HTML signature containing attributes
+such as `content` silently discarded the user's changes: the XSS-sanitizer
+regex introduced by 67ce01ec (`(on\w+)\s*=...` → `on***=""`) matched *inside*
+attribute names (`content=` → `ontent=`) and swallowed the attribute value
+together with its escaped quotes, so the raw JSON body POSTed to
+`Preferences/save` no longer parsed. `objectFromJSONString` then returned nil
+and `saveAction` fell through to an empty HTTP 200 — no error, no save, while
+the UI still displayed "Preferences saved". The regex itself was already
+corrected on experimental (word-boundary anchored, explicit handler list,
+value-preserving `data-blocked=` template); this PR locks that behavior with
+unit tests and fixes the remaining error-handling gap.
+
+`saveAction` now returns `400 {"message":"Invalid JSON payload"}` when the
+request body cannot be parsed, instead of a silent 200. The web client
+already treats non-2xx saves as failures (no success toast, promise
+rejection — same path as the existing 485 TOTP error), so users get honest
+feedback instead of silently losing their changes. New unit tests pin the
+sanitizer↔JSON contract (ticket payload survives byte-identical and
+parsable; real `on...=` handlers inside JSON values are still neutralized
+without breaking the JSON), and two e2e cases cover the HTTP round-trip and
+the new 400 branch.

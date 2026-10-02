@@ -1,4 +1,5 @@
 import config from '../lib/config'
+import { fetch } from 'cross-fetch'
 import Preferences from '../lib/Preferences'
 
 const prefs = new Preferences(config.username, config.password)
@@ -56,5 +57,24 @@ describe('preferences', function() {
     expect(whitelist.PreventInvitationsWhitelist)
       .withContext(`Set/get Settings/Calendar/PreventInvitationsWhitelist`)
       .toEqual(config.white_listed_attendee)
+  })
+
+  it('Set/get a preference holding HTML with escaped-quote attributes (bug 6211)', async function() {
+    await _setTextPref('<div>sig</div><meta http-equiv="content-type" content="text/html; charset=UTF-8">')
+  })
+
+  it('Report an error on an unparsable JSON payload (bug 6211)', async function() {
+    const authCookie = await prefs.getAuthCookie()
+    const response = await fetch(`${prefs.serverUrl}/SOGo/so/${config.username}/Preferences/save`, {
+      method: 'POST',
+      headers: {
+        Cookie: authCookie,
+        'Content-Type': 'application/json'
+      },
+      body: '{ "defaults": { "signature": "con***='
+    })
+    expect(response.status)
+      .withContext(`A malformed JSON payload must not be reported as a successful save`)
+      .toEqual(400)
   })
 })

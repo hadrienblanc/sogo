@@ -1741,6 +1741,7 @@ static NSArray *reminderValues = nil;
  * @apiParam {Object} [defaults]              All attributes for user's defaults
  * @apiParam {Object} [settings]              All attributes for user's settings
  *
+ * @apiError (Error 400) {Object} error       The request body is not valid JSON
  * @apiError (Error 500) {Object} error       The error message
  */
 - (id <WOActionResults>) saveAction
@@ -1752,6 +1753,9 @@ static NSArray *reminderValues = nil;
   requestStr = [[context request] contentAsString];
   requestStr = [requestStr stringWithoutHTMLInjection: NO stripAngular:NO];
   o = [requestStr objectFromJSONString];
+  if (!o)
+    return [self responseWithStatus: 400
+             andJSONRepresentation: [NSDictionary dictionaryWithObjectsAndKeys: @"Invalid JSON payload", @"message", nil]];
   results = nil;
 
   // Proceed with data sanitization of the "defaults"
