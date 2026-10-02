@@ -1,155 +1,107 @@
-# Bug 6135 — Malformatted emails when composed as HTML in webmail
+# Cycle-13 clean-code pass
 
-Branch: `fix-6135-mantis` (commit `8c6cee74a`)
+Branch: `refactor/cycle-13` (worktree `wt/c13-clean`), over the cycle-13 diff
+`1edd65b00..6918b2163` (= PRs #33–#36, bugs 6156, 6144, 6143, 6135).
 
-## Investigation summary
-
-The reporter (SOGo 5.12.1) sees leftover broken tags in HTML-composed mail:
-`html>` (report 1) then `p>guckst Du hier` (report 2), in **both** the
-`text/plain` and `text/html` parts of the delivered message. The received
-message shown in the ticket contains the exact full-page skeleton
-`<html><head>\n<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-</head><body><img …tracking pixel…><p>guckst Du hier</p></body></html>`
-(WebKit/Mac-Mail clipboard signature), i.e. the editor text that the browser
-posted already contained the mangled `p>` (a lone `<` was dropped in the
-browser-side editor round-trip of that full-page content; the plain part is
-derived from it verbatim by `htmlToText`, which correctly keeps `p>` as text).
-
-Reproductions performed **read/write on the e2e stack** (artifacts
-`test-6135-*`, all cleaned up afterwards — INBOX/Drafts/Sent of
-sogo-tests1/2 purged and verified empty):
-
-1. SMTP-injected a copy of the ticket message, forwarded it through the real
-   AngularUI (playwright/chromium): draft `/edit` text is **clean**
-   (`<p>guckst Du hier</p>` intact, `charset=` stripped by
-   `sanitizedContentUsingVoidTags`), delivered message **clean**.
-2. Pasted the ticket HTML verbatim into the composer through the real UI
-   (clipboard `text/html`): delivered message **clean**.
-3. Replayed the HTTP save+send round trip (`POST …/save` + `POST …/send`)
-   with the ticket HTML: delivered message contains the **reproducible
-   server-side malformation**: the html part starts with `<html><html><head>`
-   and ends with `</html></html>`.
-
-Conclusion: the exact single-`<` drop of 5.12.1 happens in the browser
-editor round-trip and could not be reproduced on `experimental` (the shipped
-CKEditor build is byte-identical to 5.12.1, but the current compose pipeline
-round-trips cleanly in every flow tested). The bug that *is* reproducible on
-the current code — and that turns any full-document editor text into
-malformed outgoing HTML — is the unconditional `<html>…</html>` wrap on
-save: `-[UIxMailEditor _saveRequestInfo]` wraps whatever the client posts,
-even when it is already a complete HTML document, producing nested `<html>`
-tags in the stored draft and in the sent message. That malformed markup is
-what makes strict mail clients surface leftover tag text.
-
-## Root cause (file:line)
-
-- `UI/MailerUI/UIxMailEditor.m:638` — `-[UIxMailEditor _saveRequestInfo]`
-  unconditionally wraps the posted editor text in a second
-  `<html>…</html>` when composing HTML (and likewise at :635 for the
-  font-size variant), so a client that posts a full HTML document (pasted
-  signature/clipboard round-trip failing client-side, API clients) yields
-  `<html><html><head>…</body></html></html>` in the sent part.
-- Contributing (verified innocent of the `<` drop, locked by tests):
-  `SoObjects/Mailer/NSData+Mail.m:245`
-  (`sanitizedContentUsingVoidTags:` — strips `charset=`, repairs `</br>`,
-  moves `</html>` to the end) and `SoObjects/Mailer/NSString+Mail.m:588`
-  (`htmlToText` — builds the text/plain alternative from the editor text,
-  which is why the plain part showed the same `p>` leftover).
+Scope note: the literal `fork/experimental~11..fork/experimental` range spills
+into cycles 11–12 (PRs #26–#32), which already received their own clean passes
+(`94fd0dc5c`, `668068eda`); the reviewed diff is the exact set of commits the
+orchestrator listed for this cycle.
 
 ## What changed
 
-- **Before** — posting a full document as editor text:
-  stored/sent html part: `<html><html><head>…</body></html></html>`
-- **After** — `-[NSString isFullHTMLDocument]` (new, `NSString+Mail`) detects
-  documents that already carry a `<!doctype`/`<html>` tag;
-  `_saveRequestInfo` stores them as-is and keeps wrapping only real
-  fragments (`<html>%@</html>` / font-size `<span>` wrap unchanged for
-  fragments).
+### 1. `ActiveSync/iCalEvent+ActiveSync.m` — fold duplicated start/end wire-format computation
 
-Minimal diff: 3 production files (`NSString+Mail.h/.m`, `UIxMailEditor.m`),
-no comments, GNUstep manual retain/release style respected (new code needs
-none — pure string checks).
+The 6156 fix extracted the ActiveSync time serialization for reuse by
+`hasActiveSyncScheduleChange:`, but landed it as two 20-line twins,
+`activeSyncStartTimeInContext:` / `activeSyncEndTimeInContext:`, identical
+except for `[self startDate]` vs `[self endDate]` (all-day correction,
+protocol < 16.0 branch, dtstart timezone check, separator-less rendering).
 
-## Tests
+Before (2 × 20 lines, copy-paste):
 
-- New `Tests/Unit/TestNSString+Mail.m` (registered in `Tests/Unit/GNUmakefile`):
-  - `test_isFullHTMLDocumentWithHtmlTag` / `…WithDoctype` / `…IsCaseInsensitive` / `…WithFragment`
-    (covers every branch of the new predicate)
-  - `test_htmlToTextKeepsParagraphOfTicket6135` — the ticket HTML
-    (meta + tracking img + `<p>guckst Du hier</p>`) converts to plain text
-    with **no `p>`/`html>` leftover** (locks the text/plain side of the ticket)
-  - `test_htmlByExtractingImagesKeepsParagraphOfTicket6135` — send-path
-    re-serialization keeps `<p>guckst Du hier</p>` intact
-  - `test_htmlByExtractingImagesExtractsDataURL` — inline data-URI extraction
-    still works (`cid:` rewrite)
-- `Tests/Unit/TestNSData+Mail.m`:
-  - `test_ticket6135ForwardedSkeletonKeepsParagraphTag` — the compose
-    pre-parser (`sanitizedContentUsingVoidTags:`) output on the ticket
-    skeleton is locked byte-for-byte (charset stripped, `</html>` moved to
-    the end, `<p>` intact)
-- Suite: `Ran 180 tests — FAILED (2 failures)` where the 2 failures are the
-  documented host-noise (`test_NGInternetSocketAddressFromString`,
-  `test_stringWithoutHTMLInjection`). Full bundle build verified
-  (`SoObjects/Mailer`, `UI/SOGoUI`, `UI/MailerUI` link cleanly).
+```objc
+- (NSString *) activeSyncStartTimeInContext: (WOContext *) context
+{
+  NSCalendarDate *date;
+  NSTimeZone *userTimeZone;
 
-## Verification steps for the orchestrator
-
-Unit suite (already green on this worktree):
-
-```
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6135
-# expect: Ran 180 tests, only the 2 known host-noise failures
+  date = [self startDate];
+  if (!date)
+    return nil;
+  /* ... 14 identical lines: isAllDay + dtstart tz + ASProtocolVersion < 16.0 ... */
+  return [date activeSyncRepresentationWithoutSeparatorsInContext: context];
+}
+/* same again for endDate */
 ```
 
-End-to-end (after the next stack rebuild, since deploys are orchestrator-only):
+After: one private helper next to the file's existing `_attendeeStatus:` /
+`_busyStatus:` helpers, and the two public methods (kept in the header, they
+are the tested API used by the dispatcher and the representation builder)
+become one-liners:
 
-```
-# login
-curl -s -c /tmp/cj -X POST http://127.0.0.1:50001/SOGo/connect \
-  -H 'Content-Type: application/json' \
-  -d '{"userName":"sogo-tests1","password":"sogo","captcha":""}' > /dev/null
+```objc
+- (NSString *) _activeSyncRepresentationOfDate: (NSCalendarDate *) date
+                                     inContext: (WOContext *) context
+{ /* single copy of the all-day / protocol adjustment */ }
 
-# forward the ticket-shaped message (subject test-6135-fwsource must be
-# SMTP-injected first) and fetch the generated draft
-curl -s -b /tmp/cj -H 'Accept: application/json' \
-  http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/<UID>/forward
-curl -s -b /tmp/cj -H 'Accept: application/json' \
-  'http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderDrafts/<draftId>/edit'
-# -> "text" contains <p>guckst Du hier</p> (no "p>")
-
-# save+send a full-document editor text, then read sogo-tests2's INBOX over
-# IMAP (:1430): the text/html part must contain exactly one "<html" and one
-# "</html>" (pre-fix it started with <html><html>)
+- (NSString *) activeSyncStartTimeInContext: (WOContext *) context
+{
+  return [self _activeSyncRepresentationOfDate: [self startDate]
+                                     inContext: context];
+}
 ```
 
-Manual UI check (playwright/chromium, as done during investigation): forward
-or paste-flow of the ticket HTML — both parts of the delivered message must
-show `guckst Du hier` with no visible `p>`/`html>` leftovers.
+Net −18 lines; behavior identical (both twins consulted `dtstart`'s timezone,
+preserved in the helper). Verified by the unchanged
+`TestiCalEvent+ActiveSync.m` wire-format tests.
 
-## PR body draft
+### 2. `Tests/Unit/TestiCalPerson+SOGo.m` — stub reuses the production lookup
 
-When a message is composed as HTML in the webmail, SOGo wraps the editor
-content in `<html>…</html>` before storing the draft. If the browser posts a
-complete HTML document instead of a body fragment — typically a full-page
-pasted signature such as the Sendinblue/Outlook template from bug 6135, which
-carries its own `<html><head><meta charset…></head><body>` skeleton and a
-tracking pixel — the saved draft and the sent message end up with nested
-`<html><html><head>…</html></html>` markup. Strict mail clients then surface
-leftover tag text such as `html>` or `p>guckst Du hier` at the top of the
-message, in the HTML part as well as in the text/plain alternative (which is
-generated from the same editor text).
+`SOGoUser6144Stub` overrode `allEmails` and `hasEmail:` (the override of
+`hasEmail:` is required: `SOGoUser`'s implementation reads the `allEmails`
+ivar directly, bypassing the accessor). The hand-rolled 15-line
+case-insensitive scan reimplemented `-[NSArray containsCaseInsensitiveString:]`
+— the exact utility production `SOGoUser hasEmail:` uses.
 
-**AVANT** — html part of a message composed with a full-page signature:
-`<html><html><head>\n<meta http-equiv="Content-Type" content="text/html;
-charset=utf-8"></head><body><img …>…</body></html></html>` (nested `<html>`,
-duplicated closing tag; recipients may display `html>` / `p>` leftovers).
+Before: 15-line manual loop with `caseInsensitiveCompare:`.
+After: `return [[self allEmails] containsCaseInsensitiveString: email];`
+(+ the `<SOGo/NSArray+Utilities.h>` import). The stub now mirrors production
+semantics instead of approximating them. Net −11 lines.
 
-**APRÈS** — the draft editor text is stored untouched when it already is a
-full HTML document, so the sent part keeps a single root:
-`<html><head>…</head><body><img …><p>guckst Du hier</p></body></html>`, and
-body fragments keep being wrapped exactly as before (font-size wrap
-included). The compose pipeline (pre-parse sanitizer, HTML→text alternative,
-inline-image extraction) is now covered by unit tests using the exact HTML
-from the ticket, locking that no `p>`/`html>` leftover is produced
-server-side.
+## Reviewed and deliberately left alone
+
+- `SOGoActiveSyncDispatcher+Sync.m`: `itemStatus` is reset per `<Change>`
+  iteration and both permission branches (responder / no-permission touch)
+  set Status=7 on a time change — correct; mixed tab/space indentation of the
+  inserted lines matches the immediately surrounding block.
+- `NGVCard+SOGo.m`: `_simpleValueForType:` is NOT dead — still used for LDIF
+  emails and URLs; the new `_valuesForType:` coexists legitimately
+  (first-match vs all-matches). The fallback check now uses the hoisted
+  `workPhones`/`homePhones` counts instead of re-reading the record — already
+  the right shape.
+- `iCalPerson+SOGo.m`: `uidForUser:` vs `uidInContext:` share only a 2-line
+  fast path with different fallbacks (`uid` vs `uidInDomain:`) — factoring
+  would obscure more than it saves.
+- `attendeesWithoutUser:` puts the cheap `[user hasEmail:]` check before the
+  manager-backed `uidInDomain:` lookup — already the perf-friendly order.
+- `TestiCalPerson+SOGo.m`'s repeated `LoadAppointmentsBundle()` guards match
+  the established `TestiCalEvent+SOGo.m` convention (13 repetitions there).
+- The 4-line ticket-6135 HTML skeleton appears in both `TestNSString+Mail.m`
+  and `TestNSData+Mail.m`; cross-file fixture sharing would add coupling for a
+  tiny literal — left as is.
+- `TestNSString+Mail.m` setUp loads the Contacts bundle like its sibling
+  `TestNSData+Mail.m` — left (bundle load order in the shared runner makes
+  removal low-value and unverifiable).
+
+## Verification
+
+```
+local/run-worktree-tests.sh wt/c13-clean
+# Ran 180 tests — FAILED (2 failures, 0 errors)
+# -> test_NGInternetSocketAddressFromString   (known host noise, dual-stack localhost)
+# -> test_stringWithoutHTMLInjection          (known host noise, GNUstep-base regex quirk)
+```
+
+Same 2 known host-noise failures as the pre-change tree; no new failures,
+no new compiler warnings on the touched files.
