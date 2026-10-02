@@ -297,10 +297,19 @@
   result = [@"secret" asCryptedPassUsingScheme: @"nosuchscheme" keyPath: nil];
   test(result == nil);
 
+  result = [@"secret" asCryptedPassUsingScheme: @"sym-garbage" keyPath: nil];
+  test(result == nil);
+
   result = [@"secret" asCryptedPassUsingScheme: @"nosuchscheme"
                                      withSalt: [NSData data]
                                   andEncoding: encHex
                                       keyPath: nil];
+  test(result == nil);
+
+  result = [@"secret" asCryptedPassUsingScheme: @"sym-garbage"
+                                     withSalt: [NSData data]
+                                  andEncoding: encPlain
+                                       keyPath: nil];
   test(result == nil);
 }
 
@@ -367,6 +376,12 @@
   ex = nil;
   result = [@"AAAAAAAAAAAAAAAAAAAAAA==" decodeAES128ECBBase64: @"0123456789abcdef"
                                       encodedURL: NO exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Could not decrypt");
+
+  ex = nil;
+  result = [@"" decodeAES128ECBBase64: @"0123456789abcdef"
+                            encodedURL: NO exception: &ex];
   test(result == nil);
   testEquals([ex reason], @"Could not decrypt");
 }
@@ -454,7 +469,7 @@
                                                              tag: [encrypted objectForKey: @"tag"]
                                                        exception: &ex];
   test(result == nil);
-  testEquals([ex reason], @"Key must be 96 bits");
+  testEquals([ex reason], @"IV must be 96 bits");
 
   ex = nil;
   result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: key

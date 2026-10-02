@@ -301,11 +301,14 @@ static const char salt_chars[] =
           NSString *s;
           NSArray *a;
 
-          s = [[NSString alloc] initWithData: theSalt  encoding: NSUTF8StringEncoding];
-          [s autorelease];
-          a = [s componentsSeparatedByString: @"$"];
-          cipher = [a objectAtIndex: 1];
-          iv = [a objectAtIndex: 2];
+           s = [[NSString alloc] initWithData: theSalt  encoding: NSUTF8StringEncoding];
+           [s autorelease];
+           a = [s componentsSeparatedByString: @"$"];
+           if ([a count] > 2)
+             {
+               cipher = [a objectAtIndex: 1];
+               iv = [a objectAtIndex: 2];
+             }
         }
       else
         {
@@ -313,7 +316,7 @@ static const char salt_chars[] =
             cipher = @"AES-128-CBC";
         }
 
-      if ([cipher caseInsensitiveCompare: @"AES-128-CBC"] == NSOrderedSame)
+      if (cipher && [cipher caseInsensitiveCompare: @"AES-128-CBC"] == NSOrderedSame)
         return [self asSymAES128CBCUsingIV: iv
                                    keyPath: theKeyPath];
     }
@@ -1060,18 +1063,26 @@ static const char salt_chars[] =
     }
   else if ([theScheme caseInsensitiveCompare: @"ssha"] == NSOrderedSame)
     {
+      if (len < SHA_DIGEST_LENGTH)
+        return [NSData data];
       r = NSMakeRange(SHA_DIGEST_LENGTH, len - SHA_DIGEST_LENGTH);
     }
   else if ([theScheme caseInsensitiveCompare: @"ssha256"] == NSOrderedSame)
     {
+      if (len < SHA256_DIGEST_LENGTH)
+        return [NSData data];
       r = NSMakeRange(SHA256_DIGEST_LENGTH, len - SHA256_DIGEST_LENGTH);
     }
   else if ([theScheme caseInsensitiveCompare: @"ssha512"] == NSOrderedSame)
     {
+      if (len < SHA512_DIGEST_LENGTH)
+        return [NSData data];
       r = NSMakeRange(SHA512_DIGEST_LENGTH, len - SHA512_DIGEST_LENGTH);
     }
   else if ([theScheme caseInsensitiveCompare: @"smd5"] == NSOrderedSame)
     {
+      if (len < MD5_DIGEST_LENGTH)
+        return [NSData data];
       r = NSMakeRange(MD5_DIGEST_LENGTH, len - MD5_DIGEST_LENGTH);
     }
   else if ([[theScheme lowercaseString] hasPrefix: @"sym"])

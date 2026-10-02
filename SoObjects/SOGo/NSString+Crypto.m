@@ -492,7 +492,7 @@ static const NSString *kAES256GCMError = @"kAES256GCMError";
     EVP_CIPHER_CTX_free(ctx);
 
     // Trim padding
-    while (plaintext[p_len - 1] == '\0') {
+    while (p_len > 0 && plaintext[p_len - 1] == '\0') {
         p_len--;
     }
 
@@ -633,7 +633,7 @@ static const NSString *kAES256GCMError = @"kAES256GCMError";
       return nil;
     }
     if (GMC_IV_LEN!= [ivData length]) {
-      *ex = [NSException exceptionWithName: kAES256GCMError reason: [NSString stringWithFormat:@"Key must be %d bits", (GMC_IV_LEN * 8)] userInfo: nil];
+      *ex = [NSException exceptionWithName: kAES256GCMError reason: [NSString stringWithFormat:@"IV must be %d bits", (GMC_IV_LEN * 8)] userInfo: nil];
       return nil;
     }
     if (GMC_TAG_LEN != [tagData length]) {

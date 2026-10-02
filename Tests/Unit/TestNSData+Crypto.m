@@ -386,6 +386,10 @@ extern int pkcs5_pbkdf2(const char *pass, size_t pass_len, const uint8_t *salt,
 
   test([result verifyUsingScheme: @"sym-aes-128-cbc" withPassword: pass keyPath: keyPath]);
 
+  test([pass asCryptedPassUsingScheme: @"sym-garbage"
+                               withSalt: [NSData data] keyPath: keyPath] == nil);
+  test(![pass verifyUsingScheme: @"sym-garbage" withPassword: pass keyPath: keyPath]);
+
   [[NSFileManager defaultManager] removeFileAtPath: keyPath handler: nil];
 }
 
@@ -444,6 +448,18 @@ extern int pkcs5_pbkdf2(const char *pass, size_t pass_len, const uint8_t *salt,
 
   result = [NSMutableData dataWithLength: 0];
   test([[result extractSalt: @"ssha"] length] == 0);
+
+  result = [NSMutableData dataWithLength: 19];
+  test([[result extractSalt: @"ssha"] length] == 0);
+
+  result = [NSMutableData dataWithLength: 31];
+  test([[result extractSalt: @"ssha256"] length] == 0);
+
+  result = [NSMutableData dataWithLength: 63];
+  test([[result extractSalt: @"ssha512"] length] == 0);
+
+  result = [NSMutableData dataWithLength: 15];
+  test([[result extractSalt: @"smd5"] length] == 0);
 }
 
 - (void) test_cryptOutputMagic
