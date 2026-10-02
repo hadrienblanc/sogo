@@ -33,6 +33,7 @@
 
 @class NSArray;
 @class NSCalendarDate;
+@class NSTimeZone;
 
 @class iCalPerson;
 
@@ -41,6 +42,13 @@
 /* accessors */
 
 - (NSString *) iCalString;
+
++ (NSArray *) busyOffHoursInfosFrom: (NSCalendarDate *) startDate
+                                to: (NSCalendarDate *) endDate
+                      dayStartHour: (unsigned int) dayStartHour
+                        dayEndHour: (unsigned int) dayEndHour
+                    ownerTimeZone: (NSTimeZone *) ownerTimeZone
+                      viewTimeZone: (NSTimeZone *) viewTimeZone;
 
 - (NSString *) contentAsStringFrom: (NSCalendarDate *) _startDate
 				to: (NSCalendarDate *) _endDate;
