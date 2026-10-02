@@ -27,10 +27,6 @@
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSException.h>
 
-#import <sys/types.h>
-#import <sys/wait.h>
-#import <unistd.h>
-
 #import <SOGo/RTFHandler.h>
 
 
@@ -369,9 +365,21 @@
   rtf = @"{\\rtf1{\\colortbl;\\red255\\green0\\blue0;\\red0\\green128\\blue0;\n}{\\cf1 A}{\\cf2 B}{\\cf1 C\\cf2 D}}";
   expected = @"<html><meta charset='utf-8'><body>"
              @"<font color=\"#ff0000\">A</font>"
-             @"<font color=\"#000000\">B</font>"
+             @"<font color=\"#008000\">B</font>"
              @"<font color=\"#ff0000\">C</font>"
-             @"<font color=\"#000000\">D</font>"
+             @"<font color=\"#008000\">D</font>"
+             @"</body></html>";
+  testEquals([self htmlFromRTFString: rtf], expected);
+}
+
+- (void) test_green_component_parsed
+{
+  NSString *rtf;
+  NSString *expected;
+
+  rtf = @"{\\rtf1{\\colortbl;\\red0\\green128\\blue0;}{\\cf1 X}}";
+  expected = @"<html><meta charset='utf-8'><body>"
+             @"<font color=\"#008000\">X</font>"
              @"</body></html>";
   testEquals([self htmlFromRTFString: rtf], expected);
 }
@@ -425,23 +433,33 @@
              @"<html><meta charset='utf-8'><body></body></html>");
 }
 
+- (void) test_ansicpg_selects_charset
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1\\ansicpg1252{\\'e9}}"],
+             @"<html><meta charset='utf-8'><body>\u00e9</body></html>");
+  testEquals([self htmlFromRTFString: @"{\\rtf1\\ansicpg1251{\\'f1}}"],
+             @"<html><meta charset='utf-8'><body>\u0441</body></html>");
+}
+
 - (void) test_dealloc_releases_state
 {
   RTFHandler *handler;
-  pid_t pid;
-  int status;
+  NSData *data;
+  NSMutableData *parsed;
+  NSString *html;
 
   handler = [[RTFHandler alloc] initWithData: [@"{\\rtf1 x}" dataUsingEncoding: NSUTF8StringEncoding]];
   test([handler parse] != nil);
-  pid = fork();
-  if (pid == 0)
-    {
-      [handler release];
-      _exit(0);
-    }
-  test(waitpid(pid, &status, 0) == pid);
-  test(WIFEXITED(status));
-  test(WEXITSTATUS(status) == 0);
+  [handler release];
+
+  data = [@"{\\rtf1\\ansicpg1252{\\'e9}}" dataUsingEncoding: NSUTF8StringEncoding];
+  handler = [[RTFHandler alloc] initWithData: data];
+  parsed = [handler parse];
+  test(parsed != nil);
+  html = [[NSString alloc] initWithData: parsed encoding: NSUTF8StringEncoding];
+  testEquals(html, @"<html><meta charset='utf-8'><body>\u00e9</body></html>");
+  [html release];
+  [handler release];
 }
 
 @end

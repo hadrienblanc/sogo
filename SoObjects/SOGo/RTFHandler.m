@@ -563,6 +563,7 @@ static void _init_fontCws_table()
 - (void) dealloc
 {
   NSFreeMapTable(_charsets);
+  _charsets = nil;
   [_data release];
   [super dealloc];
 }
@@ -737,7 +738,7 @@ static void _init_fontCws_table()
             }
           else if ([s hasPrefix: @"green"])
             {
-              colorDef->green = [[s substringFromIndex: 4] intValue];
+              colorDef->green = [[s substringFromIndex: 5] intValue];
             }
           else
             {
@@ -980,7 +981,7 @@ inline static void parseAnsicpg (BOOL hasArg, int arg, const unsigned short **ou
 
   if (!hasArg)
     return;
-  key = [NSString stringWithFormat: @"anscicpg%i", arg];
+  key = [NSString stringWithFormat: @"ansicpg%i", arg];
   res =  NSMapGet(_charsets, key);
   if (res)
     *out_default_char = res;
