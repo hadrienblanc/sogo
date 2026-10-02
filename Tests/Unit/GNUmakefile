@@ -66,6 +66,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxHTMLMailContentHandler.m \
 	TestUIxMailRenderingContext.m \
 	TestWORequest+SOGo.m \
+	TestApacheAliasDirectives.m \
 	\
 	TestRTFHandler.m \
 	\
