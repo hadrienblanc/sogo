@@ -1022,7 +1022,11 @@ FIXME
     {
       // The syncKey received from the client doesn't match the syncKey we have in cache - client might have missed a response.
       // We need to cleanup this mess.
-      [self logWithFormat: @"Cache cleanup needed for device %@ - user: %@ syncKey: %@ cache: %@", [context objectForKey: @"DeviceId"], [[context activeUser] login], theSyncKey, [folderMetadata objectForKey: @"SyncKey"]];
+      [self logWithFormat: @"%@",
+        [NSString activeSyncCacheCleanupLogMessageForDevice: [context objectForKey: @"DeviceId"]
+                                                        user: [[context activeUser] login]
+                                                     syncKey: theSyncKey
+                                              cachedSyncKey: [folderMetadata objectForKey: @"SyncKey"]]];
       cleanup_needed = YES;
     }
 

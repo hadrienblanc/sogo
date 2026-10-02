@@ -43,6 +43,15 @@ static NSArray *easCommandParameters = nil;
 
 @implementation NSString (ActiveSync)
 
++ (NSString *) activeSyncCacheCleanupLogMessageForDevice: (NSString *) deviceId
+                                                    user: (NSString *) login
+                                                 syncKey: (NSString *) syncKey
+                                          cachedSyncKey: (NSString *) cachedSyncKey
+{
+  return [NSString stringWithFormat: @"Cache cleanup needed for device %@ - user: %@ syncKey: %@ cache: %@ - SOGo initiates the cache cleanup automatically, no administrator action is required",
+                   deviceId, login, syncKey, cachedSyncKey];
+}
+
 - (NSString *) sanitizedServerIdWithType: (SOGoMicrosoftActiveSyncFolderType) folderType
 {
   if (folderType == ActiveSyncEventFolder)
