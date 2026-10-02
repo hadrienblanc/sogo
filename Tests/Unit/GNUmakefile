@@ -58,6 +58,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../SoObjects/Contacts/NSString+LDIF.m \
 	../../SoObjects/SOGo/SOGoDateFormatter.m \
 	TestContactsLDIF.m \
+	TestServerCore.m \
 	\
     # I don't know how to link against -l:SOGoBackend \
 	     undefined reference to `__objc_class_name_SOGoMailFolder'
