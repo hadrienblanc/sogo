@@ -21,6 +21,7 @@
 #import <Foundation/NSAutoreleasePool.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSString.h>
+#import <Foundation/NSTimeZone.h>
 
 #import <SOGo/SOGoSieveManager.h>
 
@@ -377,6 +378,36 @@
   [manager release];
 
   [pool release];
+}
+
+- (void) test_sieveDateFromEpoch_userTimeZone
+{
+  NSTimeZone *timeZone;
+
+  timeZone = [NSTimeZone timeZoneWithName: @"Europe/Paris"];
+  testEquals([SOGoSieveManager sieveDateFromEpoch: 1785801600
+                                         timeZone: timeZone],
+             @"2026-08-04");
+
+  timeZone = [NSTimeZone timeZoneWithName: @"Asia/Tokyo"];
+  testEquals([SOGoSieveManager sieveDateFromEpoch: 1785801600
+                                         timeZone: timeZone],
+             @"2026-08-04");
+
+  timeZone = [NSTimeZone timeZoneWithName: @"America/New_York"];
+  testEquals([SOGoSieveManager sieveDateFromEpoch: 1785801600
+                                         timeZone: timeZone],
+             @"2026-08-03");
+
+  timeZone = [NSTimeZone timeZoneWithName: @"Pacific/Kiritimati"];
+  testEquals([SOGoSieveManager sieveDateFromEpoch: 1785873600
+                                         timeZone: timeZone],
+             @"2026-08-05");
+
+  timeZone = [NSTimeZone timeZoneWithName: @"Europe/Paris"];
+  testEquals([SOGoSieveManager sieveDateFromEpoch: 1785873600
+                                         timeZone: timeZone],
+             @"2026-08-04");
 }
 
 - (void) test_sieveScriptWithRequirements_resetsPreviousError

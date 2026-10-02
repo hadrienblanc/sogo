@@ -228,6 +228,17 @@ static NSString *sieveScriptName = @"sogo";
   return flag;
 }
 
++ (NSString *) sieveDateFromEpoch: (int) epoch
+                         timeZone: (NSTimeZone *) timeZone
+{
+  NSCalendarDate *date;
+
+  date = [NSCalendarDate dateWithTimeIntervalSince1970: epoch];
+  [date setTimeZone: timeZone];
+
+  return [date descriptionWithCalendarFormat: @"%Y-%m-%d"];
+}
+
 + (id) sieveManagerForUser: (SOGoUser *) newUser
 {
   SOGoSieveManager *newManager;
@@ -1001,7 +1012,6 @@ static NSString *sieveScriptName = @"sogo";
       (![[values objectForKey: @"endDateEnabled"] boolValue] ||
        dateCapability || [[values objectForKey: @"endDate"] intValue] > now))
     {
-      NSCalendarDate *startDate, *endDate;
       NSMutableArray *allConditions, *timeConditions;
       NSMutableString *vacation_script;
       NSArray *addresses, *weekdays;
@@ -1072,10 +1082,10 @@ static NSString *sieveScriptName = @"sogo";
             {
               [req addObjectUniquely: @"date"];
               [req addObjectUniquely: @"relational"];
-              startDate = [NSCalendarDate dateWithTimeIntervalSince1970:
-                                                  [[values objectForKey: @"startDate"] intValue]];
               [allConditions addObject: [NSString stringWithFormat: @"currentdate :value \"ge\" \"date\" \"%@\"",
-                                                  [startDate descriptionWithCalendarFormat: @"%Y-%m-%d"]]];
+                                                  [SOGoSieveManager sieveDateFromEpoch:
+                                                                    [[values objectForKey: @"startDate"] intValue]
+                                                                              timeZone: [ud timeZone]]]];
             }
 
           // End date of auto-reply
@@ -1083,10 +1093,10 @@ static NSString *sieveScriptName = @"sogo";
             {
               [req addObjectUniquely: @"date"];
               [req addObjectUniquely: @"relational"];
-              endDate = [NSCalendarDate dateWithTimeIntervalSince1970:
-                                                [[values objectForKey: @"endDate"] intValue]];
               [allConditions addObject: [NSString stringWithFormat: @"currentdate :value \"le\" \"date\" \"%@\"",
-                                                  [endDate descriptionWithCalendarFormat: @"%Y-%m-%d"]]];
+                                                  [SOGoSieveManager sieveDateFromEpoch:
+                                                                    [[values objectForKey: @"endDate"] intValue]
+                                                                              timeZone: [ud timeZone]]]];
             }
 
           seconds = [[ud timeZone] secondsFromGMT];

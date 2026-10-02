@@ -28,6 +28,7 @@
 @class NSException;
 @class NSMutableArray;
 @class NSString;
+@class NSTimeZone;
 @class NGSieveClient;
 @class SOGoMailAccount;
 @class SOGoUser;
@@ -42,6 +43,8 @@
 + (id) sieveManagerForUser: (SOGoUser *) user;
 + (NSString *) sieveFlagForArgument: (NSString *) argument
                          mailLabels: (NSDictionary *) mailLabels;
++ (NSString *) sieveDateFromEpoch: (int) epoch
+                         timeZone: (NSTimeZone *) timeZone;
 - (id) initForUser: (SOGoUser *) newUser;
 
 - (NSString *) sieveScriptWithRequirements: (NSMutableArray *) newRequirements
