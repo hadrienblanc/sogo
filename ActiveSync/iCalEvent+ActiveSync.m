@@ -98,12 +98,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 
 
-- (NSString *) activeSyncStartTimeInContext: (WOContext *) context
+- (NSString *) _activeSyncRepresentationOfDate: (NSCalendarDate *) date
+                                     inContext: (WOContext *) context
 {
-  NSCalendarDate *date;
   NSTimeZone *userTimeZone;
 
-  date = [self startDate];
   if (!date)
     return nil;
 
@@ -119,25 +118,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   return [date activeSyncRepresentationWithoutSeparatorsInContext: context];
 }
 
+- (NSString *) activeSyncStartTimeInContext: (WOContext *) context
+{
+  return [self _activeSyncRepresentationOfDate: [self startDate]
+                                     inContext: context];
+}
+
 - (NSString *) activeSyncEndTimeInContext: (WOContext *) context
 {
-  NSCalendarDate *date;
-  NSTimeZone *userTimeZone;
-
-  date = [self endDate];
-  if (!date)
-    return nil;
-
-  if ([self isAllDay] && ![(iCalDateTime *)[self firstChildWithTag: @"dtstart"] timeZone]
-      && [[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0)
-    {
-      userTimeZone = [[[context activeUser] userDefaults] timeZone];
-      date = [date dateByAddingYears: 0 months: 0 days: 0
-                              hours: 0 minutes: 0
-                            seconds: ([userTimeZone secondsFromGMTForDate: date]) * -1];
-    }
-
-  return [date activeSyncRepresentationWithoutSeparatorsInContext: context];
+  return [self _activeSyncRepresentationOfDate: [self endDate]
+                                     inContext: context];
 }
 
 - (BOOL) hasActiveSyncScheduleChange: (NSDictionary *) theValues
