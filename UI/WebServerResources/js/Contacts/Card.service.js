@@ -276,6 +276,8 @@
       action = 'saveAsList';
       _.forEach(this.refs, function(ref) {
         ref.reference = ref.id;
+        if (ref.$$email)
+          ref.email = ref.$$email;
       });
     }
 

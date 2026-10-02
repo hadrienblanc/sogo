@@ -189,6 +189,25 @@
   [children removeObjectsInArray: deletedRefs];
 }
 
+- (NGVCardReference *) cardReferenceForReference: (NSString *) cardRef
+{
+  NSEnumerator *cardReferences;
+  NGVCardReference *currentRef, *foundRef;
+
+  foundRef = nil;
+  cardReferences = [[self childrenWithTag: @"card"] objectEnumerator];
+  while ((currentRef = [cardReferences nextObject]))
+    {
+      if ([[currentRef reference] isEqualToString: cardRef])
+        {
+          foundRef = currentRef;
+          break;
+        }
+    }
+
+  return foundRef;
+}
+
 - (NSArray *) cardReferences
 {
   return [self childrenWithTag: @"card"];
