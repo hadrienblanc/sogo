@@ -1072,23 +1072,30 @@ static NSString * ReplaceRegexMatches(NSString *string, NSRegularExpression *reg
    are performed by concatenating the unmatched parts ourselves */
 static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *regex)
 {
-  NSMutableString *result = [NSMutableString stringWithCapacity: [string length]];
-  NSArray *matches = [regex matchesInString: string
-                                     options: 0
-                                       range: NSMakeRange(0, [string length])];
-  NSUInteger position = 0;
-  NSEnumerator *enumerator = [matches objectEnumerator];
+  NSMutableString *result;
+  NSArray *matches;
+  NSEnumerator *enumerator;
   NSTextCheckingResult *match;
+  NSUInteger position;
 
-  while ((match = [enumerator nextObject])) {
-    NSRange range = [match range];
+  result = [NSMutableString stringWithCapacity: [string length]];
+  matches = [regex matchesInString: string
+                            options: 0
+                              range: NSMakeRange(0, [string length])];
+  position = 0;
+  enumerator = [matches objectEnumerator];
 
-    if (range.location > position)
-      [result appendString:
-                 [string substringWithRange:
-                            NSMakeRange(position, range.location - position)]];
-    position = range.location + range.length;
-  }
+  while ((match = [enumerator nextObject]))
+    {
+      NSRange range;
+
+      range = [match range];
+      if (range.location > position)
+        [result appendString:
+                   [string substringWithRange:
+                              NSMakeRange(position, range.location - position)]];
+      position = range.location + range.length;
+    }
   if (position < [string length])
     [result appendString: [string substringFromIndex: position]];
 
