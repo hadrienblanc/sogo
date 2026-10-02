@@ -169,6 +169,18 @@
   testEquals([[NSString stringWithString:@"&#123;&#123;1337*1337&#125;&#125;"] stringWithoutHTMLInjection: NO stripAngular: YES], @"{\\{1337*1337}/}");
 }
 
+- (void) test_stringWithoutHTMLInjectionWhenFullySanitized
+{
+  testEquals([[NSString stringWithString:@""] stringWithoutHTMLInjection: NO stripAngular: NO], @"");
+  testEquals([[NSString stringWithString:@""] stringWithoutHTMLInjection: NO stripAngular: YES], @"");
+  testEquals([[NSString stringWithString:@"javascript:"] stringWithoutHTMLInjection: NO stripAngular: NO], @"");
+  testEquals([[NSString stringWithString:@"JAVASCRIPT:"] stringWithoutHTMLInjection: NO stripAngular: NO], @"");
+  testEquals([[NSString stringWithString:@"vbscript:"] stringWithoutHTMLInjection: NO stripAngular: NO], @"");
+  testEquals([[NSString stringWithString:@"livescript:"] stringWithoutHTMLInjection: NO stripAngular: NO], @"");
+  testEquals([[NSString stringWithString:@"j a v a s c r i p t:"] stringWithoutHTMLInjection: NO stripAngular: NO], @"");
+  testEquals([[NSString stringWithString:@"javascript:{{1337*1337}}"] stringWithoutHTMLInjection: NO stripAngular: YES], @"{\\{1337*1337}/}");
+}
+
 - (void) test_stringWithoutHTMLInjectionOnJSONPayloads
 {
   NSString *json, *sanitized;
@@ -195,6 +207,8 @@
 - (void) test_stringRemoveHTMLTagsExceptAnchorTags
 {
    testEquals([[NSString stringWithString:@"<div>Test<img src=\"foo\" />bar <a href=\"https://www.sogo.nu\" target=\"_blank\">link</a> <strong>foobar</strong></div>"] removeHTMLTagsExceptAnchorTags], @"Testbar <a href=\"https://www.sogo.nu\" target=\"_blank\">link</a> foobar");
+   testEquals([[NSString stringWithString:@"<hr>"] removeHTMLTagsExceptAnchorTags], @"");
+   testEquals([[NSString stringWithString:@"<div><span></span></div>"] removeHTMLTagsExceptAnchorTags], @"");
 }
 
 @end
