@@ -145,7 +145,7 @@
   if (!oldValues)
     {
       oldValues = [NSMutableArray new];
-      [values setObject: oldValues forKey: key];
+      [values setObject: oldValues forKey: [key lowercaseString]];
       [oldValues release];
     }
 
@@ -333,20 +333,28 @@
 - (void) addAttributes: (NSDictionary *) someAttributes
 {
   NSEnumerator *keys;
-  NSString *currentKey;
-  NSMutableArray *oldValues;
+  NSString *currentKey, *storedKey;
+  NSMutableArray *attrValues;
   NSArray *newValues;
 
   keys = [[someAttributes allKeys] objectEnumerator];
   currentKey = [keys nextObject];
   while (currentKey)
     {
-      oldValues = [attributes objectForCaseInsensitiveKey: currentKey];
       newValues = [someAttributes objectForKey: currentKey];
-      if (oldValues)
-        [oldValues addObjectsFromArray: newValues];
+      storedKey = [[attributes allKeys] valueForCaseInsensitiveString: currentKey];
+      if (storedKey)
+	{
+	  attrValues = [[attributes objectForKey: storedKey] mutableCopy];
+	  [attrValues addObjectsFromArray: newValues];
+	  [attributes setObject: attrValues forKey: storedKey];
+	}
       else
-        [attributes setObject: newValues forKey: currentKey];
+	{
+	  attrValues = [newValues mutableCopy];
+	  [attributes setObject: attrValues forKey: currentKey];
+	}
+      [attrValues release];
       currentKey = [keys nextObject];
     }
 }

@@ -95,7 +95,7 @@
 
   if (![aChild hasAttribute: @"type" havingValue: @"pref"])
     {
-      elements = [[children cardElementsWithTag: tag] objectEnumerator];
+      elements = [[children cardElementsWithTag: [aChild tag]] objectEnumerator];
       element = [elements nextObject];
       while (element)
         {

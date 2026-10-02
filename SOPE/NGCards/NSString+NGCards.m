@@ -329,8 +329,12 @@
 	  cursor.location += cursor.length + 1;
 	  hour = [[self substringWithRange: cursor] intValue];
 	  cursor.location += cursor.length;
+	  if ([[self substringWithRange: cursor] hasPrefix: @":"])
+	    cursor.location += 1;
 	  minute = [[self substringWithRange: cursor] intValue];
 	  cursor.location += cursor.length;
+	  if ([[self substringWithRange: cursor] hasPrefix: @":"])
+	    cursor.location += 1;
 	  second = [[self substringWithRange: cursor] intValue];
 	}
       else

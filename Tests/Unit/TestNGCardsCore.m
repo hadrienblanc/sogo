@@ -73,8 +73,8 @@
   element = [CardElement elementWithTag: @"elem"];
   [element setSingleValue: @"mixed" forKey: @"MiXeD"];
   testEquals([element flattenedValuesForKey: @""], @"");
-  testEquals([element flattenedValuesForKey: @"MiXeD"], @"");
-  test([[element values] objectForKey: @"MiXeD"] != nil);
+  testEquals([element flattenedValuesForKey: @"MiXeD"], @"mixed");
+  test([[element values] objectForKey: @"mixed"] != nil);
 
   element = [CardElement elementWithTag: @"elem"];
   [element setSingleValue: @"mixed" forKey: @"mixed"];
@@ -172,6 +172,21 @@
   testEquals([element value: 0 ofAttribute: @"type"], @"z");
 
   element = [CardElement elementWithTag: @"elem"];
+  [element addAttributes: [NSDictionary dictionaryWithObjectsAndKeys:
+                             [NSArray arrayWithObject: @"z"], @"type", nil]];
+  [element addAttributes: [NSDictionary dictionaryWithObjectsAndKeys:
+                             [NSArray arrayWithObject: @"w"], @"TYPE", nil]];
+  testEquals([element value: 0 ofAttribute: @"type"], @"z");
+  testEquals([element value: 1 ofAttribute: @"type"], @"w");
+  test([[element attributes] count] == 1);
+
+  element = [CardElement elementWithTag: @"elem"];
+  [element setSingleValue: @"v1" forKey: @"X-Foo"];
+  testEquals([element flattenedValuesForKey: @"x-foo"], @"v1");
+  testEquals([element flattenedValuesForKey: @"X-FOO"], @"v1");
+  testEquals([element versitString], @"ELEM:X-FOO=v1");
+
+  element = [CardElement elementWithTag: @"elem"];
   [element addType: @"home"];
   test([element hasAttribute: @"type" havingValue: @"HOME"]);
   test(![element hasAttribute: @"type" havingValue: @"work"]);
@@ -214,6 +229,10 @@
 
   element = [CardElement simpleElementWithTag: @"elem" value: @"value"];
   testEquals([element versitString], @"ELEM:value");
+
+  element = [CardElement simpleElementWithTag: @"X-Foo" value: @"value"];
+  [element setGroup: @"Item1"];
+  testEquals([element versitString], @"Item1.X-FOO:value");
 
   element = [CardElement elementWithTag: @"elem"];
   testEquals([element versitString], @"");
@@ -722,7 +741,7 @@
 - (void) test_vcard_preferred_selector
 {
   NGVCard *card;
-  CardElement *e1, *e2, *e3;
+  CardElement *e1, *e2, *tel;
 
   card = [NGVCard cardWithUid: @"u1"];
   e1 = [CardElement simpleElementWithTag: @"email" singleType: @"pref"
@@ -736,19 +755,19 @@
 
   [card setPreferred: e2];
   testEquals([e2 value: 0 ofAttribute: @"type"], @"pref");
-  testEquals([e1 value: 0 ofAttribute: @"type"], @"pref");
+  testEquals([e1 value: 0 ofAttribute: @"type"], @"");
 
-  e3 = [CardGroup groupWithTag: @"vcard"];
-  [e3 addType: @"pref"];
-  [card addChild: e3];
-  [card setPreferred: e2];
+  tel = [CardElement simpleElementWithTag: @"tel" singleType: @"pref"
+                                    value: @"123"];
+  [card addChild: tel];
+  [card setPreferred: tel];
+  testEquals([tel value: 0 ofAttribute: @"type"], @"pref");
   testEquals([e2 value: 0 ofAttribute: @"type"], @"pref");
-  testEquals([e1 value: 0 ofAttribute: @"type"], @"pref");
 
-  [e2 removeValue: @"pref" fromAttribute: @"type"];
-  [card setPreferred: e2];
-  testEquals([e3 value: 0 ofAttribute: @"type"], @"");
-  testEquals([e2 value: 0 ofAttribute: @"type"], @"pref");
+  [card setPreferred: e1];
+  testEquals([e1 value: 0 ofAttribute: @"type"], @"pref");
+  testEquals([e2 value: 0 ofAttribute: @"type"], @"");
+  testEquals([tel value: 0 ofAttribute: @"type"], @"pref");
 }
 
 - (void) test_vcard_preferred_accessors
@@ -1102,8 +1121,8 @@
   test([date dayOfMonth] == 29);
   date = [@"1980-02-29T13:14:15" asCalendarDate];
   test([date hourOfDay] == 13);
-  test([date minuteOfHour] == 0);
-  test([date secondOfMinute] == 4);
+  test([date minuteOfHour] == 14);
+  test([date secondOfMinute] == 15);
   date = [@"19800229T131415" asCalendarDate];
   test([date hourOfDay] == 13);
   test([date minuteOfHour] == 14);
