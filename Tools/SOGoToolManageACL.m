@@ -315,6 +315,9 @@ typedef enum
 	  [channel evaluateExpressionX: SQL];
 	}
     }
+
+  [[SOGoCache sharedCache] setACLs: nil
+			   forPath: path];
 }
 
 - (void) getACLForUser: (NSString *) theUser

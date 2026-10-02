@@ -2459,9 +2459,10 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
 
   BOOL rc;
   NSString *key, *value;;
-  NSArray *a;
+  NSArray *a, *members;
 
   rc = NO;
+  members = nil;
 
   if ([uid hasPrefix: @"@"])
     uid = [uid substringFromIndex: 1];
@@ -2473,12 +2474,22 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
   // We call it only once here.
   if (!value)
     {
-      [self membersForGroupWithUID: uid];
+      members = [self membersForGroupWithUID: uid];
       value = [[SOGoCache sharedCache] valueForKey: key];
     }
 
-  a = [value componentsSeparatedByString: @","];
-  rc = [a containsObject: memberUid];
+  if (value)
+    {
+      a = [value componentsSeparatedByString: @","];
+      rc = [a containsObject: memberUid];
+    }
+  else
+    {
+      if (!members)
+        members = [self membersForGroupWithUID: uid];
+      rc = [[members resultsOfSelector: @selector (loginInDomain)]
+              containsObject: memberUid];
+    }
 
   return rc;
 }
