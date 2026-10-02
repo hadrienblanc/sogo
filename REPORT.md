@@ -1,137 +1,209 @@
-# Fix for Mantis #6239 — attachments swapped when two users send concurrently from the same mailbox
+# Ticket 6236 — Support structured calendar locations for iOS (EAS)
 
-Branch: `fix-6239-mantis` (worktree `wt/c36-6239`)
+Branch: `fix-6236-mantis` — commit `feat(activesync): support EAS 16 structured
+calendar locations on iOS (6236)`
 
 ## Root cause (file:line)
 
-- `SoObjects/Mailer/SOGoDraftsFolder.m:28-51` (pre-fix) — `generateNameForNewDraft`
-  built the draft name `newDraft<unixtime>-<n>` from **file-static, process-local**
-  state (`lastNew` / `newCount`), with a non-atomic read-modify-write.
-- sogod runs **preforked** (`-WOWorkersCount N`; verified on the e2e stack:
-  1 parent + N children) and each worker also dispatches connections on
-  separate threads (SOPE `WOHttpAdaptor` `detachNewThreadSelector` when
-  `maxThreadCount > 1`). Two compose requests for the same account that land on
-  two different workers within the same wall-clock second therefore both mint
-  `newDraft<ts>-1`. The reporter's access log proves exactly this: **both**
-  browsers POST their send to the same path
-  `POST /SOGo/so/info@abc.aa/Mail/0/folderDrafts/newDraft1787734448-1/send`
-  (Chrome/152 at 11:54:41 and Chrome/151 at 11:54:44).
-- Consequence — the two compose sessions share **one** draft object:
-  - `SoObjects/Mailer/SOGoDraftObject.m:175-184` — the draft's attachment
-    spool dir is `<userSpool>/<nameInContainer>`; with identical names both
-    users' uploads land in the same directory (`saveAttachment:withMetadata:`,
-    SOGoDraftObject.m:1258).
-  - `fetchAttachmentAttrs` / `mimeMessageForRecipient:` compose the outgoing
-    message from **every file in that directory** (SOGoDraftObject.m:1224), so
-    each send picks up the other session's attachment (swap/mix depending on
-    upload/autosave interleaving), and each autosave/send marks the previous
-    shared IMAP draft copy deleted (SOGoDraftObject.m:620-621, 2388-2389).
-- The name is only consumed as an opaque id (`lookupName:` checks
-  `hasPrefix:@"newDraft"`, the Angular frontend round-trips `draftId`
-  verbatim in every draft URL: `Message.service.js:159-161`), so embedding the
-  pid in the name is safe.
+Two independent causes, both confirmed in the code (no runtime defect on the
+server itself — this is a missing feature, not a regression):
 
-This is a genuine server-side bug (random reproducibility = requires the same
-second + distinct workers, as in the ticket).
+1. **EAS 16.x is never negotiated.** SOGo advertises
+   `MS-ASProtocolVersions: 2.5,12.0,12.1,14.0,14.1`
+   (`ActiveSync/SoObjectWebDAVDispatcher+ActiveSync.m:66-67` for OPTIONS and
+   `ActiveSync/SOGoActiveSyncDispatcher.m:4445-4447` for every POST response).
+   iOS picks the highest mutually supported version, so it pins 14.1 and never
+   sends/expects `AirSyncBase:Location` (an EAS 16.0 feature,
+   [MS-ASWBXML](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-aswbxml/aa548cbc-b15f-4dc1-8bda-82b35d9d41c4)).
+   Version-gated 16.x code paths already existed in the tree
+   (`iCalEvent+ActiveSync.m:296,508`, `SOGoActiveSyncDispatcher+Sync.m:362`)
+   but could never activate with iOS.
+
+2. **Structured data is reduced to plain text even at ≥ 16.0.**
+   - Outgoing (`ActiveSync/iCalEvent+ActiveSync.m:293-300`, before the fix):
+     only `<Location><DisplayName>` was emitted from the iCal `LOCATION`
+     string; `GEO` coordinates were ignored and no
+     `X-APPLE-STRUCTURED-LOCATION` mapping existed anywhere in the tree
+     (verified: zero matches for `GEO`/`Latitude`/`X-APPLE` in the parser,
+     UI, or ActiveSync layers).
+   - Incoming (`ActiveSync/iCalEvent+ActiveSync.m:587-590`, before the fix):
+     of the whole `AirSyncBase:Location` dictionary sent by iOS only
+     `DisplayName` was stored; Street/City/State/Country/PostalCode/
+     Latitude/Longitude/LocationUri were dropped on the floor.
+   - The same DisplayName-only emission existed for meeting requests embedded
+     in emails (`ActiveSync/SOGoMailObject+ActiveSync.m:1073-1080`).
+
+Read-only probe of the shared stack (http://127.0.0.1:50001): OPTIONS and WBXML
+POSTs on `/SOGo/Microsoft-Server-ActiveSync` are not routed to the EAS dispatcher
+by that build (plain 200/text responses, no `MS-ASProtocolVersions` header), so
+the negotiation defect is evidenced from code; the deployed e2e image does build
+libwbxml master, whose AirSyncBase table contains all 16.0 location elements
+(Location 0x20, Street 0x22 … LocationUri 0x2c), so the WBXML layer supports it.
 
 ## What changed (before/after)
 
-`SoObjects/Mailer/SOGoDraftsFolder.m` — `generateNameForNewDraft`:
+### 1. Protocol negotiation
+- `ActiveSync/SoObjectWebDAVDispatcher+ActiveSync.m:66-67` and
+  `ActiveSync/SOGoActiveSyncDispatcher.m:4445-4447`
+- AVANT: `MS-Server-ActiveSync: 14.1`, `MS-ASProtocolVersions: 2.5,12.0,12.1,14.0,14.1`
+- APRÈS: `MS-Server-ActiveSync: 16.1`, `MS-ASProtocolVersions: 2.5,12.0,12.1,14.0,14.1,16.0,16.1`
+- iOS now negotiates 16.1, which activates the (already present and
+  additionally completed) 16.x code paths. Per the reporter's question, this is
+  deliberately decoupled from the rest of the EAS 16 feature set: the existing
+  version gates in the tree are per-element and tolerate 16.x.
 
-```objc
-/* BEFORE */
-currentTime = [[NSDate date] timeIntervalSince1970];
-if (currentTime == lastNew) newCount++;
-else { lastNew = currentTime; newCount = 1; }
-newName = [NSString stringWithFormat: @"newDraft%u-%u", currentTime, newCount];
+### 2. iCalendar ↔ AirSyncBase:Location mapping (`ActiveSync/iCalEvent+ActiveSync.m`)
 
-/* AFTER */
-[nameLock lock];
-if (currentTime == lastNew) newCount++;
-else { lastNew = currentTime; newCount = 1; }
-newName = [NSString stringWithFormat: @"newDraft%u-%u-%u",
-                    currentTime, (unsigned int) getpid (), newCount];
-[nameLock unlock];
-```
+New serializer `activeSyncStructuredLocationInContext:` (declared in
+`iCalEvent+ActiveSync.h`), used for calendar items and email meeting requests:
 
-- the counter update **and** the name formatting are serialized by a new
-  static `NSLock` (created in `+initialize`, same pattern as
-  `SOGoDraftObject.m:113`) — fixes the in-worker thread race;
-- the name now embeds the worker's `getpid()` — fixes the cross-worker
-  collision, which is what the ticket log shows.
+- AVANT (event `LOCATION:Oslo S`, `GEO:59.911081;10.749770`,
+  `X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS="Jernbanetorget 1\nOslo\n\n0154\nNorway";X-TITLE="Oslo S":geo:59.911081,10.749770`):
+  ```xml
+  <Location xmlns="AirSyncBase:"><DisplayName>Oslo S</DisplayName></Location>
+  ```
+- APRÈS (same event):
+  ```xml
+  <Location xmlns="AirSyncBase:">
+    <DisplayName>Oslo S</DisplayName>
+    <Street>Jernbanetorget 1</Street>
+    <City>Oslo</City>
+    <PostalCode>0154</PostalCode>
+    <Country>Norway</Country>
+    <Latitude>59.911081</Latitude>
+    <Longitude>10.749770</Longitude>
+    <LocationUri>geo:59.911081,10.749770</LocationUri>
+  </Location>
+  ```
+  - `DisplayName` ← `LOCATION` (fallback: `X-TITLE`)
+  - `Latitude`/`Longitude` ← `GEO` (`lat;lon` or `lat,lon`; the `geo:` URI of
+    the structured property is used as fallback); unparseable `GEO` is ignored
+  - `Street/City/State/Country/PostalCode` ← `X-ADDRESS` lines: 5 lines =
+    Street, City, State, PostalCode, Country; 3 lines (Apple's common minimal
+    form) = Street, City, Country; other shapes emit no components
+  - `LocationUri` ← the URI value of `X-APPLE-STRUCTURED-LOCATION`
+  - a `GEO`-only event yields a `Location` with coordinates only; empty
+    components are simply omitted (missing data never blocks sync)
+  - EAS < 16.0 output is unchanged: flat `<Location xmlns="Calendar:">`
 
-Supporting changes:
-- `SoObjects/Mailer/SOGoDraftsFolder.h` — declare `generateNameForNewDraft`.
-- `Tests/Unit/TestSOGoDraftsFolder.m` (new) + registration in
-  `Tests/Unit/GNUmakefile`.
+New parser `_takeActiveSyncStructuredLocation:` called from
+`takeActiveSyncValues:inContext:` when the negotiated version is ≥ 16.0:
+
+- AVANT: `[self setLocation: [o objectForKey: @"DisplayName"]]` — everything
+  else dropped.
+- APRÈS: in addition to `LOCATION` = `DisplayName`, the structured payload is
+  preserved durably in the calendar object:
+  ```ical
+  GEO:59.911081;10.749770
+  X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS="Jernbanetorget 1\nOslo\n\n0154\nNorway";X-TITLE="Oslo S":geo:59.911081,10.749770
+  ```
+  i.e. coordinates in the RFC 5545 `GEO` property and the full structured
+  location (address components in fixed slot order Street/City/State/
+  PostalCode/Country, title, URI) in Apple's
+  `X-APPLE-STRUCTURED-LOCATION` extension — readable by Apple Calendar over
+  CalDAV as well. A `LocationUri` supplied by the client is kept verbatim;
+  without one, a `geo:lat,lon` URI is synthesized from the coordinates. When a
+  later client update carries only `DisplayName`, the stale `GEO` and
+  structured property are removed.
+
+### 3. Meeting requests (`ActiveSync/SOGoMailObject+ActiveSync.m:1073-1081`)
+The email meeting-request serializer now reuses
+`activeSyncStructuredLocationInContext:` at ≥ 16.0 instead of its own
+DisplayName-only copy (legacy `Email:` flat form kept below 16.0).
+
+### Scope notes
+- `Accuracy`, `Altitude`, `AltitudeAccuracy` are accepted but not stored:
+  iCalendar has no standard counterpart (Apple's `X-APPLE-RADIUS` is only a
+  loose equivalent); they never prevent synchronization.
+- The `< 16.0` wire behavior and `takeActiveSyncValues` flat-string handling
+  are byte-for-byte unchanged (locked by tests).
 
 ## Tests
 
-`Tests/Unit/TestSOGoDraftsFolder.m` — 4 tests:
+`Tests/Unit/TestiCalEvent+ActiveSync.m` (existing file, no GNUmakefile change
+needed), 10 new tests:
 
-1. `test_generateNameForNewDraftFormat` — locks the naming contract:
-   `newDraft` prefix, 3 numeric components, pid component equal to `getpid()`,
-   distinct names with the counter incrementing within one second.
-2. `test_generateNameForNewDraftResetsCounterOnNewSecond` — covers the
-   second-rollover branch (counter resets to 1).
-3. `test_generateNameForNewDraftIsThreadSafe` — 4 threads generating 100
-   concurrent names in one worker; all must be distinct (this is the test that
-   caught the first version of the fix formatting the name outside the lock).
-4. `test_generateNameForNewDraftIsUniqueAcrossProcesses` — **the 6239
-   reproducer**: forks two children (simulating two preforked sogod workers)
-   that each generate a name in the same second and report it over a pipe;
-   asserts both epochs align and the two names differ.
+- `test_structuredLocationIsExposedOnTheWire` — EAS-out mapping of all fields
+- `test_locationStaysFlatBeforeProtocol16` — 14.1 keeps flat text, no
+  AirSyncBase Location
+- `test_structuredLocationRoundTrip` — iOS→SOGo→iOS round trip incl. address
+  components, coordinates, LocationUri + the rendered Apple-compatible
+  `X-APPLE-STRUCTURED-LOCATION` line (folded versit output unfolded)
+- `test_displayNameOnlyLocationRoundTrip` — nothing invented, no GEO stored
+- `test_plainLocationUpdateDropsStaleStructuredData` — stale GEO/structured
+  property removed on plain-text update
+- `test_locationUriWithoutCoordinatesRoundTrip` — missing coordinates do not
+  prevent sync
+- `test_geoOnlyEventExposesCoordinatesWithoutDisplayName`
+- `test_appleThreeLineAddressMapsToStreetCityCountry` — Apple's 3-line
+  X-ADDRESS + X-TITLE fallback for DisplayName
+- `test_invalidGeoValueIsIgnored` — garbage GEO neither breaks sync nor emits
+  coordinates
+- `test_flatLocationAcceptedBeforeProtocol16` — legacy incoming flat string
 
-Red/green validation: with the pre-fix `SOGoDraftsFolder.m` restored, tests
-1, 3 and 4 FAIL (plus the rollover test errors); with the fix, the whole
-suite passes (`Ran 270 tests — OK`), verified over 5 consecutive runs.
+Full suite: `local/run-worktree-tests.sh` → **280 tests, OK** (the two known
+host-noise failures did not trigger on this run).
+The two dispatcher files and the mail file cannot be compiled on the host (no
+libwbxml); their edits were syntax-verified by diffing `gcc -fsyntax-only`
+error output against the pristine HEAD versions (identical).
 
 ## Verification steps for the orchestrator
 
-- Unit suite (host): 
-  `/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c36-6239`
-  → expect `Ran 270 tests / OK` (known host noise: `test_NGInternetSocketAddressFromString`,
-  `test_stringWithoutHTMLInjection` may fail — did not in my runs).
-- After the stack is rebuilt/deployed from this branch (orchestrator-only),
-  the live repro of the AVANT behavior (fails on old build, passes on new):
-  1. log in via the web UI in two different browsers as the **same user**
-     (e2e: `sogo-tests1` / `sogo`);
-  2. open a compose window in both within the same second (e.g. two
-     `GET /SOGo/so/sogo-tests1/Mail/0/compose` fired concurrently — the e2e
-     httpd is at `http://127.0.0.1:50001`; UI actions need the session cookie
-     from `POST /SOGo/connect`, basic auth only works for DAV);
-  3. check the returned `draftId` in each response: identical on the old build
-     (both `newDraft<ts>-1`), distinct (`newDraft<ts>-<pid>-N`) on the new one;
-  4. attach different files in each window and send both: on the old build the
-     messages cross-pollinate attachments; on the new build each message
-     carries only its own file.
-  Note: on the currently running (stale, cycle-35) container the UI session
-  cookie 403s for JSON actions — verify on the freshly rebuilt stack.
+1. Unit suite (should be OK, 280 tests):
+   ```
+   /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
+     /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c36-6236
+   ```
+2. Negotiation, on a rebuilt e2e stack (the current shared stack build does
+   not route EAS requests):
+   ```
+   curl -s -i -X OPTIONS -u sogo-tests1:sogo \
+     "http://127.0.0.1:50001/Microsoft-Server-ActiveSync?Cmd=Options&DeviceId=probe&DeviceType=iPhone" \
+     | grep -i "MS-ASProtocol"
+   # expected: MS-ASProtocolVersions: 2.5,12.0,12.1,14.0,14.1,16.0,16.1
+   #           MS-Server-ActiveSync: 16.1
+   ```
+   and on any POST response (e.g. FolderSync):
+   ```
+   printf '\x03\x01\x6a\x00\x00\x00\x07\x16\x12\x03\x30\x00\x01\x01\x01' |
+   curl -s -i -X POST -u sogo-tests1:sogo -H "MS-ASProtocolVersion: 16.1" \
+     -H "Content-Type: application/vnd.ms-sync.wbxml" --data-binary @- \
+     "http://127.0.0.1:50001/SOGo/Microsoft-Server-ActiveSync?Cmd=FolderSync&DeviceId=probe&DeviceType=iPhone" \
+     | grep -i "MS-ASProtocolVersions"
+   ```
+3. Real-device round trip (needs an actual iOS device): add an Exchange
+   account, create an event at a recognized place (e.g. *Oslo S,
+   Jernbanetorget 1, 0154 Oslo*), sync, then inspect the stored .ics via
+   CalDAV (expect `GEO` + `X-APPLE-STRUCTURED-LOCATION` as shown above) and
+   confirm iOS still shows the map pin after a second sync. No artifacts were
+   left on the shared stack (probes were read-only and the EAS endpoint is
+   unrouted there).
 
 ## PR body draft
 
-When two users compose and send emails at the same time from the same
-mailbox, the attachments of one message end up attached to the other
-message. The cause is on the server: new draft names
-(`newDraft<unixtime>-<counter>`) were generated from process-local statics,
-while sogod runs preforked workers (and threaded request dispatch). Two
-compose sessions landing on two workers within the same second received the
-**same** draft name — the reporter's log shows both browsers sending via
-`.../folderDrafts/newDraft1787734448-1/send` — and therefore shared a single
-draft: one spool directory for attachments, one IMAP draft object, so every
-send composed its message from both users' files.
+Apple Calendar on iOS only exchanges structured locations (`AirSyncBase:
+Location` with address components, coordinates and a location URI) over
+Exchange ActiveSync 16.0+. SOGo advertised 14.1 at most, so iOS fell back to
+the flat text `Calendar:Location` — no map suggestions, no coordinates, and
+any structured data sent by 16.x-capable clients was truncated to its
+`DisplayName` on storage.
 
-AVANT: `newDraft1787734448-1` (worker A) == `newDraft1787734448-1`
-(worker B) → shared spool → File A attached to recipient B's mail and
-vice-versa (bug 6239).
-APRES: `newDraft1787734448-4180-1` (worker A, pid 4180) vs
-`newDraft1787734448-4183-1` (worker B, pid 4183) → distinct draft objects,
-each message carries only its own attachments.
-
-The generator now serializes its counter behind a lock (also fixing the
-in-worker thread race, where the name was formatted outside the critical
-section) and embeds the worker pid in the name, which keeps the
-`newDraft<epoch>` prefix contract used everywhere (`lookupName:` prefix
-match, opaque `draftId` on the Angular side). Covered by 4 new unit tests in
-`Tests/Unit/TestSOGoDraftsFolder.m`, including a fork-based reproducer that
-fails on the previous implementation.
+This advertises EAS 16.0/16.1 in `MS-ASProtocolVersions` (OPTIONS and POST
+responses), which activates — and completes — the existing 16.x code paths
+independently of the rest of the EAS 16 feature set. Calendar events (and
+meeting requests embedded in emails) now serialize
+`LOCATION`/`GEO`/`X-APPLE-STRUCTURED-LOCATION` into the full
+`AirSyncBase:Location` element (`DisplayName`, `Street`, `City`, `State`,
+`Country`, `PostalCode`, `Latitude`, `Longitude`, `LocationUri`), and every
+structured field received from a 16.x client is preserved durably as RFC 5545
+`GEO` plus an Apple-compatible `X-APPLE-STRUCTURED-LOCATION` property, so the
+data survives iOS → SOGo → iOS round trips without ever being reduced to plain
+text. Missing coordinates or address components never prevent synchronization;
+clients negotiating < 16.0 keep the exact previous flat behavior, and a
+plain-text location update correctly clears stale structured data. AVANT:
+`<Location xmlns="AirSyncBase:"><DisplayName>Oslo S</DisplayName></Location>`.
+APRÈS: `<Location xmlns="AirSyncBase:"><DisplayName>Oslo S</DisplayName>
+<Street>Jernbanetorget 1</Street><City>Oslo</City><PostalCode>0154</PostalCode>
+<Country>Norway</Country><Latitude>59.911081</Latitude>
+<Longitude>10.749770</Longitude><LocationUri>geo:59.911081,10.749770</LocationUri>
+</Location>` — ten new unit tests lock both directions.
