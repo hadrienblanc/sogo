@@ -36,6 +36,7 @@
   BOOL defaultHandlerValue;
   NSString *appNameValue;
   id domDocumentValue;
+  id bodyValue;
 }
 + (StubServerCoreRequest *) requestWithMethod: (NSString *) method;
 + (StubServerCoreRequest *) requestWithMethod: (NSString *) method
@@ -75,6 +76,7 @@
   [formValuesValue release];
   [appNameValue release];
   [domDocumentValue release];
+  [bodyValue release];
   [super dealloc];
 }
 
@@ -111,6 +113,16 @@
 - (void) setDOMDocument: (id) document
 {
   ASSIGN (domDocumentValue, document);
+}
+
+- (void) setBody: (NSString *) body
+{
+  ASSIGN (bodyValue, body);
+}
+
+- (NSString *) davBodyAsString
+{
+  return bodyValue;
 }
 
 - (NSString *) method
@@ -2484,6 +2496,7 @@
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
   request = [StubServerCoreRequest requestWithMethod: @"PUT"];
+  [request setBody: @"BEGIN:VCARD\nVERSION:3.0\nUID:x\nFN:x\nEND:VCARD\n"];
   context = [StubServerCoreContext contextWithUser: nil
 					   request: request];
   object = [StubServerCoreContentObject objectWithName: @"card.vcf"
@@ -2507,6 +2520,7 @@
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
   request = [StubServerCoreRequest requestWithMethod: @"PUT"];
+  [request setBody: @"BEGIN:VCARD\nVERSION:3.0\nUID:x\nFN:x\nEND:VCARD\n"];
   context = [StubServerCoreContext contextWithUser: nil
 					   request: request];
   object = [StubServerCoreContentObject objectWithName: @"card.vcf"
@@ -2531,6 +2545,7 @@
 						  headers: [NSDictionary dictionaryWithObjectsAndKeys:
 							      @"\"nope\"", @"if-match",
 							      nil]];
+  [request setBody: @"BEGIN:VCARD\nVERSION:3.0\nUID:x\nFN:x\nEND:VCARD\n"];
   context = [StubServerCoreContext contextWithUser: nil
 					   request: request];
   object = [StubServerCoreContentObject objectWithName: @"card.vcf"
@@ -3678,6 +3693,7 @@
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
   request = [StubServerCoreRequest requestWithMethod: @"PUT"];
+  [request setBody: @"BEGIN:VCARD\nVERSION:3.0\nUID:x\nFN:x\nEND:VCARD\n"];
   context = [StubServerCoreContext contextWithUser: nil
 					   request: request];
   object = [StubServerCoreFailingContentObject objectWithName: @"card.vcf"

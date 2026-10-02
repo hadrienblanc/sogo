@@ -120,11 +120,10 @@
   testEquals([record objectForKey: @"givenname"], given);
   testEquals([record objectForKey: @"displayname"], displayName);
   testEquals([record objectForKey: @"mozillanickname"], @"Surnom");
-  testEquals([record objectForKey: @"telephonenumber"], @"+111");
-  testEquals([record objectForKey: @"homephone"], @"+222");
-  testEquals([record objectForKey: @"mobile"], @"+333");
-  testEquals([record objectForKey: @"facsimiletelephonenumber"], @"+444");
-  testEquals([record objectForKey: @"pager"], @"+555");
+  testEquals([record objectForKey: @"telephonenumber"], [NSArray arrayWithObject: @"+111"]);
+  testEquals([record objectForKey: @"mobile"], [NSArray arrayWithObject: @"+333"]);
+  testEquals([record objectForKey: @"facsimiletelephonenumber"], [NSArray arrayWithObject: @"+444"]);
+  testEquals([record objectForKey: @"pager"], [NSArray arrayWithObject: @"+555"]);
   testEquals([record objectForKey: @"mail"], @"a@x.com");
   testEquals([record objectForKey: @"mozillasecondemail"], @"b@x.com");
   testEquals([record objectForKey: @"nsaimid"], @"aimid");
@@ -195,11 +194,14 @@
                    @"END:VCARD\n"];
   record = [card asLDIFRecord];
 
-  testEquals([record objectForKey: @"telephonenumber"], @"+222");
-  testEquals([record objectForKey: @"homephone"], @"+444");
-  testEquals([record objectForKey: @"facsimiletelephonenumber"], @"+111");
-  testEquals([record objectForKey: @"mobile"], @"+666");
-  testEquals([record objectForKey: @"pager"], @"+777");
+  testEquals([record objectForKey: @"telephonenumber"], [NSArray arrayWithObject: @"+222"]);
+  testEquals([record objectForKey: @"homephone"], [NSArray arrayWithObject: @"+444"]);
+  {
+    NSArray *expectedFax = [NSArray arrayWithObjects: @"+111", @"+333", @"+555", nil];
+    testEquals([record objectForKey: @"facsimiletelephonenumber"], expectedFax);
+  }
+  testEquals([record objectForKey: @"mobile"], [NSArray arrayWithObject: @"+666"]);
+  testEquals([record objectForKey: @"pager"], [NSArray arrayWithObject: @"+777"]);
 
   card = [self _cardFromString:
                    @"BEGIN:VCARD\n"
@@ -208,7 +210,7 @@
                    @"END:VCARD\n"];
   record = [card asLDIFRecord];
   testEquals([record objectForKey: @"telephonenumber"], @"");
-  testEquals([record objectForKey: @"facsimiletelephonenumber"], @"+111");
+  testEquals([record objectForKey: @"facsimiletelephonenumber"], [NSArray arrayWithObject: @"+111"]);
 
   card = [self _cardFromString:
                    @"BEGIN:VCARD\n"
@@ -216,8 +218,10 @@
                    @"TEL;TYPE=CELL:+41 79 111 22 33\nTEL;TYPE=CELL:+41 79 444 55 66\n"
                    @"END:VCARD\n"];
   record = [card asLDIFRecord];
-  testEquals([record objectForKey: @"mobile"], @"+41 79 111 22 33");
-  test([[record objectForKey: @"mobile"] isKindOfClass: [NSString class]]);
+  {
+    NSArray *expectedMobiles = [NSArray arrayWithObjects: @"+41 79 111 22 33", @"+41 79 444 55 66", nil];
+    testEquals([record objectForKey: @"mobile"], expectedMobiles);
+  }
 }
 
 - (void) test_as_ldif_record_voice_fallback
@@ -234,8 +238,8 @@
                    @"END:VCARD\n"];
   record = [card asLDIFRecord];
 
-  testEquals([record objectForKey: @"telephonenumber"], @"450 456 6789");
-  testEquals([record objectForKey: @"mobile"], @"514 123 1234");
+  testEquals([record objectForKey: @"telephonenumber"], [NSArray arrayWithObject: @"450 456 6789"]);
+  testEquals([record objectForKey: @"mobile"], [NSArray arrayWithObject: @"514 123 1234"]);
   testEquals([record objectForKey: @"homephone"], @"");
   testEquals([record objectForKey: @"pager"], @"");
 }
@@ -492,11 +496,14 @@
   testEquals([record objectForKey: @"sn"], @"Nom");
   testEquals([record objectForKey: @"givenname"], @"Given");
   testEquals([record objectForKey: @"displayname"], @"display x");
-  testEquals([record objectForKey: @"telephonenumber"], @"+111");
-  testEquals([record objectForKey: @"homephone"], @"+333");
-  testEquals([record objectForKey: @"mobile"], @"+444");
-  testEquals([record objectForKey: @"facsimiletelephonenumber"], @"+555");
-  testEquals([record objectForKey: @"pager"], @"+666");
+  {
+    NSArray *expectedWork = [NSArray arrayWithObjects: @"+111", @"+222", nil];
+    testEquals([record objectForKey: @"telephonenumber"], expectedWork);
+  }
+
+  testEquals([record objectForKey: @"mobile"], [NSArray arrayWithObject: @"+444"]);
+  testEquals([record objectForKey: @"facsimiletelephonenumber"], [NSArray arrayWithObject: @"+555"]);
+  testEquals([record objectForKey: @"pager"], [NSArray arrayWithObject: @"+666"]);
   testEquals([record objectForKey: @"mail"], @"w@x.y");
   testEquals([record objectForKey: @"mozillasecondemail"], @"s1@x.y");
   testEquals([record objectForKey: @"mozillahomestreet"], @"hs");
