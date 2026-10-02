@@ -1,186 +1,162 @@
-# Fix 6251 — VLIST does not permanently save the selected email address of contacts with multiple addresses
+# Fix report — Mantis 6247
 
-Ticket: https://bugs.sogo.nu/view.php?id=6251 (severity minor, Web Address Book, 5.12.11)
-Branch: `fix-6251-mantis`
+## Ticket
 
-## Verdict
-
-This **is a bug**, reproduced live on the e2e stack (see Verification). A VLIST
-member *does* store an `EMAIL` attribute on its `CARD` line (`CARD;FN=...;EMAIL=...:<uid>`),
-and all consumers (list view `data`/`properties` actions, LDIF export, mail
-composition in `UIxMailMainFrame`) use that stored value — but the list editor
-never wrote the user's selection into it, and never updated it.
+bugs.sogo.nu #0006247 — `"Show time as busy outside working hours" ignores
+timezones` (Web Calendar, minor, SOGo 5.12.10, reproducible always).
 
 ## Root cause (file:line)
 
-Three cooperating defects, all on the save path of the list editor:
+The AJAX free/busy renderer builds its JSON day/hour keys by decomposing each
+busy record's dates **in the timezone attached to the record's NSCalendarDate**
+(`UI/MainUI/SOGoUserHomePage.m:212` `[currentStartDate shortDateString]` and
+`:229 [currentDate hourOfDay]`).
 
-1. **`UI/Contacts/UIxListEditor.m` (old lines 233–237 and 245–249, `-setReferences:`)** —
-   when a member is added, the server ignores the email selected by the user and
-   stores `[emails objectAtIndex: 0]`, the first entry of the contact's quick-table
-   `c_mail` field. That order is the indexer's "preferred" order and does not even
-   follow the vCard order (observed reversed on the e2e stack: vCard `home,work`
-   was indexed as `c_mail=work,home`), so the stored address is routinely not the
-   one picked in the autocomplete (`Card.prototype.$preferredEmail(partial)` in
-   `Card.service.js` matches the *typed text* against the addresses).
+Two producers feed it records with **different** timezones:
 
-2. **`UI/Contacts/UIxListEditor.m` (old line 201, `// TODO: update existing cards?`)** —
-   when a member is already in the list (`cardReferences:contain:` → YES, e.g. the
-   user removed and re-added the contact with another address selected in the same
-   edit session), nothing is updated. Re-selecting an address and re-saving could
-   therefore never persist — exactly the "Changing the address again and saving
-   the list does not persist the selection" part of the ticket.
+- Event records get the **requesting user's** timezone
+  (`SoObjects/Appointments/SOGoAppointmentFolder.m:311` —
+  `timeZone = [[context activeUser] userDefaults] timeZone]`, applied per
+  record at `SOGoAppointmentFolder.m:869` and `:945/:969`). That is why normal
+  events are correctly displayed in the viewer's timezone.
+- The "busy outside working hours" generator built its records with the
+  **calendar owner's** timezone (`SoObjects/Appointments/SOGoFreeBusyObject.m`,
+  old lines 341–416: `timeZone = [ud timeZone]` where `ud` is the freebusy
+  owner's defaults, all emitted `startDate`/`endDate` objects carried it).
 
-3. **`UI/WebServerResources/js/Contacts/Card.service.js` (`Card.prototype.$save`, line ~277)** —
-   the selected address lives in `ref.$$email` on the client, but `$omit()` drops
-   every `$`-prefixed key, so the payload never carried the selection to the server.
+So the owner's wall-clock hours (e.g. busy before 10:00 / after 18:00 in
+Europe/Lisbon) were painted verbatim on the viewer's timeline (Europe/Warsaw),
+ignoring the 1-hour difference — while real events were shifted. This matches
+the ticket exactly and was reproduced live on the e2e stack (see Verification).
 
-Supporting fact: the persistence layer itself was already fine — `NGVCardReference`
-keeps `EMAIL` as an attribute and all readers use it; the LDIF import path
-(`NGVList+SOGo.m setCardReference:inContainer:`, line 186) already honors the
-member's `mail`. Only the web editor path was broken.
+A second, closely-related edge was found while fixing: the generator's loop
+anchor was built from the **viewer's** calendar day rebuilt at midnight in the
+**owner's** timezone — an instant that can be *after* the requested window
+start (viewer midnight = 23:00 owner-day−1), so the first off-hours block was
+never clipped to the window start and the viewer's first hour(s) could show as
+free.
 
 ## What changed (before/after)
 
-- `SOPE/NGCards/NGVList.h/.m` — new accessor `-cardReferenceForReference:`
-  (NGVList.m:192), the lookup counterpart of the existing `deleteCardReference:`.
+`SoObjects/Appointments/SOGoFreeBusyObject.m` / `.h`:
 
-- `UI/Contacts/UIxListEditor.m` `-setReferences:` (lines 223–258) —
-  - BEFORE: existing member → skipped entirely (`TODO: update existing cards?`);
-    new member → `EMAIL` forced to the first address of `c_mail`.
-  - AFTER: the client-provided `email` of the member dict is validated
-    (`NSString`, non-empty) into `memberEmail`; if the member already exists, its
-    stored `EMAIL` is refreshed with `memberEmail` (implements the old TODO);
-    when adding (both the personal-folder branch and the public/shared-AB branch),
-    `memberEmail` wins and only falls back to the first address of `c_mail` when
-    the client sent none. The new-contact fallback branch is untouched.
+- The off-hours generation block was extracted from
+  `-fetchFreeBusyInfosFrom:to:` into a pure, unit-testable class method
+  `+busyOffHoursInfosFrom:to:dayStartHour:dayEndHour:ownerTimeZone:viewTimeZone:`.
+  Arithmetic (owner-tz anchoring, day iteration, weekend fill, clipping) is
+  unchanged.
+- BEFORE: emitted `startDate`/`endDate` records carried the owner's timezone.
+  AFTER: the absolute instants are still computed from the owner's
+  day-start/day-end hours in the **owner's** timezone ("busy outside
+  10:00–18:00 Lisbon" stays the same period of time), but the emitted record
+  dates now carry the **requesting user's** timezone — the exact convention
+  used by `SOGoAppointmentFolder` for event records — via the new
+  `+_viewDateForDate:inTimeZone:` helper (instant-preserving re-anchor:
+  `dateWithTimeIntervalSince1970:` + `setTimeZone:`, same idiom as
+  `_fixupRecord`).
+- BEFORE: loop anchor = viewer's Y/M/D at midnight owner-tz. AFTER: anchor =
+  midnight of the **owner-tz calendar day containing the window start**, so the
+  covering block exists and gets clipped to the window start (fixes the missing
+  first viewer hour).
 
-- `UI/WebServerResources/js/Contacts/Card.service.js` (`$save`, line 280) —
-  - BEFORE: only `ref.reference = ref.id` was set; the selection (`ref.$$email`)
-    was dropped by `$omit()` and never sent.
-  - AFTER: `ref.email = ref.$$email` is also set, so the payload carries the
-    address the user picked in the members autocomplete (for members reloaded
-    from a list, `$$email` is the stored address, making the save a no-op as before).
+No consumer changes were needed:
 
-### AVANT (reproduced on the unfixed stack, SOGo 5.12.x)
+- `SOGoUserHomePage _freeBusyFromStartDate:` now decomposes off-hours records
+  in the viewer's timezone, like event records — the displayed shift is
+  correct.
+- `iCalStringForFreeBusyInfos:` (freebusy.ifb, iCalendar output) converts
+  periods to UTC from absolute instants (`iCalFreeBusy addFreeBusyFrom:to:`,
+  SOPE/NGCards/iCalFreeBusy.m:110–118) — unchanged output.
+- Conflict detection (`SOGoAppointmentObject.m:706`) compares absolute
+  instants and normalizes per-record via `timeZoneDetail` deltas — unaffected.
 
-```
-Contact: test-6251-john.vcf  (EMAIL home: john.private@…, EMAIL work: board@…)
-c_mail (quick table): "board@example.com,john.private@example.com"
-
-POST saveAsList  refs[0].email = "john.private@example.com"   ← user selection
-→ stored: CARD;EMAIL=board@example.com;FN=John Doe:test-6251-john.vcf   ✗
-POST saveAsList  refs[0].email = "board@example.com"          ← user re-selects
-→ stored: CARD;EMAIL=board@example.com;…                               (no-op)
-POST saveAsList  refs[0].email = "john.private@example.com"   ← tries again
-→ stored: CARD;EMAIL=board@example.com;…                               ✗ forever
-```
-
-### APRÈS (with this fix)
-
-```
-POST saveAsList  refs[0].email = "john.private@example.com"
-→ stored: CARD;EMAIL=john.private@example.com;FN=John Doe:john.vcf      ✓
-POST saveAsList  refs[0].email = "board@example.com"
-→ stored: CARD;EMAIL=board@example.com;FN=John Doe:john.vcf             ✓
-```
-
-Two lists may now reference the same contact through different addresses
-("Invitations" → john.private@, "Internal" → board@), as requested in the ticket.
+AVANT (viewer Europe/Warsaw queries owner Europe/Lisbon, working hours
+10:00–18:00, DST: +1h): busy shown 00:00–10:00 and 18:00–24:00 **Warsaw**
+(owner's wall clock used as-is).
+APRÈS: busy shown 00:00–11:00 and 19:00–24:00 **Warsaw** (owner's 10:00–18:00
+Lisbon correctly rendered as 11:00–19:00 Warsaw).
 
 ## Tests
 
-- `Tests/Unit/TestNGVList.m` (new, registered in `Tests/Unit/GNUmakefile`):
-  - `test_cardReferenceForReference` — lookup hits/misses over several members;
-  - `test_selectedEmailRoundTrip` — VLIST `CARD;EMAIL=…` survives parse → render →
-    parse, and an updated selection (`setEmail:`) persists through the round-trip;
-  - `test_deleteCardReferenceKeepsOthers` — deletion keeps the other members and
-    their emails intact.
-- `Tests/spec/HTTPListMembersSpec.js` (new e2e, auto-discovered by jasmine): creates
-  a two-email contact and a VLIST over CardDAV, then locks the three behaviors —
-  selected work address stored, non-default (private) address stored, and update of
-  an existing member's address on re-save.
-- Unit suite: **252 tests, OK** (`local/run-worktree-tests.sh`), including the 3 new
-  tests (the known host-noise failures did not trigger on this run).
-- The e2e spec cannot pass on the shared stack until the orchestrator redeploys
-  this branch (deploys are orchestrator-only); against the unfixed stack it fails
-  exactly on the reproduced behaviors above.
+- `Tests/Unit/TestSOGoFreeBusyObject.m` (new, registered in
+  `Tests/Unit/GNUmakefile`): 5 tests covering every branch of the generator —
+  cross-timezone shift + timezone attachment (the ticket), same-timezone
+  behavior, full-weekend coverage incl. contiguity, window starting during
+  off-hours (clipped start), window starting inside working hours (skipped
+  morning block). DST-stable fixed dates (October 2026).
+- `Tests/spec/AjaxFreeBusyOffHoursSpec.js` (new e2e): sets owner
+  (sogo-tests1) to Europe/Lisbon 10:00–18:00 + busyOffHours, viewer
+  (sogo-tests2) to Europe/Warsaw, calls
+  `/SOGo/so/<owner>/freebusy.ifb/ajaxRead?sday=<today>&eday=<today>` and
+  asserts the busy hours JSON: `0–10 ∪ 19–23` on weekdays, `0–23` on weekends;
+  restores both users' preferences in `afterAll`. Runs on the rebuilt stack
+  with the orchestrator's post-merge full suite.
+- Full unit suite: `Ran 257 tests — OK` (known host-noise failures did not
+  trigger on this run).
 
 ## Verification steps for the orchestrator
 
-1. Unit suite (already green in this worktree):
+Unit (already run in this worktree):
 
-   ```
-   /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-     /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-6251
-   ```
+```
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-6247
+```
 
-2. After the next stack rebuild/merge, e2e (inside the `sogo_dev` container):
+E2E on the rebuilt stack (expects busy hours 0–10 and 19–23 on a weekday;
+before the fix this returns 0–9 and 18–22):
 
-   ```
-   cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
-   npx jasmine --config=spec/support/jasmine.json --filter="HTTP Contacts list members" && \
-   sed -i 's/port: "50000"/port: "50001"/' lib/config.js
-   ```
+```
+# login
+curl -s -c /tmp/c1 -X POST http://127.0.0.1:50001/SOGo/connect \
+  -H 'Content-Type: application/json' \
+  -d '{"userName": "sogo-tests1", "password": "sogo"}'
+curl -s -c /tmp/c2 -X POST http://127.0.0.1:50001/SOGo/connect \
+  -H 'Content-Type: application/json' \
+  -d '{"userName": "sogo-tests2", "password": "sogo"}'
+# owner: Lisbon, 10:00-18:00, busy outside working hours
+curl -s -b /tmp/c1 -X POST http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
+  -H 'Content-Type: application/json' \
+  -d '{"defaults": {"SOGoTimeZone": "Europe/Lisbon", "SOGoDayStartTime": "10:00", "SOGoDayEndTime": "18:00", "SOGoBusyOffHours": true}}'
+# viewer: Warsaw
+curl -s -b /tmp/c2 -X POST http://127.0.0.1:50001/SOGo/so/sogo-tests2/Preferences/save \
+  -H 'Content-Type: application/json' \
+  -d '{"defaults": {"SOGoTimeZone": "Europe/Warsaw"}}'
+# freebusy as seen by the viewer (weekday)
+D=$(TZ=Europe/Lisbon date +%Y%m%d)
+curl -s -b /tmp/c2 "http://127.0.0.1:50001/SOGo/so/sogo-tests1/freebusy.ifb/ajaxRead?sday=$D&eday=$D" \
+  | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(k, sorted(map(int, v.keys()))) for k, v in d.items()]'
+# restore afterwards (Europe/Paris / 08:00 / 18:00 / busyOffHours false)
 
-3. Manual curl check against a stack running this branch (artifacts prefixed
-   `test-6251-`, delete afterwards):
+# jasmine spec (inside the sogo_dev container, after merge/rebuild):
+cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
+  npx jasmine --config=spec/support/jasmine.json --filter='freebusy "busy outside working hours" (bug 6247)'
+# restore lib/config.js afterwards
+```
 
-   ```
-   u=sogo-tests1:sogo; base=http://127.0.0.1:50001
-   curl -s -u $u -X PUT -H "Content-Type: text/vcard" --data-binary \
-     $'BEGIN:VCARD\r\nVERSION:3.0\r\nUID:test-6251-john\r\nFN:John Doe\r\nEMAIL;TYPE=home:john.private@example.com\r\nEMAIL;TYPE=work:board@example.com\r\nEND:VCARD\r\n' \
-     "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-john.vcf"
-   curl -s -u $u -X PUT -H "Content-Type: text/vcard" --data-binary \
-     $'BEGIN:VLIST\r\nUID:test-6251-list.vcf\r\nVERSION:1.0\r\nFN:List 6251\r\nEND:VLIST\r\n' \
-     "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-list.vcf"
-   # session cookie for UI actions
-   curl -s -c /tmp/opencode/test-6251-cookies.txt -X POST -H "Content-Type: application/json" \
-     -d '{"userName":"sogo-tests1","password":"sogo"}' "$base/SOGo/connect" -o /dev/null
-   # save with the private address selected, then read back the stored CARD line
-   curl -s -b /tmp/opencode/test-6251-cookies.txt -X POST -H "Content-Type: application/json" \
-     -d '{"refs":[{"id":"test-6251-john.vcf","reference":"test-6251-john.vcf","email":"john.private@example.com","c_cn":"John Doe"}],"c_cn":"List 6251","nickname":"","description":""}' \
-     "$base/SOGo/so/sogo-tests1/Contacts/personal/test-6251-list.vcf/saveAsList"
-   curl -s -u $u "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-list.vcf" | grep CARD
-   # expect: CARD;FN=John Doe;EMAIL=john.private@example.com:test-6251-john.vcf
-   # re-save selecting board@example.com → stored EMAIL must become board@example.com
-   # cleanup:
-   curl -s -u $u -X DELETE "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-list.vcf"
-   curl -s -u $u -X DELETE "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-john.vcf"
-   ```
-
-## Known related behavior (not changed, out of ticket scope)
-
-`SoObjects/Contacts/SOGoContactGCSEntry.m:226` — saving a *contact* still resets the
-stored member email of every list containing it to the contact's preferred address
-(`[reference setEmail: [newCard preferredEMail]]`, together with `setFn:`). Keeping
-the member's selection there as well (when still present on the card) would be a
-sensible follow-up ticket.
+Repro artifacts created on the shared stack during investigation (preferences
+of sogo-tests1/2) were restored to the stack defaults; no events named
+test-6247-* remain.
 
 ## PR body draft
 
-> ### fix(contacts): persist the selected email address of VLIST members (#6251)
->
-> A VLIST member stores the chosen address as the `EMAIL` attribute of its `CARD`
-> line, but the web editor never wrote the user's selection there: on save the
-> server forced the member's address to the first entry of the contact's indexed
-> `c_mail` list, members already present in the list were skipped entirely
-> (`// TODO: update existing cards?`), and the Angular UI never sent the selected
-> address (`$$email` is dropped by `$omit`). As a result, for any contact with
-> several addresses the list silently fell back to an arbitrary "preferred"
-> address after each save, and re-selecting another address could never persist —
-> the exact behavior reported in #6251. The fix makes `UIxListEditor` honor the
-> client-selected `email` of each member (falling back to the old first-of-`c_mail`
-> behavior when absent), refresh the stored address of existing members on re-save,
-> and makes `Card.$save` transmit the selected address; a new
-> `NGVList -cardReferenceForReference:` accessor supports the update path.
->
-> AVANT : liste « Invitations » → John Doe enregistré avec `EMAIL=board@…` (1ère
-> adresse de `c_mail`) même après avoir sélectionné `john.private@…` et re-sauvegardé ;
-> la réouverture affiche et utilise toujours l'adresse par défaut. APRÈS : la liste
-> conserve exactement l'adresse choisie (`CARD;EMAIL=john.private@…`), elle peut être
-> changée à chaque sauvegarde, et deux listes peuvent référencer le même contact via
-> des adresses différentes (« Invitations » → privée, « Internal » → board). Couvert
-> par `Tests/Unit/TestNGVList.m` (aller-retour VLIST/EMAIL) et
-> `Tests/spec/HTTPListMembersSpec.js` (sauvegarde via l'API web : adresse choisie
-> stockée, adresse non par défaut stockée, mise à jour d'un membre existant).
+When a user enables "Show time as busy outside working hours", the free/busy
+panel used by "Invite attendees" painted those blocks using the calendar
+owner's wall-clock hours, ignoring the timezone of the person viewing the
+timeline. AVANT : User 1 (Europe/Lisbon, working hours 10:00–18:00) appeared
+busy before 10:00 and after 18:00 for User 2 (Europe/Warsaw) — while User 1's
+actual events were correctly shifted by one hour, making the display
+inconsistent. APRÈS : the off-hours blocks are still computed from the owner's
+day start/end hours in the owner's timezone (the busy *periods* are
+unchanged), but they are now rendered in the viewer's timezone — User 2 sees
+User 1 busy before 11:00 and after 19:00 Warsaw time, consistently with the
+events.
+
+The fix aligns the off-hours records with the convention already used for
+event records (dates attached to the requesting user's timezone, as done in
+SOGoAppointmentFolder) and extracts the generator into a pure, unit-tested
+method. It also fixes an edge found along the way: when the viewer's midnight
+falls before the owner's midnight (always, for eastward viewers), the first
+off-hours block could start after the requested window and the viewer's first
+hour was shown as free. The iCalendar freebusy export and conflict detection
+are unaffected (they work on absolute instants). Covered by new unit tests
+(TestSOGoFreeBusyObject) and a new e2e spec (AjaxFreeBusyOffHoursSpec).
