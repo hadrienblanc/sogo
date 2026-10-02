@@ -1,111 +1,142 @@
-# Ticket 5909 — "Improve log message" (ActiveSync, minor)
+# Bug 5908 — "Error in apache log (alias directive will never match...)"
 
-## Verdict: real (minor) defect — ambiguous log message; SOGo already handles the cleanup itself
-
-The reporter (modir) is right: the log line emitted when an EAS client
-resumes with a stale syncKey does not say who acts next. Reading the code
-answers the reporter's question definitively: **nobody has to run
-`sogo-tool`** — `SOGoActiveSyncDispatcher+Sync.m` performs the cache cleanup
-by itself, in the same Sync response, driven by the `cleanup_needed` flag:
-
-- `ActiveSync/SOGoActiveSyncDispatcher+Sync.m:1093-1100` — entries older than
-  the filter are SoftDelete-re-armed so the client converges on the next sync;
-- `ActiveSync/SOGoActiveSyncDispatcher+Sync.m:1194-1236` — GCS folders
-  (contacts/events/tasks): cache entries are removed or reset;
-- `ActiveSync/SOGoActiveSyncDispatcher+Sync.m:1524-1594` — mail folders:
-  entries from the missed window are dropped from syncCache/dateCache and
-  sequences reset to `0` so the changes are re-emitted.
-
-So of the two wordings proposed in the ticket, only the second one is
-factually correct ("SOGo initiates now a cache clean-up"); asking the
-administrator to run `sogo-tool` would be wrong advice.
+**Verdict: NOT an SOGo bug.** The two `Alias` directives shipped in
+`Apache/SOGo.conf` do not overlap each other; the AH00671 warnings reported
+occur only when the SOGo configuration file is parsed a second time by Apache
+(e.g. included twice), which happens on the reporter's system, not in the
+shipped file. No production change was made; the analysis is locked by unit
+tests.
 
 ## Root cause (file:line)
 
-`ActiveSync/SOGoActiveSyncDispatcher+Sync.m:1025` — the log line
-`"Cache cleanup needed for device %@ - user: %@ syncKey: %@ cache: %@"`
-states the problem but not the outcome, leaving administrators to guess
-whether manual action (e.g. `sogo-tool`) is expected. No functional bug.
+- `Apache/SOGo.conf:1-4` ships:
+  - `Alias /SOGo.woa/WebServerResources/ /usr/lib/GNUstep/SOGo/WebServerResources/`
+  - `Alias /SOGo/WebServerResources/ /usr/lib/GNUstep/SOGo/WebServerResources/`
+- Apache ≥ 2.4.56 emits `AH00671` in `add_alias_internal()`
+  (`modules/mappers/mod_alias.c`, overlap-check loop) when the new alias's
+  fake path is matched by an **earlier** alias through `alias_matches()`
+  (`mod_alias.c`, `alias_matches()` — segment-based prefix matching).
+- `alias_matches("/SOGo/WebServerResources/", "/SOGo.woa/WebServerResources/")`
+  returns 0 and the converse also returns 0: `/SOGo.woa` and `/SOGo` are
+  distinct path segments, so the two shipped directives cannot shadow each
+  other. A single clean inclusion of `Apache/SOGo.conf` emits no AH00671.
+- The reporter gets warnings on **both** line 1 and line 2 simultaneously. A
+  pre-existing `Alias /SOGo` would only explain the line 2 warning
+  (`alias_matches("/SOGo.woa/...", "/SOGo") == 0`). The only configuration
+  that reproduces the exact reported symptom is **SOGo.conf being included
+  twice** in the Apache parse order (openSUSE classic: `conf.d/*.conf` glob
+  plus `APACHE_CONF_INCLUDE_FILES`, or a leftover copy in another included
+  file). On the second parse, each directive duplicates an earlier one,
+  mod_alias keeps the first match (`try_alias_list()` scans in declaration
+  order), and Apache logs the warnings "at line 1" / "at line 2".
+- Christian Mack's comment (~0017642) is confirmed, with one nuance: Apache
+  is not "wrong" — its heuristic correctly detects duplicate directives
+  somewhere earlier in the *reporter's* parse order; the shipped file itself
+  is internally consistent.
+- Deleting the two lines, as the reporter asked, would break static
+  resources (JS/CSS/images) under one or both URL prefixes — both forms are
+  live URL spaces of SOGo's Web UI.
+
+Empirical proof (verbatim C port of mod_alias 2.4.x `alias_matches()` +
+overlap check, `/tmp/opencode/alias5908.c` during the session):
+
+```
+== shipped Apache/SOGo.conf (clean single include) ==
+  [1] /SOGo.woa/WebServerResources/            -> ok
+  [2] /SOGo/WebServerResources/                -> ok
+== SOGo.conf included TWICE ==
+  [1] /SOGo.woa/WebServerResources/            -> ok
+  [2] /SOGo/WebServerResources/                -> ok
+  [3] /SOGo.woa/WebServerResources/            -> AH00671 overlap warning
+  [4] /SOGo/WebServerResources/                -> AH00671 overlap warning
+== earlier 'Alias /SOGo' hypothesis ==
+  [2] /SOGo.woa/WebServerResources/            -> ok
+  [3] /SOGo/WebServerResources/                -> AH00671 overlap warning
+```
 
 ## What changed (before/after)
 
-The message is now built by a pure helper
-`+[NSString activeSyncCacheCleanupLogMessageForDevice:user:syncKey:cachedSyncKey:]`
-(`ActiveSync/NSString+ActiveSync.m:46`), called from the dispatcher log site.
-That file is compiled into both the ActiveSync bundle and the unit-test tool,
-which makes the wording lockable by a unit test. The message prefix is kept
-byte-identical so existing grep/alerting patterns keep matching.
-
-AVANT:
-
-```
-[SOGoActiveSyncDispatcher]> Cache cleanup needed for device XXX - user: YYY syncKey: 195860-155278 cache: 195900-155278
-```
-
-APRES:
-
-```
-[SOGoActiveSyncDispatcher]> Cache cleanup needed for device XXX - user: YYY syncKey: 195860-155278 cache: 195900-155278 - SOGo initiates the cache cleanup automatically, no administrator action is required
-```
-
-No behavior, protocol or persistence change — log wording only.
+- Before: no test coverage of the shipped Apache aliases; nothing prevents a
+  future edit from introducing an actual self-overlapping/duplicated `Alias`
+  in `Apache/SOGo.conf`.
+- After (test-only, no runtime/production change):
+  - `Tests/Unit/TestApacheAliasDirectives.m` — ports mod_alias's
+    `alias_matches()` semantics and, reading the real `../../Apache/SOGo.conf`
+    (backslash continuations handled):
+    - both WebServerResources prefixes are aliased to the same directory;
+    - a single clean inclusion produces zero overlaps (no AH00671);
+    - including the file twice flags exactly the two duplicate directives —
+      reproducing bug 5908's log;
+    - segment-boundary semantics (`/SOGo.woa/...` is not under `/SOGo`).
+  - `Tests/Unit/GNUmakefile` — registers the new test file.
+- Recommended admin guidance for the reporter (not a code change): include
+  SOGo.conf exactly once (on openSUSE, check `APACHE_CONF_INCLUDE_FILES` in
+  `/etc/sysconfig/apache2` vs the `conf.d/*.conf` glob); the warnings then
+  disappear. The two `Alias` lines must be kept.
 
 ## Tests
 
-`Tests/Unit/TestNSString+ActiveSync.m` (registered in `Tests/Unit/GNUmakefile`):
-
-- `test_cacheCleanupLogMessageKeepsPrefixAndStatesAutomaticHandling` — locks
-  the exact message using the ticket's own values (device XXX / user YYY /
-  syncKey 195860-155278 / cache 195900-155278): stable prefix + the new
-  "automatic, no administrator action" clause;
-- `test_cacheCleanupLogMessageInterpolatesArgumentsInOrder` — locks the
-  argument order (device/user/syncKey/cached) with distinct values.
-
-Full suite: `Ran 229 tests — FAILED (2 failures)`, the two known host-noise
-failures (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`), unrelated to this change.
-
-No e2e spec: the message only appears in sogod logs during an EAS Sync
-resumption with a stale syncKey; the shared stack runs the orchestrator's
-build (deploys are orchestrator-only), so a live run could not exercise this
-branch anyway. The unit test locks the contract.
+- `local/run-worktree-tests.sh wt/c33-5908`:
+  `Ran 234 tests` (229 baseline + 5 new), `FAILED (2 failures, 0 errors)` —
+  the 2 failures are the documented host-noise
+  (`test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection`).
+- New tests (all passing):
+  - `test_shippedConfExposesBothWebServerResourcesPrefixes`
+  - `test_shippedConfDoesNotTriggerApacheOverlapWarning`
+  - `test_confIncludedTwiceReproducesBug5908Warnings`
+  - `test_aliasMatchesComparesWholePathSegmentsOnly`
+  - `test_sogoWebServerResourcesAliasesDoNotOverlapEachOther`
+- Note: the test binary segfaults **after** printing its final report on this
+  host; verified pre-existing (true baseline without my change: 229 tests,
+  same exit 139) and unrelated to this ticket.
 
 ## Verification steps for the orchestrator
 
-```sh
-# build + full unit suite of the worktree
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c33-5909
+```
+# 1. unit suite (234 tests, only the 2 known host-noise failures)
+rm -f wt/c33-5908/Tests/Unit/obj/sogo-tests   # avoid gnustep-make stale-link trap
+local/run-worktree-tests.sh wt/c33-5908 | tail -5
 
-# prove the two new tests execute and pass (junit output)
-cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c33-5909/Tests/Unit
-source /home/hadrienblanc/Projets/hadrienblanc/sogo/local/env.sh
-export LD_LIBRARY_PATH="$PWD/../../SOPE/NGCards/obj:$PWD/../../SOPE/GDLContentStore/obj:$PWD/../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
-./obj/sogo-tests -f junit 2>/dev/null | grep -A1 cacheCleanupLogMessage
-# expect two <testcase> entries, no <failure> children
+# 2. inspect the change
+git -C wt/c33-5908 show --stat HEAD
+
+# 3. optional read-only sanity: SOGo itself is served fine behind such a config
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:50001/SOGo/
 ```
 
-After the next stack rebuild/deploy, triggering any EAS Sync resumption with
-a stale syncKey (e.g. replaying an old SyncKey from a paired device) must log
-the APRES line above; `grep 'Cache cleanup needed' /var/log/sogo/sogo.log`
-still matches.
+(No `test-5908-*` artifacts were created on the shared stack; only read-only
+GETs were performed. Static-file probes on the dev stack 404 because the
+`sogo-static-files` volume isn't populated — orchestrator-managed, out of
+scope here.)
 
 ## PR body draft
 
-When an EAS client resumes a Sync with a syncKey that no longer matches the
-cached one (typically after a missed response), SOGo logs
-`Cache cleanup needed for device … syncKey: … cache: …` and then repairs the
-situation by itself in the same Sync response: stale entries are dropped or
-SoftDelete-re-armed so the device converges on the following sync cycles
-(`SOGoActiveSyncDispatcher+Sync.m`). Bug 5909 reports that the message does
-not say so: an administrator reading the log cannot tell whether running
-`sogo-tool` is expected. It is not — the cleanup is fully automatic.
+Depuis Apache 2.4.56, mod_alias émet l'avertissement AH00671 ("The Alias
+directive ... will probably never match because it overlaps an earlier
+Alias") dès qu'une directive Alias est masquée par une directive équivalante
+déclarée plus tôt dans l'ordre d'analyse. Le fichier `Apache/SOGo.conf` livré
+avec SOGo déclare deux Alias — `/SOGo.woa/WebServerResources/` et
+`/SOGo/WebServerResources/` — qui servent le même répertoire sous deux
+espaces d'URL utilisés par l'interface. L'analyse des sémantiques de
+mod_alias (`alias_matches()`, comparaison par segments de chemin complet)
+montre que ces deux directives ne se recouvrent pas et qu'une inclusion
+unique du fichier ne produit aucun avertissement.
 
-This keeps the existing prefix byte-for-byte (so log-parsing/alerting keeps
-working) and appends an explicit resolution clause; the line is now built by
-`+[NSString activeSyncCacheCleanupLogMessageForDevice:user:syncKey:cachedSyncKey:]`
-and locked by unit tests (`Tests/Unit/TestNSString+ActiveSync.m`) covering
-both the exact wording with the ticket's sample values and the argument
-order. No functional change.
+AVANT (bug 5908, config où SOGo.conf est inclus deux fois) :
 
-Refs: bugs.sogo.nu #5909
+```
+AH00671: The Alias directive in /etc/apache2/conf.d/SOGo.conf at line 1 will probably never match because it overlaps an earlier Alias.
+AH00671: The Alias directive in /etc/apache2/conf.d/SOGo.conf at line 2 will probably never match because it overlaps an earlier Alias.
+```
+
+APRÈS (include unique de SOGo.conf, aucune modification de configuration
+SOGo requise) : plus aucun AH00671 au démarrage d'Apache, les ressources
+statiques restent servies sous les deux préfixes. Ce changement n'ajoute
+aucun code de production : il verrouille par des tests unitaires
+(`Tests/Unit/TestApacheAliasDirectives.m`, portage fidèle des sémantiques de
+mod_alias) le fait que le fichier livré ne se recouvre pas lui-même et
+qu'une double inclusion — et elle seule — reproduit les avertissements
+signalés. Les deux lignes Alias doivent être conservées ; la correction côté
+administrateur consiste à n'inclure SOGo.conf qu'une seule fois (sur
+openSUSE, vérifier `APACHE_CONF_INCLUDE_FILES` face au glob `conf.d/*.conf`).
