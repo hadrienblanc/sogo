@@ -19,6 +19,10 @@
  */
 
 
+#import <unistd.h>
+
+#import <Foundation/NSLock.h>
+
 #import <NGObjWeb/WOContext+SoObjects.h>
 
 #import "SOGoDraftObject.h"
@@ -27,8 +31,15 @@
 
 static NSTimeInterval lastNew = 0;
 static unsigned int newCount;
+static NSLock *nameLock = nil;
 
 @implementation SOGoDraftsFolder
+
++ (void) initialize
+{
+  if (!nameLock)
+    nameLock = [[NSLock alloc] init];
+}
 
 - (NSString *) generateNameForNewDraft
 {
@@ -36,6 +47,8 @@ static unsigned int newCount;
   unsigned int currentTime;
 
   currentTime = [[NSDate date] timeIntervalSince1970];
+
+  [nameLock lock];
   if (currentTime == lastNew)
     newCount++;
   else
@@ -43,9 +56,9 @@ static unsigned int newCount;
       lastNew = currentTime;
       newCount = 1;
     }
-
-  newName = [NSString stringWithFormat: @"newDraft%u-%u",
-		      currentTime, newCount];
+  newName = [NSString stringWithFormat: @"newDraft%u-%u-%u",
+		      currentTime, (unsigned int) getpid (), newCount];
+  [nameLock unlock];
 
   return newName;
 }

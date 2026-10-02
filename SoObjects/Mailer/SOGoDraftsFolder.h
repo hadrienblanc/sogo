@@ -26,6 +26,7 @@
 
 @interface SOGoDraftsFolder : SOGoSpecialMailFolder
 
+- (NSString *) generateNameForNewDraft;
 - (SOGoDraftObject *) newDraft;
 - (BOOL) isInDraftsFolder;
 
