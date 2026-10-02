@@ -537,19 +537,33 @@ static NSArray *infoKeys = nil;
   unsigned int count, max;
   NGMimeBodyPart *part;
   NGMimeContentDispositionHeaderField *header;
-  NSString *mimeType, *filename;
+  NSString *mimeType, *filename, *declaredMimeType;
+  id body;
 
   parts = [httpBody parts];
   max = [parts count];
   files = [NSMutableDictionary dictionaryWithCapacity: max];
+  declaredMimeType = nil;
 
   for (count = 0; count < max; count++)
     {
       part = [parts objectAtIndex: count];
       header = (NGMimeContentDispositionHeaderField *)[part headerForKey: @"content-disposition"];
-      if ([[header name] hasPrefix: @"attachments"])
+      if ([[header name] isEqualToString: @"attachmentMimeType"])
+        {
+          body = [part body];
+          if ([body isKindOfClass: [NSString class]])
+            ASSIGNCOPY(declaredMimeType, body)
+          else if ([body isKindOfClass: [NSData class]])
+            ASSIGNCOPY(declaredMimeType,
+                       [[[NSString alloc] initWithData: body
+                                               encoding: NSUTF8StringEncoding] autorelease])
+        }
+      else if ([[header name] hasPrefix: @"attachments"])
         {
           mimeType = [(NGMimeType *)[part headerForKey: @"content-type"] stringValue];
+          if ([declaredMimeType length] > 0)
+            mimeType = declaredMimeType;
           filename = [self _fixedFilename: [header filename]];
           file = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                       filename, @"filename",
@@ -559,6 +573,8 @@ static NSArray *infoKeys = nil;
           [files setObject: file forKey: [NSString stringWithFormat: @"%@_%@", [header name], filename]];
         }
     }
+
+  [declaredMimeType release];
 
   return files;
 }

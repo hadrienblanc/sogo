@@ -21,6 +21,10 @@
       var token = $cookies.get('XSRF-TOKEN');
       if (token)
         item.headers = {'X-XSRF-TOKEN': token};
+      if (item.alias == 'attachments' && item._file instanceof Blob) {
+        item.formData.push({attachmentMimeType: item._file.type || 'application/octet-stream'});
+        item._file = new Blob([item._file], {type: 'application/octet-stream'});
+      }
     };
     return $delegate;
   }
