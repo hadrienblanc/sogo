@@ -459,6 +459,35 @@ convention:
   return value;
 }
 
+- (NSArray *) _valuesForType: (NSString *) aType
+                     inArray: (NSArray *) anArray
+                   excluding: (NSString *) aTypeToExclude
+{
+  NSMutableArray *values;
+  NSArray *elements;
+  NSEnumerator *e;
+  NSString *value;
+  CardElement *ce;
+
+  elements = [anArray cardElementsWithAttribute: @"type"
+                                    havingValue: aType];
+  values = [NSMutableArray array];
+
+  e = [elements objectEnumerator];
+  while ((ce = [e nextObject]))
+    {
+      if (aTypeToExclude && [ce hasAttribute: @"type"
+                                  havingValue: aTypeToExclude])
+        continue;
+
+      value = [ce flattenedValuesForKey: @""];
+      if ([value length] > 0)
+        [values addObject: value];
+    }
+
+  return values;
+}
+
 - (void) _setValue: (NSString *) key
                 to: (NSString *) aValue
       inLDIFRecord: (NSMutableDictionary *) ldifRecord
@@ -467,6 +496,16 @@ convention:
     aValue = @"";
 
   [ldifRecord setObject: aValue forKey: key];
+}
+
+- (void) _setValue: (NSString *) key
+           toValues: (NSArray *) values
+      inLDIFRecord: (NSMutableDictionary *) ldifRecord
+{
+  if ([values count] > 0)
+    [ldifRecord setObject: values forKey: key];
+  else
+    [ldifRecord setObject: @"" forKey: key];
 }
 
 - (void) _setupEmailFieldsInLDIFRecord: (NSMutableDictionary *) ldifRecord
@@ -547,7 +586,7 @@ convention:
  */
 - (NSMutableDictionary *) asLDIFRecord
 {
-  NSArray *elements, *categories;
+  NSArray *elements, *categories, *workPhones, *homePhones;
   CardElement *element;
   NSMutableDictionary *ldifRecord;
   NSCalendarDate *birthDay;
@@ -573,25 +612,27 @@ convention:
   elements = [self childrenWithTag: @"tel"];
   // We do this (exclude FAX) in order to avoid setting the WORK number as the FAX
   // one if we do see the FAX field BEFORE the WORK number.
+  workPhones = [self _valuesForType: @"work" inArray: elements
+                           excluding: @"fax"];
+  homePhones = [self _valuesForType: @"home" inArray: elements
+                           excluding: @"fax"];
   [self _setValue: @"telephonenumber"
-               to: [self _simpleValueForType: @"work" inArray: elements
-                                   excluding: @"fax"]
+           toValues: workPhones
       inLDIFRecord: ldifRecord];
   [self _setValue: @"homephone"
-               to: [self _simpleValueForType: @"home" inArray: elements
-                                   excluding: @"fax"]
+           toValues: homePhones
       inLDIFRecord: ldifRecord];
   [self _setValue: @"mobile"
-               to: [self _simpleValueForType: @"cell" inArray: elements
-                                   excluding: nil]
+           toValues: [self _valuesForType: @"cell" inArray: elements
+                                 excluding: nil]
       inLDIFRecord: ldifRecord];
   [self _setValue: @"facsimiletelephonenumber"
-               to: [self _simpleValueForType: @"fax" inArray: elements
-                                   excluding: nil]
+           toValues: [self _valuesForType: @"fax" inArray: elements
+                                 excluding: nil]
       inLDIFRecord: ldifRecord];
   [self _setValue: @"pager"
-               to: [self _simpleValueForType: @"pager" inArray: elements
-                                   excluding: nil]
+           toValues: [self _valuesForType: @"pager" inArray: elements
+                                 excluding: nil]
       inLDIFRecord: ldifRecord];
 
   // If we don't have a "home" and "work" phone number but
@@ -608,12 +649,11 @@ convention:
   // ADR;HOME:;;;;;;
   // ADR;WORK:;;;;;;
   // ADR:;;;;;;
-  if ([[ldifRecord objectForKey: @"telephonenumber"] length] == 0 &&
-      [[ldifRecord objectForKey: @"homephone"] length] == 0 &&
-      [elements count] > 0)
+  if ([workPhones count] == 0 && [homePhones count] == 0
+      && [elements count] > 0)
     [self _setValue: @"telephonenumber"
-                 to: [self _simpleValueForType: @"voice" inArray: elements
-                                     excluding: nil]
+             toValues: [self _valuesForType: @"voice" inArray: elements
+                                   excluding: nil]
         inLDIFRecord: ldifRecord];
 
   [self _setupEmailFieldsInLDIFRecord: ldifRecord];
