@@ -1,164 +1,184 @@
-# Bug 6158 — Stored XSS via address book categories (`/Preferences#!/addressbooks`)
+# Bug 6153 — "Sending mail results in HTTP 405 and 'Sent is not an IMAP4 folder'"
 
-Branch: `fix-6158-mantis` — commit `d550d93ec`
-
-## Verdict
-
-The vulnerability **was real** and the fix referenced by the maintainer upstream
-(`e9b3f2a43`, "prevent xss with events, tasks and contacts categories") is already
-part of our lineage: it was folded into `47133fdf3` which added
-`stringWithoutHTMLInjection:` pre-parse filtering to the contact/list/appointment/task
-editor saves, and `a7023bce1` (2024) had already added the same to the Preferences
-`saveAction`. With those commits, the payload from the ticket no longer executes:
-the dangerous constructs are neutralized server-side and every client-side sink for
-contact categories escapes by construction (Angular bound values: `{{$chip.value}}`,
-`md-highlight-text` uses `.text()`, Preferences uses `ng-model` inputs; no raw-HTML
-sink exists — `ng-bind-html` is only used for `$fullname`, which HTML-entitizes).
-
-However, the layered fix has a demonstrable hole that leaves the exact "stored XSS"
-class of this ticket open one regression away: **the filter runs on the raw request
-string *before* `objectFromJSONString`**, so JSON `\uXXXX` escapes decode *after*
-filtering and arbitrary markup still reaches storage. This commit closes that hole
-for categories.
+Branch: `fix-6153-mantis` (commit `f293a2758`), based on `experimental`.
 
 ## Root cause (file:line)
 
-- `UI/PreferencesUI/UIxPreferences.m:1753-1755` — `saveAction` filters the raw JSON
-  text (`stringWithoutHTMLInjection: NO stripAngular: NO`) and only then calls
-  `objectFromJSONString`; `defaults.SOGoContactsCategories` (and the calendar
-  category keys) are persisted as-is via `[[[user userDefaults] source] setValues: v]`
-  (line ~1993), bypassing `setContactsCategories:` entirely.
-- `UI/Contacts/UIxContactEditor.m:488` — same order-of-operations issue: pre-parse
-  filter, then decode, then `setAttributes:` stores `categories[].value` raw into the
-  vCard (line 383). Stored card categories are later merged back into
-  `SOGoContactsCategories` by `UIxContactView.m:102`.
+The error is raised in `-[SOGoMailFolder postData:flags:]`
+(`SoObjects/Mailer/SOGoMailFolder.m:1046`, before the fix at lines 1046–1059),
+called from `-[SOGoDraftObject sendMail]` (`SoObjects/Mailer/SOGoDraftObject.m:2384`)
+when copying the message to the Sent folder. `UIxMailEditor sendAction`
+(`UI/MailerUI/UIxMailEditor.m:954`) renders any error of that send as
+HTTP 405 + `{"status": "failure", "message": "<reason>"}` — exactly the
+response shown in the ticket.
 
-Consequence: `{"defaults":{"SOGoContactsCategories":["\u003cscript\u003ealert(1)\u003c/script\u003e"]}}`
-stores a literal `<script>alert(1)</script>` category, echoed back by
-`Preferences/jsonDefaults` and offered in every category picker. Today's sinks
-escape it; nothing guarantees the next one will.
+The pre-fix logic was:
 
-Reproducer on the shared stack (was **down** during this session — connection
-refused on 127.0.0.1:50001, and container restarts are orchestrator-only, so no
-live run was possible; the sequence below is for the orchestrator after rebuild):
+1. `[self exists]` → IMAP `STATUS "Sent" (UIDVALIDITY)` (via
+   `-[NGImap4Connection doesMailboxExistAtURL:]`). A **transient** failure of
+   this probe returns NO even though the mailbox exists (Courier refuses some
+   STATUS calls — e.g. on the selected mailbox — and pooled connections can
+   blip; this matches the "1 in 20-30 sends, multiple accounts" pattern).
+2. Fall back to `createMailbox:atURL:` → IMAP `CREATE "Sent"`. Since the
+   mailbox **does** exist, every server refuses with `NO ... already exists`
+   (verified live on the e2e Dovecot: `NO [ALREADYEXISTS] Mailbox already
+   exists`; Courier/UW/Cyrus emit the same wording without the response code).
+3. Both operations having "failed", SOGo concluded "Sent is not an IMAP4
+   folder" and **skipped the APPEND**, while SMTP had already delivered the
+   message.
 
-```bash
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
-     -H 'Content-Type: application/json' \
-     -d '{"defaults":{"SOGoContactsCategories":["\u003cscript\u003ealert(1)\u003c/script\u003e"]}}'
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/jsonDefaults \
-     | python3 -c 'import json,sys; print(json.load(sys.stdin)["SOGoContactsCategories"])'
-```
+So the ticket IS a real SOGo bug: a CREATE refused with "already exists" is
+proof that the mailbox exists, yet the old code treated it as proof that it
+does not. (The admin's suggestion `NGImap4DisableIMAP4Pooling = YES;` merely
+reduces the frequency of the transient STATUS failure; it does not fix the
+misclassification.)
 
-## What changed
+## What changed (before/after)
 
-**Before** — category data was only filtered in its serialized form:
+`SoObjects/Mailer/SOGoMailFolder.m`, `-[SOGoMailFolder postData:flags:]` only:
 
-```objc
-requestStr = [[context request] contentAsString];
-requestStr = [requestStr stringWithoutHTMLInjection: NO stripAngular:NO];
-o = [requestStr objectFromJSONString];            // \uXXXX decodes AFTER the filter
-...
-[[[user userDefaults] source] setValues: v];      // raw markup persisted
-```
+- **AVANT** — if the folder "doesn't exist" and CREATE returns an exception
+  (any exception), the append is aborted and a 502/405
+  `"<folder> is not an IMAP4 folder"` error is raised. Message sent via SMTP
+  but not saved in Sent; UI shows the error from the ticket.
 
-**After** — the three category containers are sanitized once parsed
-(`YES stripAngular: NO`, the codebase's "plain label" treatment used for folder
-names and identities):
+  ```
+  if ([self exists]
+      || ![[self imap4Connection] createMailbox: ... atURL: ...])
+    return [[self imap4Connection] postData: _data flags: _flags
+                                toFolderURL: [self imap4URL]];
+  return [NSException exceptionWithHTTPStatus: 502
+      reason: [NSString stringWithFormat: @"%@ is not an IMAP4 folder", ...]];
+  ```
 
-- `UI/PreferencesUI/UIxPreferences.m` (`saveAction`, right after the defaults dict
-  is made mutable): `SOGoContactsCategories` and `SOGoCalendarCategories` values go
-  through the new `NSArray` helper; `SOGoCalendarCategoriesColors` is rebuilt with
-  sanitized keys.
-- `UI/Contacts/UIxContactEditor.m:383`: each `categories[].value` is sanitized
-  before `[card setCategories:]`, closing the same bypass at the editor sink the
-  upstream fix targeted.
-- `SoObjects/SOGo/NSArray+Utilities.h/.m`: new
-  `stringsWithoutHTMLInjection:stripAngular:` mapping NSString members through the
-  existing NSString filter, leaving non-strings untouched.
+- **APRÈS** — when CREATE fails but its reason contains "already exists"
+  (case-insensitive; covers Courier, Dovecot `[ALREADYEXISTS]`, Cyrus, UW), the
+  mailbox is known to exist and the APPEND proceeds normally. Any other CREATE
+  failure (permissions, dead connection, quota…) keeps the previous error
+  path. No behavioural change for folders that genuinely do not exist
+  (CREATE succeeds → APPEND).
 
-Normal category names (`Ami`, `Client`, `R&D`, `fb <foo@bar.com>` — the email-ish
-form is explicitly preserved by the filter) are unchanged; legitimate use is
-unaffected.
+  ```
+  error = nil;
+  if (![self exists])
+    {
+      error = [[self imap4Connection] createMailbox: ... atURL: ...];
+      if (error
+          && [[error reason] rangeOfString: @"already exists"
+                                    options: NSCaseInsensitiveSearch].length > 0)
+        error = nil;
+    }
+  if (!error)
+    return [[self imap4Connection] postData: _data flags: _flags
+                                toFolderURL: [self imap4URL]];
+  ```
+
+No public API change, no comment added, GNUstep retain/release style, 1 file
+touched in production code.
 
 ## Tests
 
-- New `Tests/Unit/TestNSArray+Utilities.m` (registered in `Tests/Unit/GNUmakefile`):
-  - `test_stringsWithoutHTMLInjection` — plain names untouched; `<script>`,
-    `<img … onerror=…>` stripped; email-form preserved.
-  - `test_stringsWithoutHTMLInjectionKeepsNonStrings` — non-string members pass
-    through (error-path/robustness).
-  - `test_stringsWithoutHTMLInjectionAfterJSONDecoding` — reproduces the ticket's
-    attack end-to-end at library level: the `\u003c` payload survives the raw
-    pre-parse pass (documented), decodes to `<script>`, and the post-parse
-    sanitization cleans it.
-- Suite: `local/run-worktree-tests.sh` → 197 tests, only the two documented
-  host-noise failures (`test_NGInternetSocketAddressFromString`,
-  `test_stringWithoutHTMLInjection`). Both changed UI products compile
-  (`UI/PreferencesUI`, `UI/Contacts` — bundle link fails only because sibling
-  bundles aren't built in this fresh worktree).
+New `Tests/Unit/TestSOGoMailFolder.m` (registered in `Tests/Unit/GNUmakefile`).
+The Mailer bundle cannot be statically linked into the test tool (see the note
+in `Tests/Unit/GNUmakefile`), so the test loads `Mailer.SOGo` at runtime and
+drives the **real** `-[SOGoMailFolder postData:flags:]` through a runtime
+subclass (`objc_allocateClassPair`) that stubs `exists`, `imap4Connection`,
+`imap4URL`, `mailAccountFolder` and `relativeImap4Name`, with a fake
+NGImap4-shaped connection recording CREATE/APPEND calls:
 
-Note: `config.make` was copied from the main checkout into the worktree (generated,
-git-ignored build artifact required by the test runner).
+- `test_postDataAppendsWhenFolderExists` — exists → APPEND, no CREATE.
+- `test_postDataAppendsAfterSuccessfulCreate` — missing folder → CREATE then APPEND.
+- `test_postDataAppendsWhenCreateReportsAlreadyExists` — **the fix**: CREATE
+  refused with "Failed to create folder: Mailbox already exists" → APPEND
+  still happens, no error.
+- `test_postDataFailsWhenCreateFailsOtherwise` — CREATE failed otherwise →
+  "Sent is not an IMAP4 folder", no APPEND (error path preserved).
+- `test_postDataPropagatesAppendError` — an APPEND failure is propagated as-is.
+
+All 4 code branches of the touched method are exercised (100 % coverage of the
+change).
+
+Result: `local/run-worktree-tests.sh wt/c15-6153` → `Ran 202 tests, FAILED (2
+failures)` — the only failures are the documented host noise
+(`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
+
+Note (environment, not this change): running the suite with `-f junit` on this
+worktree segfaults late in the run inside `class_getMethodImplementation`
+(gnustep-base/libobjc). Verified pre-existing: with this branch's changes
+stashed and the test tool force-relinked without the new test file, the
+junit-format run still crashes at the same point (`Tests/Unit/ActiveSync/`
+build artifacts). The official text-format harness is unaffected. The other
+worktree (6242-uid-at) completes junit fine; likely related to the current
+experimental tip, worth a separate look.
 
 ## Verification steps for the orchestrator
 
-After the stack is rebuilt with this branch merged:
+1. Unit suite (already green on this branch):
 
-```bash
-# 1. stored category must come back sanitized (AVANT: ["<script>alert(1)</script>"])
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
-     -H 'Content-Type: application/json' \
-     -d '{"defaults":{"SOGoContactsCategories":["\u003cscript\u003ealert(1)\u003c/script\u003e","test-6158-ami","\u003cimg src=x onerror=alert(1)\u003e"]}}'
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/jsonDefaults \
-     | python3 -c 'import json,sys; print(json.load(sys.stdin)["SOGoContactsCategories"])'
-# expected: [' alert(1) ', 'test-6158-ami', ' ']
+   ```
+   /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
+     /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c15-6153
+   # expect: Ran 202 tests, only the 2 known host-noise failures
+   ```
 
-# 2. card categories go through the same treatment
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Contacts/personal/new/save \
-     -H 'Content-Type: application/json' \
-     -d '{"id":"test-6158","pid":"personal","c_cn":"test-6158","categories":[{"value":"\u003cscript\u003epwn\u003c/script\u003e"}]}'
+2. IMAP fact backing the root cause (read-only against the stack's Dovecot,
+   port 1430):
 
-# 3. calendar colors keys
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
-     -H 'Content-Type: application/json' \
-     -d '{"defaults":{"SOGoCalendarCategoriesColors":{"\u003cb\u003etest-6158":"#CCC"}}}}'
-# then check jsonDefaults -> SOGoCalendarCategoriesColors keys
+   ```
+   exec 3<>/dev/tcp/127.0.0.1/1430 && printf 'a1 LOGIN sogo-tests1 sogo\r\na2 CREATE test-6153-sent\r\na3 CREATE test-6153-sent\r\na4 DELETE test-6153-sent\r\na5 LOGOUT\r\n' >&3 && timeout 5 cat <&3
+   # a3 must answer: NO [ALREADYEXISTS] Mailbox already exists
+   ```
 
-# 4. unit tests
-local/run-worktree-tests.sh <worktree>   # 197 tests, 2 known host-noise failures
+3. Live send regression check (run **after** deploying experimental — the
+   sogo_dev/sogo_httpd containers were down while this agent worked, backends
+   only):
 
-# 5. cleanup of test artifacts
-curl -s -u sogo-tests1:sogo http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
-     -H 'Content-Type: application/json' \
-     -d '{"defaults":{"SOGoContactsCategories":[]}}'
-# (and delete the test-6158 card from the personal address book)
-```
+   ```
+   D="test-6153-orch-$(date +%s)"
+   # save a draft
+   curl -su sogo-tests1:sogo -X POST \
+     "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/folderDrafts/newDraft${D}-1/save" \
+     --data "to=sogo-tests2@sogo.local&subject=${D}&text=hello" -w "\nsave HTTP %{http_code}\n"
+   # send it -> expect {"status":"success"...} and HTTP 200
+   curl -su sogo-tests1:sogo -X POST \
+     "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/folderDrafts/newDraft${D}-1/send" \
+     --data "to=sogo-tests2@sogo.local&subject=${D}&text=hello" -w "\nsend HTTP %{http_code}\n"
+   # the message must sit in Sent
+   exec 3<>/dev/tcp/127.0.0.1/1430 && printf 'a1 LOGIN sogo-tests1 sogo\r\na2 STATUS "Sent" (MESSAGES)\r\na3 SEARCH HEADER SUBJECT "${D}"\r\na4 LOGOUT\r\n' >&3 && timeout 5 cat <&3
+   # cleanup: flag the found UID(s) \Deleted in Sent (tests1) and INBOX (tests2), then EXPUNGE
+   ```
+
+4. Force-trigger the exact ticket path (optional, white-box): temporarily make
+   the existence probe fail (e.g. `STATS`-refusing stub as in the unit test)
+   — covered deterministically by
+   `TestSOGoMailFolder.test_postDataAppendsWhenCreateReportsAlreadyExists`, no
+   live stack needed.
+
+All `test-6153-*` IMAP artifacts created during investigation were deleted
+(verified with `LIST "" test-6153-*` → empty).
 
 ## PR body draft
 
-**fix(security): sanitize category names after JSON decoding (bug 6158)**
+Sending a message from the web mail occasionally popped up
+`"Sent is not an IMAP4 folder"` (HTTP 405), while the message **was** sent but
+never saved in Sent (bug 6153, Courier, ~1 send in 20-30). The cause is in the
+save-to-Sent flow: SOGo probes the mailbox with `STATUS <folder>
+(UIDVALIDITY)` and, when the probe fails — which happens transiently with
+Courier or a pooled-connection hiccup on a mailbox that exists — it falls back
+to `CREATE`. The server then legitimately refuses with `NO ... already
+exists`, and SOGo misread that refusal as "the folder cannot exist",
+aborting the APPEND after SMTP had already delivered the message.
 
-Stored XSS was reported (bug 6158) against the address book categories configured
-from `/Preferences#!/addressbooks`. The upstream hardening (`e9b3f2a43`, included
-here via `47133fdf3`) filters the editors' save payloads, and the Preferences save
-action had been filtering its raw body since `a7023bce1` — but all of it runs
-*before* the JSON is decoded, so an attacker could post
-`"\u003cscript\u003ealert(1)\u003c/script\u003e"` and have a literal `<script>` tag
-decoded afterwards, stored in `SOGoContactsCategories` (or a card's categories,
-which are later merged back into the user's category list), and echoed to every
-module. Today's Angular sinks escape these values, so nothing executes — but the
-stored payload is exactly the class of issue this ticket reports, and one
-`ng-bind-html`-style regression away from firing.
+**AVANT**: transient STATUS failure on an existing Sent mailbox →
+`CREATE "Sent"` → `NO Mailbox already exists` → error surfaced to the user as
+`{"status": "failure", "message": "Sent is not an IMAP4 folder"}` (HTTP 405),
+message lost from Sent.
 
-AVANT: `POST /Preferences/save {"defaults":{"SOGoContactsCategories":["\u003cscript\u003ealert(1)\u003c/script\u003e"]}}`
-→ `jsonDefaults` returns `["<script>alert(1)</script>"]`.
-APRÈS: the same request returns `[" alert(1) "]` — tags removed after decoding,
-plain names (`Ami`, `R&D`, `fb <foo@bar.com>`) untouched.
-
-This PR sanitizes the category containers once parsed — `SOGoContactsCategories`,
-`SOGoCalendarCategories`, the `SOGoCalendarCategoriesColors` keys in the
-Preferences save action, and each `categories[].value` in the contact editor —
-using the existing `stringWithoutHTMLInjection` filter via a new
-`NSArray stringsWithoutHTMLInjection:stripAngular:` helper, with unit tests
-covering the `\uXXXX` bypass end-to-end plus the non-string edge cases.
+**APRÈS**: a CREATE refused with "already exists" (Courier wording, Dovecot
+`[ALREADYEXISTS]`, Cyrus, UW) is now treated as proof that the mailbox exists,
+and the APPEND proceeds — the message is saved in Sent and the send succeeds.
+Any other CREATE failure (permissions, broken connection, …) still reports the
+previous error. The change is confined to `-[SOGoMailFolder postData:flags:]`
+and is covered by 5 new unit tests in `Tests/Unit/TestSOGoMailFolder.m`
+exercising every branch, including the error paths; the full unit suite passes
+(only the two documented host-specific failures remain).
