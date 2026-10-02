@@ -60,6 +60,11 @@
 /* viewer components */
 
 - (WOComponent *) viewerForBodyInfo: (id)_info;
+- (WOComponent *) viewerForNonRootRelatedBodyInfo: (id)_info;
+
+/* multipart/related helpers (RFC 2387) */
+
+- (NSUInteger) rootPartIndexOfRelatedBodyInfo: (id)_info;
 
 @end
 
