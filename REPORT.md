@@ -1,112 +1,157 @@
-# Cycle 35 clean-code pass
+# Fix for Mantis #6240 — non-root inline text/html part in multipart/related rendered as message body
 
-Scope: `fork/experimental~11..fork/experimental` — the net diff covering the
-fixes of this cycle (99997 sieve scriptError retain, 99996 error-branch
-ownership tests, 99995 nil/empty regex replacements, 6251 VLIST member email,
-6247 freebusy off-hours timezone) plus the earlier PRs #53–#57 and the
-cycle-33 pass already merged inside the range. Most of the range had already
-been aligned by cycle 33; what remained was a handful of indentation slips
-inside freshly introduced code and one duplicated test assertion.
+Branch: `fix-6240-mantis` (worktree `wt/c36-6240`)
 
-One worktree commit: `style: align cycle diff with GNUstep conventions`.
+## Root cause (file:line)
 
-## Changed (5 files, 37 insertions, 34 deletions — all no-op for behavior)
+- `UI/MailPartViewers/UIxMailRenderingContext.m:193-197` — `viewerForBodyInfo:` maps
+  `multipart/related` to the **mixed** viewer, which is the correct generic renderer for
+  multipart containers, but it carries no notion of the RFC 2387 root object.
+- `UI/MailPartViewers/UIxMailPartMixedViewer.m:101` (`-renderedPart`) — the mixed viewer
+  rendered **every** child part sequentially as visible content. For a non-root
+  `text/html` child with `Content-Disposition: inline` (or with no disposition at all —
+  inline is the RFC 2183 default), `viewerForBodyInfo:` selects the **HTML viewer**
+  (`UIxMailRenderingContext.m:207-215`: a text part is only demoted to the link viewer
+  when its disposition is explicitly `attachment`), so the related resource was appended
+  to the visible message body. The AngularJS frontend (`Message.service.js`, `_visit`)
+  renders every leaf of the mixed content array, which made the resource (and any CSS it
+  carries: `position`, `z-index`, large backgrounds) visible below the real body.
 
-### 1. `UI/Contacts/UIxListEditor.m` — indentation of the 6251 lines
+Per RFC 2387, only the root object of `multipart/related` (the part designated by the
+`start` parameter, defaulting to the first part) is the message body; non-root parts are
+resources referenced by Content-ID.
 
-The bug-6251 change added the member-email defaulting block in the shared-AB
-branch at columns 26/28, while every sibling statement of that same branch
-(`emails = …`, `setFn:`, `setReference:`, `addCardReference:`) sits at
-column 14. The new conditionals read as if nested inside a block that does
-not exist.
+## What changed (before/after)
 
-Before:
+**Before** (view JSON of the ticket reproducer, `multipart/related` root =
+`multipart/alternative` + non-root inline `text/html`):
 
-    [cardReference setFn: [currentReference objectForKey: @"c_cn"]];
-                        if (![memberEmail length] && [emails count])
-                          memberEmail = [emails objectAtIndex: 0];
-                        if ([memberEmail length])
-                          [cardReference setEmail: memberEmail];
-    [cardReference setReference: uid];
+```json
+{ "type": "UIxMailPartMixedViewer", "contentType": "multipart/related",
+  "content": [
+    { "type": "UIxMailPartAlternativeViewer", "...": "text/plain + text/html (real body)" },
+    { "type": "UIxMailPartHTMLViewer", "contentType": "text/html",
+      "content": "<div style=\"position:fixed;z-index:9999...\">RELATED RESOURCE..." }
+  ] }
+```
+→ the second HTML viewer is appended to the visible body (bug, reproduced live on the
+e2e stack before fixing).
 
-After (aligned with the branch's siblings, 14/16 — the exact levels the
-pre-6251 `if ([emails count])` used):
+**After**:
 
-    [cardReference setFn: [currentReference objectForKey: @"c_cn"]];
-    if (![memberEmail length] && [emails count])
-      memberEmail = [emails objectAtIndex: 0];
-    if ([memberEmail length])
-      [cardReference setEmail: memberEmail];
-    [cardReference setReference: uid];
+```json
+{ "type": "UIxMailPartMixedViewer", "contentType": "multipart/related",
+  "content": [
+    { "type": "UIxMailPartAlternativeViewer", "...": "text/plain + text/html (real body)" },
+    { "type": "UIxMailPartLinkViewer", "contentType": "text/html",
+      "shouldDisplayAttachment": 1 }
+  ] }
+```
+→ only the root object is rendered as body; the related text resource is downloadable
+from the attachment strip, exactly like the already-correct `disposition: attachment`
+case of the ticket's Test B. Images and non-text parts inside `multipart/related` keep
+their previous rendering (CID images are still resolved through `attachmentIds`).
 
-(The identical block in the `lookupContactWithName:` branch was already at
-the correct depth — only the shared-AB copy slipped.)
+Minimal implementation:
 
-### 2. `Tests/Unit/TestNGNetUtlilities.m` — one-column drift
+1. `UIxMailPartMixedViewer.m:121-125` — when the container's subtype is `related`,
+   resolve the root part index once; `UIxMailPartMixedViewer.m:139-142` — non-root
+   children are rendered through the new `viewerForNonRootRelatedBodyInfo:` instead of
+   `viewerForBodyInfo:`.
+2. `UIxMailRenderingContext.m:298-309` — `viewerForNonRootRelatedBodyInfo:` demotes
+   `text/plain`/`text/html` resources to the link (attachment) viewer; everything else
+   falls through to the regular selection, so image/attachment handling is unchanged.
+3. `UIxMailRenderingContext.m:312-335` — `rootPartIndexOfRelatedBodyInfo:` implements
+   the RFC 2387 root resolution: the child whose `bodyId` matches the `start`
+   `parameterList` entry (bracket-normalized), falling back to the first part (also when
+   `start` is absent, unmatched, or the info has no `parts` — S/MIME decoded path).
 
-The dual-stack tolerance added by c8af98e64 indents its whole block one
-column right of the rest of the loop body (9 vs 8 spaces, continuations 11
-vs 10). Re-aligned to the surrounding statements, comment continuation
-included.
+## Tests
 
-### 3. `SoObjects/SOGo/NSString+Utilities.m` — `RemoveRegexMatches` style
+- Unit (`Tests/Unit/TestUIxMailRenderingContext.m`, already registered in
+  `Tests/Unit/GNUmakefile`), 9 new tests:
+  - root resolution: no `start` → first part; `start` matching a Content-ID (with and
+    without angle brackets); unknown `start` → fallback to first part; empty related.
+  - viewer selection: non-root `text/html` and `text/plain` of a related container →
+    link viewer (ticket case); non-root non-text parts (image/png, multipart/alternative)
+    keep their viewer; root text parts keep html/text viewers (guards against
+    over-demotion).
+- E2e (`Tests/spec/MailerRelatedInlinePartsSpec.js`, jasmine, auto-discovered):
+  PUTs 4 messages via WebDAV (ticket Test A structure, Test B structure, classic
+  related html-root + cid image, related with `start` parameter) and asserts on the
+  `/view` JSON that exactly one HTML viewer (the root) is rendered as body and that
+  related text resources render as link-viewer attachments. Its assertion logic was
+  validated against the live stack before the fix (fails on old code: 2 HTML viewers)
+  and against the post-fix JSON shape. The spec itself must run after the orchestrator
+  deploys this branch (standard `npx jasmine` inside `sogo_dev`).
 
-The 99995 helper was written with inline initializers
-(`NSMutableString *result = […]`) and a K&R `while (…) {`, while its sibling
-helper introduced by the same diff (`ReplaceRegexMatches`, ten lines up)
-declares-then-assigns, and the file's statement braces otherwise sit on
-their own line. Rewritten to declare-then-assign with the `while` brace on
-the next line; logic byte-for-byte identical.
+Full unit suite: **Ran 266 tests — OK** (only the known host-noise memcached/regex
+warnings; no new failures).
 
-### 4. `Tests/Unit/TestSOGoFreeBusyObject.m` — duplicated assertion
+## Verification steps for the orchestrator
 
-`test_busyOffHoursWeekendFullyBusy` asserted
-`startDate([infos objectAtIndex: 1]) == 2026-10-16 18:00` twice — once via
-the `info` variable in the per-index block, then again verbatim right
-before the contiguity loop (which does not depend on it). Dropped the
-second copy; the anchor assertion 25 lines up keeps the meaning.
+After deploying this branch to the e2e stack:
 
-### 5. `SoObjects/Appointments/SOGoFreeBusyObject.m` — trailing whitespace
+1. Jasmine (inside `sogo_dev`):
+   ```
+   cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
+     npx jasmine --config=spec/support/jasmine.json --filter="Mail multipart/related rendering (bug 6240)"; \
+     sed -i 's/port: "50000"/port: "50001"/' lib/config.js
+   ```
+   → 4 specs, 0 failures.
+2. Curl A/B against the stack (reproduces the ticket's structure). Prepare
+   `repro.eml` = the `relatedWithInlineResource` message embedded in
+   `Tests/spec/MailerRelatedInlinePartsSpec.js`, then:
+   ```
+   COOKIE=$(curl -si -X POST http://127.0.0.1:50001/SOGo/connect -H 'Content-Type: application/json' \
+             -d '{"userName":"sogo-tests1","password":"sogo"}' | grep -i '^set-cookie: 0xHIGHFLYxSOGo' | \
+             sed 's/^[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
+   curl -s -o /dev/null -u sogo-tests1:sogo -X MKCOL http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Mail/0/test-6240-v
+   curl -s -o /dev/null -u sogo-tests1:sogo -X PUT -H 'Content-Type: message/rfc822' \
+        --data-binary @repro.eml \
+        http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Mail/0/foldertest-6240-v/repro.eml
+   curl -s -H "Cookie: $COOKIE" \
+        http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/foldertest-6240-v/1/view | \
+     python3 -c '
+   import json, sys
+   flat = []
+   def walk(part):
+       if isinstance(part.get("content"), list):
+           for child in part["content"]:
+               walk(child)
+       else:
+           flat.append(part)
+   walk(json.load(sys.stdin)["parts"])
+   for p in flat:
+       if p.get("contentType") in ("text/html", "multipart/related"):
+           print(p.get("contentType"), "->", p.get("type"))
+   '
+   curl -s -o /dev/null -u sogo-tests1:sogo -X DELETE http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Mail/0/foldertest-6240-v
+   ```
+   Expected after the fix — exactly one HTML viewer, the related resource demoted to a
+   link viewer:
+   ```
+   text/html -> UIxMailPartHTMLViewer
+   text/html -> UIxMailPartLinkViewer
+   ```
+   Before the fix, both lines were `UIxMailPartHTMLViewer` (verified live during this
+   session; the related resource carried `position:fixed;z-index:9999` into the body).
+3. Unit suite: `local/run-worktree-tests.sh <worktree>` → 266 tests, OK.
 
-The 6247 refactor left two spaces on the blank line after the
-`busyOffHoursInfosFrom:` call (`SOGoFreeBusyObject.m:350`); stripped.
+## PR body draft
 
-## Reviewed and deliberately left alone
+**AVANT** — SOGo rendait chaque partie d'un `multipart/related` comme contenu visible :
+un `text/html` non racine avec `Content-Disposition: inline` (ou sans disposition) était
+affiché sous le corps réel du message. Les CSS qu'il transporte (`position: fixed`,
+`z-index`, arrière-plans) pouvaient recouvrir ou casser complètement l'affichage, alors
+que Thunderbird n'affiche que l'objet racine (RFC 2387). Le contournement client était
+impossible : la partie était injectée côté serveur dans le JSON de la vue.
 
-- **`UIxListEditor.m` duplicated email-defaulting**: the diff introduced
-  the same 4-line "fall back to the first c_mail address, then setEmail:"
-  snippet in two branches. Factoring it would need a helper crossing two
-  structurally different blocks (folder lookup vs shared-AB payload) for
-  four lines of payoff — not worth the churn. The pre-existing K&R
-  `) {` / `} else {` shape of the shared-AB branch was likewise left
-  untouched; only the diff-introduced lines were realigned.
-- **`NGVList cardReferenceForReference:`**: `foundRef` + `break` matches
-  the found-flag idiom used next door (`UIxListEditor cardReferences:contain:`).
-  Called once per member in `setReferences:` (O(n·m) on list size) — fine
-  for address-book lists; not worth a dictionary index.
-- **`busyOffHoursInfosFrom:` double compare** in the `while` condition
-  (`compare:` twice against `endDate`): inherited verbatim from the
-  pre-refactor code, not introduced by the diff.
-- **`SOGoSieveManager` `ASSIGN(scriptError, …)`**: correct GNUstep
-  retain/release discipline on every branch, `[scriptError release]`
-  paired in `sieveScriptWithRequirements:`; the defensive parentheses
-  around `stringWithFormat:` arguments kept as-is.
-- **`Tests/Unit/GNUmakefile`**: the six new entries sit in the file's
-  existing loose groups; re-sorting would be churn with no signal.
-- **`Tests/Unit/TestSOGoSieveManager.m` overlap** between the per-branch
-  message tests and `test_scriptErrorOwnershipAcrossAllErrorBranches`: the
-  former lock messages, the latter locks retain ownership under
-  alloc/release + pool — collapsing them would weaken the ownership lock.
-- **`TestNGVList.m` license header** (old Temple Street FSF address vs the
-  51 Franklin Street wording of the newer files): license boilerplate is
-  not worth touching in a style pass.
-
-## Verification
-
-- `local/run-worktree-tests.sh wt/c35-clean`: **257 tests, OK, 0 failures**
-  (the fresh worktree needed the usual one-time
-  `./configure --enable-debug --disable-strip --gsmake=…/local/root/…`
-  first). The two known host-noise failures are themselves fixed inside
-  this cycle's range (dual-stack tolerance in `TestNGNetUtlilities.m`,
-  empty-template quirk routed through `RemoveRegexMatches`), so the run is
-  fully green — better than the allowed ceiling of 2 noise failures.
+**APRES** — Seul l'objet racine du `multipart/related` (paramètre `start`, sinon la
+première partie) est rendu comme corps du message ; les ressources `text/plain` /
+`text/html` non racines passent par le visualiseur de pièces jointes (téléchargeables,
+comme pour le cas `disposition: attachment` déjà correct), et le comportement des
+images CID et des autres types est inchangé. Le tout est couvert par 9 tests unitaires
+sur la sélection du visualiseur et la résolution de la racine, plus une spec e2e qui
+verrouille les quatre structures (ressource inline, ressource attachment, racine HTML +
+image CID, paramètre `start`).
