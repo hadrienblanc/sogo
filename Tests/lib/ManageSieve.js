@@ -1,8 +1,9 @@
-import config from '../lib/config'
+import config from '../lib/config.js'
+import { createRequire } from 'module'
+const Telnet = createRequire(import.meta.url)('telnet-client')
 
 class ManageSieve {
   constructor(login, authname, password) {
-    const Telnet = require('telnet-client')
 
     this.login = login
     this.authname = authname

@@ -1,5 +1,5 @@
-import config from '../lib/config'
-import Preferences from '../lib/Preferences'
+import config from '../lib/config.js'
+import Preferences from '../lib/Preferences.js'
 
 const prefs = new Preferences(config.username, config.password)
 

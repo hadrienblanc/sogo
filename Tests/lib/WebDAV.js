@@ -18,8 +18,8 @@ import {
   createVCard
 } from 'tsdav'
 import convert from 'xml-js'
-import { fetch } from 'cross-fetch'
-import config from './config'
+const fetch = globalThis.fetch
+import config from './config.js'
 
 const DAVInverse = 'urn:inverse:params:xml:ns:inverse-dav'
 const DAVInverseShort = 'i'

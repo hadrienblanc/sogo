@@ -1,6 +1,6 @@
-import config from '../lib/config'
-import WebDAV from '../lib/WebDAV'
-import TestUtility from '../lib/utilities'
+import config from '../lib/config.js'
+import WebDAV from '../lib/WebDAV.js'
+import TestUtility from '../lib/utilities.js'
 
 import ICAL from 'ical.js'
 import {

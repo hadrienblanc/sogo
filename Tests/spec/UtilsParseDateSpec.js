@@ -1,4 +1,5 @@
-const path = require('path')
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 global._ = global._ || {
   toLower: text => String(text).toLowerCase(),
@@ -6,8 +7,10 @@ global._ = global._ || {
   indexOf: (list, item) => list.indexOf(item)
 }
 global.Element = global.Element || class Element {}
+global.angular = global.angular || { isNumber: v => typeof v === 'number' }
 
-require(path.join(__dirname, '../../UI/WebServerResources/js/Common/utils.js'))
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+await import(path.join(__dirname, '../../UI/WebServerResources/js/Common/utils.js'))
 
 describe('String.prototype.parseDate', function () {
   const digitMonths = name => Array.from({ length: 12 }, (unused, index) => `${index + 1}${name}`)

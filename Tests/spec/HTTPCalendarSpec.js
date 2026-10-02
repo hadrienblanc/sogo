@@ -1,5 +1,5 @@
-import config from '../lib/config'
-import WebDAV from '../lib/WebDAV'
+import config from '../lib/config.js'
+import WebDAV from '../lib/WebDAV.js'
 
 let webdav, resource
 

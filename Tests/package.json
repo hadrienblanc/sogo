@@ -12,11 +12,11 @@
     "babel-cli": "^6.26.0",
     "cookie": "^0.4.1",
     "cross-fetch": "^3.1.4",
-    "esm": "^3.2.25",
     "ical.js": "^1.4.0",
-    "jasmine": "^3.10.0",
+    "jasmine": "^5.6.0",
     "telnet-client": "^1.4.10",
     "tsdav": "^1.1.5",
     "jasmine-xml-reporter": "^1.2.1"
-  }
+  },
+  "type": "module"
 }

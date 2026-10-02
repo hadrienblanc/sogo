@@ -1,9 +1,9 @@
-import config from '../lib/config'
+import config from '../lib/config.js'
 import { mkdtempSync, rmSync } from 'fs'
 
-const os = require('os')
-const path = require('path')
-const { execSync } = require('child_process')
+import os from 'os'
+import path from 'path'
+import { execSync } from 'child_process'
 
 beforeAll(function () {
   jasmine.DEFAULT_TIMEOUT_INTERVAL = config.timeout || 10000;

@@ -1,4 +1,4 @@
-import config from '../lib/config'
+import config from '../lib/config.js'
 
 beforeAll(function () {
   jasmine.DEFAULT_TIMEOUT_INTERVAL = config.timeout || 10000;

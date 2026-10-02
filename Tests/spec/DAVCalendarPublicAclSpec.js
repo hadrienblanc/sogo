@@ -1,6 +1,6 @@
-import config from '../lib/config'
-import WebDAV from '../lib/WebDAV'
-import TestUtility from '../lib/utilities'
+import config from '../lib/config.js'
+import WebDAV from '../lib/WebDAV.js'
+import TestUtility from '../lib/utilities.js'
 
 beforeAll(function () {
   jasmine.DEFAULT_TIMEOUT_INTERVAL = config.timeout || 10000;
@@ -20,6 +20,17 @@ describe('public access', function() {
   afterEach(async function() {
     if (createdRsrc) {
       await webdav_su.deleteObject(createdRsrc)
+    }
+  })
+
+  beforeAll(async function() {
+    const parentColl = `/SOGo/dav/${config.username}/Calendar/`
+    const collections = await webdav.propfindURL(parentColl)
+    for (const coll of collections) {
+      const name = coll.href.replace(/\/$/, '').split('/').pop()
+      if (name && name !== 'Calendar' && name !== 'personal') {
+        await webdav.deleteObject(coll.href)
+      }
     }
   })
 

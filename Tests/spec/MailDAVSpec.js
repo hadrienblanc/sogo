@@ -1,7 +1,7 @@
-import config from '../lib/config'
-import { default as WebDAV, DAVMailHeaderShort, DAVHttpMail, DAVMailHeader } from '../lib/WebDAV'
-import TestUtility from '../lib/utilities'
-import { fetch } from 'cross-fetch'
+import config from '../lib/config.js'
+import { default as WebDAV, DAVMailHeaderShort, DAVHttpMail, DAVMailHeader } from '../lib/WebDAV.js'
+import TestUtility from '../lib/utilities.js'
+const fetch = globalThis.fetch
 import { DAVNamespace, DAVNamespaceShorthandMap } from 'tsdav'
 
 const message1 = `Return-Path: <cyril@cyril.dev>

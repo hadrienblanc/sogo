@@ -1,6 +1,6 @@
 export default {
   hostname: "127.0.0.1",
-  port: "50001",
+  port: "80",
   username: "sogo-tests1",
   password: "sogo",
   superuser: "sogo-tests-super",
@@ -21,8 +21,8 @@ export default {
   mailserver: "127.0.0.1",
   testput_nbrdays: 30,
   sieve_server: "127.0.0.1",
-  sieve_port: 4190,
+  sieve_port: 4191,
   sogo_user: "sogo",
-  sogo_tool_path: "/usr/sbin/sogo-tool",
-  webCalendarURL: "http://127.0.0.1/sogo-integration-tests/CanadaHolidays.ics"
+  sogo_tool_path: "/home/hadrienblanc/Projets/hadrienblanc/sogo/local/bin/sogo-tool",
+  webCalendarURL: "http://sogo_httpd/CanadaHolidays.ics"
 }

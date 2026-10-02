@@ -1,8 +1,8 @@
-import config from '../lib/config'
-import WebDAV from '../lib/WebDAV'
-import TestUtility from '../lib/utilities'
-import Preferences from '../lib/Preferences'
-import ManageSieve from '../lib/ManageSieve'
+import config from '../lib/config.js'
+import WebDAV from '../lib/WebDAV.js'
+import TestUtility from '../lib/utilities.js'
+import Preferences from '../lib/Preferences.js'
+import ManageSieve from '../lib/ManageSieve.js'
 
 let prefs, webdav, utility, manageSieve, user
 

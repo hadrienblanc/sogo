@@ -1,5 +1,5 @@
-import config from '../lib/config'
-import WebDAV from '../lib/WebDAV'
+import config from '../lib/config.js'
+import WebDAV from '../lib/WebDAV.js'
 import { DAVNamespace, DAVNamespaceShorthandMap } from 'tsdav'
 import convert from 'xml-js'
 

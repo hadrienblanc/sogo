@@ -1,7 +1,7 @@
 import { DAVNamespace } from 'tsdav'
-import config from '../lib/config'
-import { default as WebDAV, DAVInverse } from '../lib/WebDAV'
-import TestUtility from '../lib/utilities'
+import config from '../lib/config.js'
+import { default as WebDAV, DAVInverse } from '../lib/WebDAV.js'
+import TestUtility from '../lib/utilities.js'
 
 /**
  * NOTE

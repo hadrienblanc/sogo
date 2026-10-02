@@ -1,6 +1,6 @@
 import cookie from 'cookie'
-import { fetch } from 'cross-fetch'
-import config from './config'
+const fetch = globalThis.fetch
+import config from './config.js'
 
 /**
  * NOTE

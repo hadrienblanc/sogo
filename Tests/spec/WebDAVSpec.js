@@ -1,6 +1,6 @@
-import config from '../lib/config'
-import WebDAV from '../lib/WebDAV'
-import TestUtility from '../lib/utilities'
+import config from '../lib/config.js'
+import WebDAV from '../lib/WebDAV.js'
+import TestUtility from '../lib/utilities.js'
 
 beforeAll(function () {
   jasmine.DEFAULT_TIMEOUT_INTERVAL = config.timeout || 10000;
