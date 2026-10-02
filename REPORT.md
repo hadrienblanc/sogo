@@ -1,167 +1,186 @@
-# Ticket 99995 — stringWithoutHTMLInjection throws NSInvalidArgumentException on GNUstep (javajavascript:script:)
+# Fix 6251 — VLIST does not permanently save the selected email address of contacts with multiple addresses
 
-Branch: `fix-99995-mantis`
+Ticket: https://bugs.sogo.nu/view.php?id=6251 (severity minor, Web Address Book, 5.12.11)
+Branch: `fix-6251-mantis`
+
+## Verdict
+
+This **is a bug**, reproduced live on the e2e stack (see Verification). A VLIST
+member *does* store an `EMAIL` attribute on its `CARD` line (`CARD;FN=...;EMAIL=...:<uid>`),
+and all consumers (list view `data`/`properties` actions, LDIF export, mail
+composition in `UIxMailMainFrame`) use that stored value — but the list editor
+never wrote the user's selection into it, and never updated it.
 
 ## Root cause (file:line)
 
-GNUstep-base's `-[NSRegularExpression stringByReplacingMatchesInString:options:range:withTemplate:]`
-returns **nil whenever the replacement result would be the empty string**, where
-Apple's Foundation returns `@""`. Verified empirically on this host's
-gnustep-base with a standalone probe (all combinations of empty/non-empty
-input × no-match/match × empty/non-empty template): nil ⇔ empty result; a
-no-match on a non-empty input returns the input unchanged; a match with a
-non-empty template never returns nil.
+Three cooperating defects, all on the save path of the list editor:
 
-In `SoObjects/SOGo/NSString+Utilities.m`, `stringWithoutHTMLInjection:
-stripAngular:` first *deletes* the `javascript:`/`vbscript:`/`livescript:`
-schemes (loop-until-stable since PR #57), so an input such as the ticket's
-`"javajavascript:script:"` — or any empty input `@""` — legitimately reaches
-the first substitution stage with `result == @""` (pre-fix line 1160):
+1. **`UI/Contacts/UIxListEditor.m` (old lines 233–237 and 245–249, `-setReferences:`)** —
+   when a member is added, the server ignores the email selected by the user and
+   stores `[emails objectAtIndex: 0]`, the first entry of the contact's quick-table
+   `c_mail` field. That order is the indexer's "preferred" order and does not even
+   follow the vCard order (observed reversed on the e2e stack: vCard `home,work`
+   was indexed as `c_mail=work,home`), so the stored address is routinely not the
+   one picked in the autocomplete (`Card.prototype.$preferredEmail(partial)` in
+   `Card.service.js` matches the *typed text* against the addresses).
 
-```objc
-newResult = [regex stringByReplacingMatchesInString:result ... withTemplate:@"<scr***"];  // nil on GNUstep
-result = [NSString stringWithString: newResult];                                          // raises NSInvalidArgumentException
-```
+2. **`UI/Contacts/UIxListEditor.m` (old line 201, `// TODO: update existing cards?`)** —
+   when a member is already in the list (`cardReferences:contain:` → YES, e.g. the
+   user removed and re-added the contact with another address selected in the same
+   edit session), nothing is updated. Re-selecting an address and re-saving could
+   therefore never persist — exactly the "Changing the address again and saving
+   the list does not persist the selection" part of the ticket.
 
-`+[NSString stringWithString:]` with a nil argument raises
-`NSInvalidArgumentException`. The method's own `NS_DURING`/`NS_HANDLER`
-(pre-fix line 1226) catches it, logs
-`Error while stripping HTML injection : NSInvalidArgumentException` and
-**aborts all remaining sanitization passes**; the returned value was correct
-only by coincidence (an empty string cannot be modified by the later passes).
-Reproduced against the built `libSOGo` before the fix: every one of `@""`,
-`@"javascript:"`, `@"javajavascript:script:"` logged the exception. The
-pre-fix unit suite (248 tests, OK) still logged **3** swallowed exceptions —
-the bug was invisible to value-based assertions.
+3. **`UI/WebServerResources/js/Contacts/Card.service.js` (`Card.prototype.$save`, line ~277)** —
+   the selected address lives in `ref.$$email` on the client, but `$omit()` drops
+   every `$`-prefixed key, so the payload never carried the selection to the server.
 
-Same GNUstep quirk, same file, sibling method:
-`removeHTMLTagsExceptAnchorTags` (pre-fix line 1042) deletes tags with an
-**empty template**, so tag-only content (`@"<hr>"`) made it return **nil**
-(no exception involved — nil leaked straight to the caller,
-UI/MainUI/SOGoRootPage.m:1549 renders the admin MOTD through it).
-
-The other `stringByReplacingMatchesInString` callers
-(UI/MailPartViewers/UIxMailPartHTMLViewer.m:317-322, 489-494) are guarded by
-`if ([cssContent length])` and use non-empty templates, so their result can
-never be empty — not affected.
+Supporting fact: the persistence layer itself was already fine — `NGVCardReference`
+keeps `EMAIL` as an attribute and all readers use it; the LDIF import path
+(`NGVList+SOGo.m setCardReference:inContainer:`, line 186) already honors the
+member's `mail`. Only the web editor path was broken.
 
 ## What changed (before/after)
 
-`SoObjects/SOGo/NSString+Utilities.m` — new file-scope helper next to the
-existing `RemoveRegexMatches` (NSString+Utilities.m:1030), mirroring Apple
-semantics for the GNUstep nil case:
+- `SOPE/NGCards/NGVList.h/.m` — new accessor `-cardReferenceForReference:`
+  (NGVList.m:192), the lookup counterpart of the existing `deleteCardReference:`.
 
-```objc
-static NSString * ReplaceRegexMatches(NSString *string, NSRegularExpression *regex, NSString *template)
-{
-  NSString *result;
+- `UI/Contacts/UIxListEditor.m` `-setReferences:` (lines 223–258) —
+  - BEFORE: existing member → skipped entirely (`TODO: update existing cards?`);
+    new member → `EMAIL` forced to the first address of `c_mail`.
+  - AFTER: the client-provided `email` of the member dict is validated
+    (`NSString`, non-empty) into `memberEmail`; if the member already exists, its
+    stored `EMAIL` is refreshed with `memberEmail` (implements the old TODO);
+    when adding (both the personal-folder branch and the public/shared-AB branch),
+    `memberEmail` wins and only falls back to the first address of `c_mail` when
+    the client sent none. The new-contact fallback branch is untouched.
 
-  result = [regex stringByReplacingMatchesInString: string
-                                            options: 0
-                                              range: NSMakeRange(0, [string length])
-                                       withTemplate: template];
+- `UI/WebServerResources/js/Contacts/Card.service.js` (`$save`, line 280) —
+  - BEFORE: only `ref.reference = ref.id` was set; the selection (`ref.$$email`)
+    was dropped by `$omit()` and never sent.
+  - AFTER: `ref.email = ref.$$email` is also set, so the payload carries the
+    address the user picked in the members autocomplete (for members reloaded
+    from a list, `$$email` is the stored address, making the save a no-op as before).
 
-  return (result != nil) ? result : @"";
-}
+### AVANT (reproduced on the unfixed stack, SOGo 5.12.x)
+
+```
+Contact: test-6251-john.vcf  (EMAIL home: john.private@…, EMAIL work: board@…)
+c_mail (quick table): "board@example.com,john.private@example.com"
+
+POST saveAsList  refs[0].email = "john.private@example.com"   ← user selection
+→ stored: CARD;EMAIL=board@example.com;FN=John Doe:test-6251-john.vcf   ✗
+POST saveAsList  refs[0].email = "board@example.com"          ← user re-selects
+→ stored: CARD;EMAIL=board@example.com;…                               (no-op)
+POST saveAsList  refs[0].email = "john.private@example.com"   ← tries again
+→ stored: CARD;EMAIL=board@example.com;…                               ✗ forever
 ```
 
-- `stringWithoutHTMLInjection:stripAngular:` — all 10 substitution sites
-  (`<script`, `</script`, `<iframe`, `<form`, `</form`, `on...=` handlers,
-  `@import`, `{{`/`}}` angular braces, final `@import` loop) now go through
-  the helper; each site's `newResult = ...; result = [NSString
-  stringWithString: newResult];` pair collapses to
-  `result = ReplaceRegexMatches(result, regex, @"template");`. No more
-  `[NSString stringWithString: nil]` → no exception, no mid-way abort, the
-  whole filter chain always runs.
-- `removeHTMLTagsExceptAnchorTags` (NSString+Utilities.m:1054) — deletion now
-  goes through the helper: full-tag content returns `@""` instead of nil.
+### APRÈS (with this fix)
 
-No behavior change on Apple platforms (their implementation never returns
-nil). No retain/release changes needed: everything stays autoreleased, as in
-the rest of the method.
+```
+POST saveAsList  refs[0].email = "john.private@example.com"
+→ stored: CARD;EMAIL=john.private@example.com;FN=John Doe:john.vcf      ✓
+POST saveAsList  refs[0].email = "board@example.com"
+→ stored: CARD;EMAIL=board@example.com;FN=John Doe:john.vcf             ✓
+```
+
+Two lists may now reference the same contact through different addresses
+("Invitations" → john.private@, "Internal" → board@), as requested in the ticket.
 
 ## Tests
 
-`Tests/Unit/TestNSString+Utilities.m` (file already registered in
-`Tests/Unit/GNUmakefile`):
-
-- **new** `test_stringWithoutHTMLInjectionWhenFullySanitized` — the ticket's
-  family of inputs whose sanitization legitimately ends in `@""`: empty
-  string (both `stripAngular` modes), `javascript:`, `JAVASCRIPT:`,
-  `vbscript:`, `livescript:`, separator-obfuscated `j a v a s c r i p t:`,
-  and `javascript:{{1337*1337}}` (scheme deleted → `@""`-adjacent path, then
-  angular escaping still applied). Locks the "fully sanitized → exactly @"",
-  never nil, never partial" contract.
-- `test_stringRemoveHTMLTagsExceptAnchorTags` (existing) — extended with
-  tag-only inputs `<hr>` and `<div><span></span></div>` → `@""`. This one is
-  red before / green after the fix (pre-fix returned nil →
-  `objects '(null)' and '' differs`).
-
-Red→green proven on this worktree by stashing only
-`SoObjects/SOGo/NSString+Utilities.m` and rebuilding: pre-fix run fails 1
-test (`test_stringRemoveHTMLTagsExceptAnchorTags`) and logs **24**
-`Error while stripping HTML injection : NSInvalidArgumentException` (23 from
-the new empty-sanitization assertions + the pre-existing ones); post-fix run
-is 249 tests, OK, **0** exception logs.
-
-Note for the orchestrator: the AGENTS.md "known host-noise failure
-`test_stringWithoutHTMLInjection`" note is stale on a fresh build — this
-worktree (base experimental @ 3794126cd, before this fix) already passes it;
-the old failure was the stale main-checkout libSOGo (see ticket 99996's
-report). The note can be dropped from AGENTS.md whenever convenient.
+- `Tests/Unit/TestNGVList.m` (new, registered in `Tests/Unit/GNUmakefile`):
+  - `test_cardReferenceForReference` — lookup hits/misses over several members;
+  - `test_selectedEmailRoundTrip` — VLIST `CARD;EMAIL=…` survives parse → render →
+    parse, and an updated selection (`setEmail:`) persists through the round-trip;
+  - `test_deleteCardReferenceKeepsOthers` — deletion keeps the other members and
+    their emails intact.
+- `Tests/spec/HTTPListMembersSpec.js` (new e2e, auto-discovered by jasmine): creates
+  a two-email contact and a VLIST over CardDAV, then locks the three behaviors —
+  selected work address stored, non-default (private) address stored, and update of
+  an existing member's address on re-save.
+- Unit suite: **252 tests, OK** (`local/run-worktree-tests.sh`), including the 3 new
+  tests (the known host-noise failures did not trigger on this run).
+- The e2e spec cannot pass on the shared stack until the orchestrator redeploys
+  this branch (deploys are orchestrator-only); against the unfixed stack it fails
+  exactly on the reproduced behaviors above.
 
 ## Verification steps for the orchestrator
 
-```bash
-# 1. build + full unit suite on THIS branch — expect 249 tests, OK, rc=0
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99995 2>&1 | tee /tmp/99995.log | tail -4
-#    → "Ran 249 tests" / "OK"
+1. Unit suite (already green in this worktree):
 
-# 2. the ticket's NSInvalidArgumentException is gone — expect 0
-grep -c "Error while stripping HTML injection" /tmp/99995.log
+   ```
+   /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
+     /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-6251
+   ```
 
-# 3. new tests are registered and pass
-source /home/hadrienblanc/Projets/hadrienblanc/sogo/local/env.sh
-cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99995/Tests/Unit
-export LD_LIBRARY_PATH="/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99995/SOPE/NGCards/obj:/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99995/SOPE/GDLContentStore/obj:/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99995/SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
-./obj/sogo-tests -f junit 2>/dev/null | grep -c 'test_stringWithoutHTMLInjectionWhenFullySanitized'   # → 1
-./obj/sogo-tests -f junit 2>/dev/null | grep -c 'test_stringRemoveHTMLTagsExceptAnchorTags'           # → 1
+2. After the next stack rebuild/merge, e2e (inside the `sogo_dev` container):
 
-# 4. (optional red proof) revert only the production file and rerun step 1:
-#    git -C /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99995 stash push -- SoObjects/SOGo/NSString+Utilities.m
-#    → FAILED (1 failures): test_stringRemoveHTMLTagsExceptAnchorTags "(null)" vs ""
-#    → grep -c "Error while stripping HTML injection" = 24 ; then: git stash pop && rerun step 1
-```
+   ```
+   cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
+   npx jasmine --config=spec/support/jasmine.json --filter="HTTP Contacts list members" && \
+   sed -i 's/port: "50000"/port: "50001"/' lib/config.js
+   ```
 
-No e2e stack interaction was needed (pure in-process sanitization behavior);
-the shared stack was not touched and no `test-99995-*` artifacts were created.
+3. Manual curl check against a stack running this branch (artifacts prefixed
+   `test-6251-`, delete afterwards):
+
+   ```
+   u=sogo-tests1:sogo; base=http://127.0.0.1:50001
+   curl -s -u $u -X PUT -H "Content-Type: text/vcard" --data-binary \
+     $'BEGIN:VCARD\r\nVERSION:3.0\r\nUID:test-6251-john\r\nFN:John Doe\r\nEMAIL;TYPE=home:john.private@example.com\r\nEMAIL;TYPE=work:board@example.com\r\nEND:VCARD\r\n' \
+     "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-john.vcf"
+   curl -s -u $u -X PUT -H "Content-Type: text/vcard" --data-binary \
+     $'BEGIN:VLIST\r\nUID:test-6251-list.vcf\r\nVERSION:1.0\r\nFN:List 6251\r\nEND:VLIST\r\n' \
+     "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-list.vcf"
+   # session cookie for UI actions
+   curl -s -c /tmp/opencode/test-6251-cookies.txt -X POST -H "Content-Type: application/json" \
+     -d '{"userName":"sogo-tests1","password":"sogo"}' "$base/SOGo/connect" -o /dev/null
+   # save with the private address selected, then read back the stored CARD line
+   curl -s -b /tmp/opencode/test-6251-cookies.txt -X POST -H "Content-Type: application/json" \
+     -d '{"refs":[{"id":"test-6251-john.vcf","reference":"test-6251-john.vcf","email":"john.private@example.com","c_cn":"John Doe"}],"c_cn":"List 6251","nickname":"","description":""}' \
+     "$base/SOGo/so/sogo-tests1/Contacts/personal/test-6251-list.vcf/saveAsList"
+   curl -s -u $u "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-list.vcf" | grep CARD
+   # expect: CARD;FN=John Doe;EMAIL=john.private@example.com:test-6251-john.vcf
+   # re-save selecting board@example.com → stored EMAIL must become board@example.com
+   # cleanup:
+   curl -s -u $u -X DELETE "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-list.vcf"
+   curl -s -u $u -X DELETE "$base/SOGo/dav/sogo-tests1/Contacts/personal/test-6251-john.vcf"
+   ```
+
+## Known related behavior (not changed, out of ticket scope)
+
+`SoObjects/Contacts/SOGoContactGCSEntry.m:226` — saving a *contact* still resets the
+stored member email of every list containing it to the contact's preferred address
+(`[reference setEmail: [newCard preferredEMail]]`, together with `setFn:`). Keeping
+the member's selection there as well (when still present on the card) would be a
+sensible follow-up ticket.
 
 ## PR body draft
 
-Ticket 99995 reports `stringWithoutHTMLInjection` throwing
-`NSInvalidArgumentException` on GNUstep for inputs like
-`javajavascript:script:`. Root cause: GNUstep-base's
-`stringByReplacingMatchesInString:...withTemplate:` returns nil whenever the
-replacement result would be the empty string (Apple returns `@""`), and the
-method then called `[NSString stringWithString:]` on that nil — raising the
-exception. The method's internal `NS_HANDLER` swallowed it (logging
-`Error while stripping HTML injection`), so values looked right only because
-an empty string cannot be altered by the later passes; every empty input
-sanitized on GNUstep — e.g. every empty subject/name field — aborted the
-filter chain mid-way and logged the error. The same GNUstep quirk made
-`removeHTMLTagsExceptAnchorTags` return nil for tag-only content such as a
-`<hr>`-only MOTD. The fix routes every regex substitution (and the tag
-deletion) through a small `ReplaceRegexMatches` helper that maps GNUstep's
-nil back to `@""`, matching Apple semantics; no change on macOS builds.
-
-AVANT (GNUstep): `[[NSString stringWithString:@"javajavascript:script:"]
-stringWithoutHTMLInjection:NO stripAngular:NO]` → logs
-`Error while stripping HTML injection : NSInvalidArgumentException`,
-remaining passes skipped (returned `@""` by luck); `[@"" ...]` same; and
-`[[NSString stringWithString:@"<hr>"] removeHTMLTagsExceptAnchorTags]` →
-`(null)`.
-APRES: both return exactly `@""`, silently, with the full filter chain
-executed; the suite's swallowed-exception log count drops from 3 (24 with the
-new tests) to 0, and `test_stringRemoveHTMLTagsExceptAnchorTags` goes red →
-green on the tag-only cases, locking the fix.
+> ### fix(contacts): persist the selected email address of VLIST members (#6251)
+>
+> A VLIST member stores the chosen address as the `EMAIL` attribute of its `CARD`
+> line, but the web editor never wrote the user's selection there: on save the
+> server forced the member's address to the first entry of the contact's indexed
+> `c_mail` list, members already present in the list were skipped entirely
+> (`// TODO: update existing cards?`), and the Angular UI never sent the selected
+> address (`$$email` is dropped by `$omit`). As a result, for any contact with
+> several addresses the list silently fell back to an arbitrary "preferred"
+> address after each save, and re-selecting another address could never persist —
+> the exact behavior reported in #6251. The fix makes `UIxListEditor` honor the
+> client-selected `email` of each member (falling back to the old first-of-`c_mail`
+> behavior when absent), refresh the stored address of existing members on re-save,
+> and makes `Card.$save` transmit the selected address; a new
+> `NGVList -cardReferenceForReference:` accessor supports the update path.
+>
+> AVANT : liste « Invitations » → John Doe enregistré avec `EMAIL=board@…` (1ère
+> adresse de `c_mail`) même après avoir sélectionné `john.private@…` et re-sauvegardé ;
+> la réouverture affiche et utilise toujours l'adresse par défaut. APRÈS : la liste
+> conserve exactement l'adresse choisie (`CARD;EMAIL=john.private@…`), elle peut être
+> changée à chaque sauvegarde, et deux listes peuvent référencer le même contact via
+> des adresses différentes (« Invitations » → privée, « Internal » → board). Couvert
+> par `Tests/Unit/TestNGVList.m` (aller-retour VLIST/EMAIL) et
+> `Tests/spec/HTTPListMembersSpec.js` (sauvegarde via l'API web : adresse choisie
+> stockée, adresse non par défaut stockée, mise à jour d'un membre existant).
