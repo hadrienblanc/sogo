@@ -211,4 +211,13 @@
    testEquals([[NSString stringWithString:@"<div><span></span></div>"] removeHTMLTagsExceptAnchorTags], @"");
 }
 
+- (void) test_stringWithoutHTMLInjectionKeepingSubjectMarkup
+{
+  testEquals([[NSString stringWithString:@"[Wikitech-l] Re: VisualEditor inserting <br />"] stringWithoutHTMLInjection: NO stripAngular: NO], @"[Wikitech-l] Re: VisualEditor inserting <br />");
+  testEquals([[NSString stringWithString:@"Re: <b>bold</b> and <i>italic</i>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"Re: <b>bold</b> and <i>italic</i>");
+  testEquals([[NSString stringWithString:@"5 < 6 > 4"] stringWithoutHTMLInjection: NO stripAngular: NO], @"5 < 6 > 4");
+  testEquals([[NSString stringWithString:@"<img src=x onerror =alert(1)> <b>bold</b>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"<img src=x data-blocked=alert(1)> <b>bold</b>");
+  testEquals([[NSString stringWithString:@"Re: <br /> and {{1337*1337}}"] stringWithoutHTMLInjection: NO stripAngular: YES], @"Re: <br /> and {\\{1337*1337}/}");
+}
+
 @end
