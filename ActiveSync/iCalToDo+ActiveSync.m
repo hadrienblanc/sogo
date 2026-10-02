@@ -210,7 +210,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       
       o = [o calendarDate];
       completed = (iCalDateTime *) [self uniqueChildWithTag: @"completed"];
-      [completed setDate: o];
+      [completed setDateTime: o];
       [self setStatus: @"COMPLETED"];
     }
   else

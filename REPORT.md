@@ -1,146 +1,118 @@
-# Cycle-16 clean-code pass
+# Ticket 5911 — COMPLETED field in task returns DATE instead of DATETIME
 
-Scope: the orchestrator range `fork/experimental~11..fork/experimental`,
-reviewed in this worktree (`refactor/cycle-16`).
+## Root cause
 
-Range note: `~11` follows first parents and resolves to `56b3a499b` (PR #40's
-merge), so the tree-diff re-sweeps PRs #41–#51 (+2237/−187 over 33 files).
-PRs #41–#46 were already covered by the cycle-14 and cycle-15 passes (see
-their REPORT.md commits `5f07a947c` and `5bf5a1644`); they were re-sanity-
-checked here, but the new, never-reviewed material is the cycle's own content
-`bbfeebb3b..8b1c52675` — PRs #48–#51:
+`takeActiveSyncValues:inContext:` wrote the EAS `DateCompleted` into the
+VTODO through `[completed setDate: o]` (`ActiveSync/iCalToDo+ActiveSync.m:213`).
+`-[iCalDateTime setDate:]` is the **all-day** variant
+(`SOPE/NGCards/iCalDateTime.m:152` → `_setDateTime:forAllDayEntity:YES`),
+which formats date-only and sets the `VALUE=DATE` parameter
+(`SOPE/NGCards/iCalDateTime.m:139-140`). Every task completed or re-saved
+through an Exchange ActiveSync client (Outlook, native phone mail apps) was
+therefore stored as:
 
-- PR #48 `cb8ac4a2b` — test(mail): inline SVG images never rendered (bug 6152)
-- PR #49 `fa0aaf072` — test(defaults): SOGoRefreshViewCheck string contract (bug 6142)
-- PR #50 `7f1ddb298` — fix(calendar): honor last VTIMEZONE transition (bug 6133)
-- PR #51 `712e6c322` — test(user-profile): legacy plist-to-JSON conversion (bug 6129)
+    COMPLETED;VALUE=DATE:20240104
 
-## What I changed
+which violates RFC 5545 §3.8.2.1 (COMPLETED has value type DATE-TIME and
+MUST be UTC). SOGo then serves that stored content verbatim over CalDAV
+(verified: PUT/GET and calendar-query REPORT round-trip stored content
+unchanged), so CalDAV consumers like Home Assistant receive a DATE where the
+spec mandates a DATETIME. All other SOGo writers were already correct:
+`-[iCalToDo setCompleted:]` (`SOPE/NGCards/iCalToDo.m:80`) goes through
+`setDateTime:` and renders `...Z`.
 
-### 1. Misindented continuation in the SVG extraction test (PR #48)
+## What changed
 
-`Tests/Unit/TestNSString+Mail.m` — the new
-`test_htmlByExtractingImagesExtractsSVGDataURLOfTicket6152` split its receiver
-over four lines, but the selector line was indented two spaces past the
-statement's own string continuations:
+- `ActiveSync/iCalToDo+ActiveSync.m:213` — `[completed setDate: o]` →
+  `[completed setDateTime: o]`. The completed element carries no TZID, so
+  `setDateTime:` renders UTC with the `Z` suffix, exactly like the
+  `setCompleted:` path used by the web UI.
 
-```objc
-  // before
-  result = [@"<p>Test signature</p>"
-            @"<p><img src=\"data:image/svg+xml;base64,…\""
-            @" width=\"391\" height=\"232\"></p>"
-              htmlByExtractingImages: images];        // ← 14 spaces
+  AVANT (task completed via Outlook/EAS, then read over CalDAV):
 
-  // after
-  result = [@"<p>Test signature</p>"
-            @"<p><img src=\"data:image/svg+xml;base64,…\""
-            @" width=\"391\" height=\"232\"></p>"
-            htmlByExtractingImages: images];          // ← 12 spaces
-```
+      COMPLETED;VALUE=DATE:20240104
 
-Whitespace-only; the selector now aligns under the `@"` of the literal it is
-sent to, like the rest of the file. (This is different from the one-space
-colon-alignment noise rejected in cycle-15: here the lines of a single
-statement disagreed with each other.)
+  APRÈS:
 
-That is the only code change. Everything else reviewed came out clean or was
-deliberately left alone — an empty-commit-for-the-sake-of-committing would
-have been worse than this one small fix.
+      COMPLETED:20240104T083500Z
 
-## What was reviewed and deliberately left alone
+  Legacy DATE-only values already in the store are normalized to a UTC
+  DATE-TIME the next time the task is re-synced from the EAS device
+  (`setDateTime:` drops the `VALUE=DATE` parameter).
 
-### PR #50 — VTIMEZONE last transition (bug 6133, `7f1ddb298`)
+- `Tests/Unit/TestiCalToDo+ActiveSync.m` (new) — three tests:
+  completing a task from EAS values stores `20240104T083500Z` (not all-day,
+  status COMPLETED); re-completing a task whose stored COMPLETED was
+  DATE-only rewrites it as UTC DATE-TIME and drops `VALUE=DATE`;
+  un-completing clears COMPLETED and sets IN-PROCESS.
+- `Tests/Unit/GNUmakefile` — registers the test file and compiles
+  `ActiveSync/iCalToDo+ActiveSync.m` into the test binary (same pattern as
+  the existing `iCalEvent+ActiveSync.m`).
 
-- `occurrenceForDate:` (`SOPE/NGCards/iCalTimeZonePeriod.m:301`): the fix
-  replaces a third condition with `else`, which both removes the bug
-  (beyond-UNTIL dates left `tmpDate` nil, hiding the final STANDARD period)
-  and deletes a redundant `_occurrenceForDate:byRRule:` computation on that
-  path. Minimal and correct as landed.
-- `TestiCalTimeZoneFallback.m`: the three fixtures (Mozilla-style,
-  Evolution-style, Berlin recurring) are each defined once and shared across
-  tests; no duplicated fixtures. The non-ASCII-free expectations
-  (`timeIntervalSince1970` equality) are exact and deterministic.
-
-### PR #48 — inline SVG non-rendering (bug 6152, `cb8ac4a2b`)
-
-- `TestNGMimeBodyPart+SOGo.m`: imports `<SOGo/NGMimeBodyPart+SOGo.h>`,
-  consistent with the other `<SOGo/…>` category imports (the header lives in
-  `SoObjects/SOGo/`).
-- `TestUIxMailRenderingContext.m`: `tearDown` omits `[super tearDown]`, but
-  the base `SOGoTest tearDown` is a no-op and 4 of the 6 test files that
-  override it do the same — majority local convention, not worth churning.
-- `MailSvgInlineImageSpec.js` duplicates `_putMessage`/`_fetchView` from
-  `MailerRemoteImagesSpec.js` (PR #44, same range) — but the per-spec-file
-  helper pattern predates the cycle (`MailDAVSpec.js`, `MailHtmlRenderingSpec.js`,
-  `MailerCyrillicLabelsSpec.js` each carry their own). Refactoring all five
-  into `Tests/lib/` is a repo-wide change, not a cycle-diff cleanup; noted as
-  a candidate for a future cycle.
-
-### PR #49 — SOGoRefreshViewCheck contract (bug 6142, `fa0aaf072`)
-
-- `TestSOGoUserDefaults.m`: the `_defaultsWithSource:parentSource:` factory
-  keeps each test to a single assertion concern; the before/after restore
-  pattern in `HTTPRefreshViewCheckSpec.js` mirrors `HTTPPreferencesSpec.js`.
-  No fixture duplication.
-
-### PR #51 — plist-to-JSON profile conversion (bug 6129, `712e6c322`)
-
-- `TestSOGoUserProfile.m` exercises the private `_convertPListToJSON:` via a
-  category declaration — same technique as other tests reaching class
-  internals. Fixtures are distinct (final-semicolon variant, unparsable
-  variant). Clean.
-
-### GNUmakefile (all four PRs touch it)
-
-- `-I../../` addition: required — `UI/MailPartViewers/UIxMailRenderingContext.m`
-  imports `<SoObjects/Mailer/…>`, a 83-occurrence idiom in `UI/` that only
-  resolves from the repo root. Correct minimal enabler, not include-path
-  sprawl.
-- `TestNSArray+Utilities.m` is listed mid-`NSString` group; pure list-order
-  churn, left alone.
-
-### Re-sanity-check of the older range content (PRs #41–#46)
-
-- `SOGoDraftObject bodyPartForAttachmentWithName:` — retain discipline
-  verified: mapped-file `NSData` autoreleased before the base64 reassignment,
-  `NGMimeFileData` body released after `setBody:` (`SOGoDraftObject.m:1586`).
-- `SOGoMailFolder postData:flags:` — the "already exists" tolerance keeps the
-  502 path for genuine CREATE failures; matches the file's error style.
-- `UIxPreferences saveAction` categories-colors loop — the `int count` +
-  double `objectAtIndex:` pattern exactly mirrors the pre-existing
-  mail-labels block directly below it (`UIxPreferences.m:1860`); changing
-  only the new block would create inconsistency, changing both exceeds a
-  light pass.
-- `UIxMailView _senderIsInAddressBook` — re-verified it must NOT reuse
-  `contactForEmail:` (substring-match would reintroduce the spoof vector;
-  cycle-15 reached the same conclusion).
-- `UIxMailEditor _scanAttachmentFilenamesInRequest:` — `declaredMimeType` is
-  not reset after consumption, but uploads carry exactly one file part per
-  request (see `angular-file-upload.trump.js`), so no cross-attachment leak
-  is possible; resetting it would be dead code.
-
-## Follow-up found, out of scope for this pass
-
-- `UI/WebServerResources/js/Mailer.services.js` was hand-patched in
-  `79f7fdb13` to mirror the `senderInAddressBook` policy, but its tracked
-  sourcemap `Mailer.services.js.map` was **not** regenerated (last touched by
-  `3b397622e`; the new symbol is absent from its `names`). Same for
-  `vendor/angular-file-upload.min.js` vs its `.map`. Regenerating requires
-  the project's grunt/uglify pipeline (`UI/WebServerResources/Gruntfile.js`,
-  no `node_modules` on this host) and would rewrite the whole minified line —
-  too blunt for a clean pass. Recommend a `chore(js): regenerate sourcemaps`
-  commit from a machine with the toolchain.
+One-word diff; no behavior change outside the EAS task-completion path.
 
 ## Tests
 
-`local/run-worktree-tests.sh wt/c16-clean` — full unit suite green except the
-two documented host-noise failures (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`): **Ran 221 tests, FAILED (2 failures,
-0 errors)** — no worse than baseline.
+`local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c33-5911`
 
-Host note: after printing that summary, the `sogo-tests` binary segfaults
-during GNUstep-base exit teardown (libobjc `class_getMethodImplementation`
-reached from `main` return, `sogo-tests.m:128`). This is pre-existing
-environment behavior — the same post-summary SIGSEGV appears in coredumps of
-the cycle-15 worktrees and the main checkout (`08:05`, `08:08`, before any
-cycle-16 merge), so it is not attributable to this cycle's diff.
+    Ran 224 tests
+    FAILED (2 failures, 0 errors)
+
+The only failures are the documented host-noise ones
+(`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
+Baseline before the change was 221 tests with the same 2 failures; the 3 new
+tests pass with the fix and were verified to **fail against the unfixed
+code** (`objects '20240104' and '20240104T083500Z' differs`).
+
+## Verification steps for the orchestrator
+
+1. Unit suite (builds SOPE + framework on first run):
+
+       /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
+         /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c33-5911
+
+   Expect `Ran 224 tests`, only the 2 known host-noise failures.
+
+2. CalDAV round-trip sanity (read-only checks against the shared stack;
+   the CalDAV layer stores/serves content verbatim — done during triage,
+   nothing left behind):
+
+       curl -s -u sogo-tests1:sogo \
+         -X PUT http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/test-5911-x.ics \
+         -H "Content-Type: text/calendar; charset=utf-8" \
+         --data-binary $'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\nBEGIN:VTODO\nUID:test-5911-x\nSUMMARY:5911\nSTATUS:COMPLETED\nCOMPLETED:20240104T083500Z\nEND:VTODO\nEND:VCALENDAR'
+       curl -s -u sogo-tests1:sogo \
+         http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/test-5911-x.ics
+
+   The EAS path itself has no e2e harness (no ActiveSync spec exists in
+   `Tests/spec/`); it is covered by the unit tests, which assert the exact
+   wire value written into the iCal content.
+
+3. Cleanup afterwards:
+
+       curl -s -o /dev/null -u sogo-tests1:sogo -X DELETE \
+         http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/test-5911-x.ics
+
+## PR body draft
+
+**fix(activesync): store task COMPLETED as UTC DATE-TIME (bug 5911)**
+
+Tasks completed from an Exchange ActiveSync client (Outlook, native phone
+apps) stored their completion date through the all-day setter of
+iCalDateTime, producing `COMPLETED;VALUE=DATE:20240104` in the stored iCal
+content. RFC 5545 §3.8.2.1 requires COMPLETED to be a DATE-TIME in UTC, and
+SOGo serves the stored content verbatim over CalDAV — so strict clients such
+as Home Assistant's CalDAV integration rejected (or mis-parsed) the property,
+as reported in bug 5911.
+
+The fix routes the EAS `DateCompleted` through the regular
+`setDateTime:` setter, matching what every other SOGo writer (web UI,
+`setCompleted:`) already does:
+
+    AVANT:  COMPLETED;VALUE=DATE:20240104
+    APRÈS:  COMPLETED:20240104T083500Z
+
+Tasks re-synced from the device after the fix are normalized in place (the
+`VALUE=DATE` parameter is dropped on rewrite). The CalDAV PUT/GET and REPORT
+paths were verified by round-trip against a live stack both before and after
+the change; only the ActiveSync writer differed.
