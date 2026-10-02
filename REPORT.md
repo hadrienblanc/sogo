@@ -1,153 +1,196 @@
-# Ticket 6171 — Calendar ACLs set via sogo-tool are lost when accessing the web interface
+# Ticket 6162 — Creating a calendar event with recurrence according to RFC 5545
 
-Branch: `fix-6171-mantis` (commit `fa4002464`) — https://bugs.sogo.nu/view.php?id=6171
+Branch: `fix-6162-mantis` (commit `b58bd1991`), based on `experimental`.
 
 ## Root cause (file:line)
 
-This **is** a bug, reproduced live on the e2e stack. Two independent defects make
-subscriptions installed by `sogo-tool manage-acl subscribe` disappear at the first
-web login:
+Two facts combine into the reported symptom:
 
-1. **Destructive pruning driven by stale ACL cache.**
-   On every web request that lists folders (first one at login:
-   `/SOGo/so/<user>/Calendar/calendarslist`), `-[SOGoParentFolder appendSubscribedSources]`
-   (`SoObjects/SOGo/SOGoParentFolder.m:313-392`) walks `Calendar.SubscribedFolders` and
-   calls `-_appendSubscribedSource:` (`SOGoParentFolder.m:287-311`). That method fails —
-   and the entry is **removed and synchronized to the DB** (`SOGoParentFolder.m:351-389`) —
-   whenever `validatePermission: SOGoPerm_AccessObject` denies access, which happens when
-   `-[SOGoGCSFolder aclsForUser:]` returns no authorizing role. Folder-level "Access
-   Object" is granted only via Owner/AuthorizedSubscriber (`UI/MainUI/product.plist:61`,
-   `SOGoUser.m:1260-1265`).
-   `sogo-tool manage-acl add` (`Tools/SOGoToolManageACL.m:284-318`) inserts ACL rows with
-   raw SQL and — unlike `manage-acl remove` (`SOGoToolManageACL.m:377-380`, which calls
-   `setACLs:nil forPath:`) and unlike the web `setRoles:` path
-   (`SOGoGCSFolder.m:1978`) — **never invalidates the `<path>+acl` memcached entry**
-   (`SOGoCache.m:748-769`). For up to `SOGoCacheCleanupInterval` (default 300 s,
-   `SOGoDefaults.plist:25`), sogod workers therefore keep serving the *pre-ACL* (empty)
-   roles for users on that path (`SOGoGCSFolder.m:1733-1755` also caches the empty
-   result), so any group member who logs in inside that window has their
-   freshly-subscribed calendar pruned — permanently, because the prune writes the user
-   settings. With a daily re-subscribe cron this looks exactly like "the web interface
-   drops SubscribedFolders".
+1. **Expansion always force-includes DTSTART.**
+   `SOPE/NGCards/iCalWeeklyRecurrenceCalculator.m:180-185` — when the walk cursor
+   equals the first-instance start (DTSTART), the occurrence is added
+   unconditionally, bypassing the BYDAY check at lines 188-192:
+   ```objc
+   if ([currentStartDate compare: firStart] == NSOrderedSame)
+     {
+       // Always add the start date of the recurring event if within
+       // the lookup range.
+       isRecurrence = YES;
+     }
+   ```
+   This is RFC-sanctioned ("DTSTART defines the first instance"; a
+   non-synchronized DTSTART yields an *undefined* set), and it is required for
+   interoperability with foreign imports — `Tests/Unit/TestiCalRecurrenceCalculator.m`
+   (RFC 2445 example, Tuesday DTSTART with `BYDAY=MO,WE,FR`) depends on it.
+   So the calculator must **not** be changed.
 
-2. **Group ACLs evaluate to "no access" when memcached cannot serve the member list.**
-   `-[LDAPSource groupWithUIDHasMemberWithUID:memberUid:]`
-   (`SoObjects/SOGo/LDAPSource.m:2456-2484`) resolves membership *only* through the
-   `"<group>+<domain>"` memcached key written by `membersForGroupWithUID:`. When
-   memcached is unreachable (or the entry cannot be stored), `value` stays nil,
-   `[nil componentsSeparatedByString:]` yields nil and the method returns NO
-   unconditionally — the group grant silently vanishes, the user is seen as
-   unauthorized, and the subscription is pruned on login. Note the asymmetry that
-   matches the report: `sogo-tool manage-acl subscribe` uses `membersForGroupWithUID`
-   directly (live LDAP query, succeeds — "the status in the database is apparently
-   correct"), only the *evaluation* at web login is memcached-dependent.
+2. **The web-UI save path never synchronized DTSTART with BYDAY.**
+   `UI/Scheduler/UIxAppointmentEditor.m:568` → `UIxComponentEditor.m:614` →
+   `SoObjects/Appointments/iCalEvent+SOGo.m setAttributes:inContext:` wrote the
+   user's DTSTART and the RRULE (`iCalRepeatableEntityObject+SOGo.m:294-312`)
+   as two independent values. When the user created a weekly MO,FR,SA event
+   starting Wednesday, SOGo stored `DTSTART=Wednesday` — and fact #1 then made
+   the Wednesday "ghost occurrence" appear in every view.
 
-Live reproduction (stack at http://127.0.0.1:50001, LDAP group `@readers` with members
-sogo-tests1/2/3): calendar `test-6171-cal` created for sogo-tests1, group ACL set, group
-subscribed → `GET jsonSettings` for sogo-tests2 shows
-`SubscribedFolders: ["sogo-tests1:Calendar/test-6171-cal"]`; a **single**
-`calendarslist` fetch later the setting is `SubscribedFolders: []`,
-`FolderDisplayNames: {}` — the reported data loss, before any fix of the roles
-involved. (With the ticket's exact role set and healthy memcached the prune does not
-trigger — the two defects above are what make it fire in the field.)
+The bug therefore lives in the **save path**, and per the ticket the fix is to
+snap DTSTART forward to the first BYDAY-matching day when the event is saved.
+
+AVANT reproduction (pre-fix code, shared stack, artifact cleaned up):
+
+```
+PUT /SOGo/dav/sogo-tests1/Calendar/personal/test-6162-avant.ics  (ticket ICS:
+     DTSTART;TZID=Europe/Moscow:20251001T094500, RRULE:FREQ=WEEKLY;BYDAY=MO,FR,SA;UNTIL=20251015T144500Z)
+REPORT calendar-query time-range 20251001T000000Z..20251002T000000Z
+  -> returns the event  (an occurrence exists on Wednesday Oct 1 — wrong)
+```
 
 ## What changed (before/after)
 
-- `Tools/SOGoToolManageACL.m` (`addACLForUser:`): after inserting the ACL rows, invalidate
-  the distributed ACL cache — same as `removeACLForUser:` already did.
+Minimal change, 3 files, confined to the SOGo web-editor save path
+(CalDAV PUT / imports are untouched and keep storing exactly what the client sent):
 
-  AVANT: `sogo-tool manage-acl add ...` → sogod workers keep the old (empty) roles for
-  ≤ SOGoCacheCleanupInterval → member logs in → subscription judged unauthorized →
-  `SubscribedFolders` entry deleted from `sogo_user_profile`.
+- `SoObjects/Appointments/iCalEvent+SOGo.h` — declare
+  `- (void) synchronizeStartDateWithRecurrenceRule`.
+- `SoObjects/Appointments/iCalEvent+SOGo.m` — implement it and call it from
+  `setAttributes:inContext:` (right after DTSTART/DTEND are written, so the
+  follow-up `_adjustRecurrentRules` in `UIxAppointmentEditor saveAction`
+  re-validates UNTIL and prunes orphaned overrides against the snapped dates):
+  - skipped for occurrences (`recurrenceId`), events without rules,
+    non-weekly rules, weekly rules without BYDAY, and empty/unparsable BYDAY;
+  - skipped when the start weekday already matches BYDAY;
+  - otherwise scans forward 1..6 days for the first weekday in the BYDAY mask
+    and shifts DTSTART/DTEND by the same whole days (duration preserved);
+    all-day events are rewritten via `setAllDayWithStartDate:duration:` so
+    `VALUE=DATE` is preserved; timed events keep their timezone.
 
-  APRES: the `<path>+acl` cache entry is dropped at once; the next evaluation re-reads
-  the ACL table, the member gets AuthorizedSubscriber via ObjectCreator/the viewer
-  roles, and the subscription survives the login.
+AVANT (stored ICS after creating "weekly on MO,FR,SA" starting Wed Oct 1):
 
-- `SoObjects/SOGo/LDAPSource.m` (`groupWithUIDHasMemberWithUID:memberUid:`): when the
-  member list cannot be served from memcached, fall back to a live membership check on
-  the array returned by `membersForGroupWithUID:` (same `loginInDomain` projection used
-  to build the cached list). Behaviour is unchanged when memcached answers.
+```
+DTSTART;TZID=Europe/Moscow:20251001T094500
+DTEND;TZID=Europe/Moscow:20251001T144500
+RRULE:FREQ=WEEKLY;BYDAY=MO,FR,SA;UNTIL=20251015T144500Z
+```
+-> expansion force-includes Wed Oct 1 (ghost occurrence).
 
-  AVANT: no (or broken) memcached ⇒ every group-ACL check returns "not a member" ⇒
-  group subscriptions pruned at each web login, while `manage-acl subscribe` kept
-  re-adding them.
+APRES (same user action):
 
-  APRES: the membership is resolved from LDAP and the group grant is honored, with or
-  without memcached.
+```
+DTSTART;TZID=Europe/Moscow:20251003T094500
+DTEND;TZID=Europe/Moscow:20251003T144500
+RRULE:FREQ=WEEKLY;BYDAY=MO,FR,SA;UNTIL=20251015T144500Z
+```
+-> DTSTART now matches BYDAY (nearest upcoming match, Friday Oct 3), exactly
+the behavior requested in the ticket; occurrences are Fri Oct 3, Sat Oct 4,
+Mon Oct 6, Fri Oct 10, Sat Oct 11, Wed Oct 15 excluded.
 
 ## Tests
 
-- `Tests/Unit/TestSOGoFolderSubscriptionRoles.m` (new, registered in
-  `Tests/Unit/GNUmakefile`): locks that the roles granted by the documented
-  `sogo-tool manage-acl add` example for calendars (ObjectCreator + Public/Private/
-  Confidential Modifier) and the calendar viewer roles intersect
-  `-[SOGoAppointmentFolder subscriptionRoles]` (the AuthorizedSubscriber source), and
-  that `-[SOGoFolder subscriptionRoles]` keeps the Object* roles — the invariant whose
-  violation turns a login into a prune.
-- `Tests/Unit/TestSOGoCacheACLs.m` (new): locks `-[SOGoCache setACLs:forPath:]` /
-  `aclsForPath:` round-trip and the nil-invalidation used by `manage-acl add/remove`
-  (bug 6171), plus harmlessness of invalidating an uncached path.
+New `Tests/Unit/TestiCalEvent+SOGo.m` (registered in `Tests/Unit/GNUmakefile`),
+12 tests covering every branch of the new method plus the `setAttributes:`
+call site:
 
-Suite result: `Ran 133 tests, FAILED (2 failures, 0 errors)` — the two failures are the
-known host-noise ones (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`); the process-exit segfault after the summary is also
-present on the untouched baseline checkout. `Tools/` (sogo-tool) builds cleanly.
+- `test_synchronizeStartDateOnNonMatchingWeeklyByDay` — ticket scenario: Wed
+  Oct 1 + MO,FR,SA -> Fri Oct 3 09:45/14:45 (Moscow);
+- `test_synchronizeStartDateKeepsMatchingStartDate` — WE in BYDAY -> unchanged;
+- `test_synchronizeStartDateOnAllDayEvent` — `VALUE=DATE` preserved,
+  DTSTART/DTEND shifted, still all-day;
+- `test_synchronizeStartDateCrossesWeekBoundary` — Sat Oct 4 + BYDAY=TU ->
+  Tue Oct 7;
+- `test_synchronizeStartDateIgnoresDailyRule` — non-weekly frequency guard;
+- `test_synchronizeStartDateIgnoresWeeklyRuleWithoutByDay` — nil-mask guard;
+- `test_synchronizeStartDateOnEventWithoutRecurrenceRule` — no-rule guard;
+- `test_synchronizeStartDateOnUnparsableByDay` — `BYDAY=XX` (empty mask, delta
+  stays 0) -> unchanged;
+- `test_synchronizeStartDateOnOccurrence` — VEVENT with RECURRENCE-ID -> never
+  snapped;
+- `test_saveWeeklyRepeatSnapsTimedStartDate` — full editor save path (timed):
+  DTSTART/DTEND snapped to Friday, `doesOccurOnDate` NO on Oct 1 / YES on Oct 3;
+- `test_saveWeeklyRepeatKeepsMatchingStartDate` — full save path, matching rule;
+- `test_saveWeeklyRepeatSnapsAllDayStartDate` — full save path (all-day).
+
+Result: `Ran 145 tests — FAILED (2 failures, 0 errors)` where the 2 failures
+are the known host-noise ones to ignore (`test_NGInternetSocketAddressFromString`,
+`test_stringWithoutHTMLInjection`). The pre-existing weekly-calculator test
+(RFC example) still passes.
 
 ## Verification steps for the orchestrator
 
-Deploy this branch on the e2e stack, then:
+Unit suite (authoritative — the shared stack runs a pre-fix build until the
+next deploy/rebuild):
 
-```bash
-BASE=http://127.0.0.1:50001
-# 1. fixture (as owner + super-user, group '@readers' exists in the e2e LDAP)
-curl -s -o /dev/null -u sogo-tests1:sogo -X MKCALENDAR -H "Content-Type: text/xml" \
-  --data '<mkcalendar xmlns="DAV:"><set><prop><resourcetype><calendar/></resourcetype><displayname>test-6171-cal</displayname></prop></set></mkcalendar>' \
-  "$BASE/SOGo/dav/sogo-tests1/Calendar/test-6171-cal/"
-docker exec sogo_dev su sogo -s /bin/sh -c \
-  "sogo-tool manage-acl add sogo-tests1 Calendar/test-6171-cal '@readers' '[\"ObjectCreator\",\"PublicModifier\",\"ConfidentialModifier\",\"PrivateModifier\"]'"
-# 2. login as a group member right away (< cache TTL) and prime a stale-empty role cache
-curl -s -o /dev/null -c /tmp/cj -X POST -H "Content-Type: application/json" \
-  -d '{"userName":"sogo-tests2","password":"sogo"}' "$BASE/SOGo/connect"
-# 3. subscribe via the tool (what the cron does)
-docker exec sogo_dev su sogo -s /bin/sh -c \
-  "sogo-tool manage-acl subscribe sogo-tests1 Calendar/test-6171-cal '@readers'"
-# 4. web login: fetch the calendar list (this used to prune the subscription)
-curl -s -b /tmp/cj "$BASE/SOGo/so/sogo-tests2/Calendar/calendarslist"
-# 5. EXPECT: the shared calendar is listed and SubscribedFolders still holds the ref
-curl -s -b /tmp/cj "$BASE/SOGo/so/sogo-tests2/jsonSettings"
-#    -> "SubscribedFolders": [ "sogo-tests1:Calendar/test-6171-cal" ]
-#    (before the fix this returned [] after step 4)
-# 6. unit suite
-local/run-worktree-tests.sh <this-worktree>   # 133 tests, only the 2 known host failures
-# 7. cleanup
-curl -s -o /dev/null -u sogo-tests-super:sogo -X DELETE "$BASE/SOGo/dav/sogo-tests1/Calendar/test-6171-cal/"
 ```
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
+  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c12-6162
+# expect: Ran 145 tests, only the 2 known host-noise failures
+
+# optional: list the new tests + their status
+cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c12-6162/Tests/Unit
+source /home/hadrienblanc/Projets/hadrienblanc/sogo/local/env.sh
+export LD_LIBRARY_PATH="$PWD/../../SOPE/NGCards/obj:$PWD/../../SOPE/GDLContentStore/obj:$PWD/../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
+./obj/sogo-tests -f junit 2>/dev/null | grep -E 'test_(synchronize|saveWeekly)'
+# 15 lines (12 new + 3 pre-existing save* tests), none containing <failure>
+```
+
+Live AVANT symptom on the shared stack (read/write repro only, artifact
+`test-6162-avant` deleted afterwards):
+
+```
+curl -s -u sogo-tests1:sogo -X PUT -H "Content-Type: text/calendar" \
+  --data-binary $'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:test-6162-avant\r\nSUMMARY:Test\r\nDTSTART;TZID=Europe/Moscow:20251001T094500\r\nDTEND;TZID=Europe/Moscow:20251001T144500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,FR,SA;UNTIL=20251015T144500Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' \
+  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/test-6162-avant.ics" -o /dev/null -w "%{http_code}\n"   # 201
+
+curl -s -u sogo-tests1:sogo -X REPORT -H "Depth: 1" -H "Content-Type: application/xml" \
+  --data-binary '<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:getetag/></D:prop><C:filter><C:comp-filter name="VCALENDAR"><C:comp-filter name="VEVENT"><C:time-range start="20251001T000000Z" end="20251002T000000Z"/></C:comp-filter></C:comp-filter></C:filter></C:calendar-query>' \
+  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/" | grep test-6162-avant   # present on Wednesday (bug)
+
+curl -s -u sogo-tests1:sogo -X DELETE \
+  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/personal/test-6162-avant.ics" -o /dev/null -w "%{http_code}\n"  # 204 (cleanup)
+```
+
+After this branch is deployed to the e2e stack, the same check through the web
+editor (`POST /SOGo/so/<user>/Calendar/personal/<uid>/saveAsAppointment` with
+`repeat:{frequency:"weekly",interval:1,days:[{day:"MO"},{day:"FR"},{day:"SA"}]}`,
+`startDate/endDate:"2025-10-01"`, `startTime:"09:45"`, `endTime:"14:45"`) must
+store `DTSTART;TZID=...:20251003T...` and the Oct 1 time-range REPORT above
+must return nothing.
 
 ## PR body draft
 
-Subscriptions installed with `sogo-tool manage-acl subscribe` were silently deleted
-from the user profile at the first web login (bug 6171). The login-time folder listing
-(`-[SOGoParentFolder appendSubscribedSources]`) removes any `SubscribedFolders` entry
-whose folder fails the `Access Object` check and synchronizes that removal to the
-database — so anything that makes the ACL evaluation briefly answer "no access" turns
-into permanent data loss for the subscription.
+When a user creates (or re-saves) a weekly recurring event whose start date
+does not fall on one of the weekdays selected in the recurrence dialog, SOGo
+used to store DTSTART as-is and then render an occurrence on that weekday
+anyway — e.g. an event created on Wednesday, October 1 with "weekly on Monday,
+Friday, Saturday" showed up on Wednesday, although Wednesday is not part of the
+rule. RFC 5545 requires DTSTART to be synchronized with BYDAY, and states that
+the recurrence set generated from a non-synchronized DTSTART is undefined, so
+the stored data was both invalid and misleading.
 
-AVANT: `sogo-tool manage-acl add` wrote the ACL rows with raw SQL without invalidating
-the distributed ACL cache (while `manage-acl remove` did), so sogod workers kept serving
-the pre-ACL roles for up to `SOGoCacheCleanupInterval` (300 s); a group member logging
-in during that window saw no authorizing role and lost the calendar the cron had just
-installed — reproduced on the e2e stack where one `calendarslist` fetch turned
-`SubscribedFolders: ["sogo-tests1:Calendar/test-6171-cal"]` into `[]`. Additionally,
-`-[LDAPSource groupWithUIDHasMemberWithUID:memberUid:]` answered "not a member"
-whenever memcached could not serve the cached member list, making every group-ACL
-subscription prunable on each login while `manage-acl subscribe` (live LDAP query)
-kept succeeding.
+**AVANT** — the user creates an event on 2025-10-01 (Wednesday) with weekly
+recurrence on MO,FR,SA; SOGo stores:
 
-APRES: `manage-acl add` invalidates the `<path>+acl` cache entry exactly like
-`remove`, so freshly granted roles are visible immediately and the login-time
-authorization check passes; and the LDAP group-membership check falls back to a live
-evaluation of `membersForGroupWithUID:` when memcached has no answer, so group grants
-no longer depend on the cache to be honored. Behaviour is unchanged on healthy
-setups (verified: the ticket's exact role set survives login). Two unit suites lock
-the subscription-authorization roles and the ACL cache invalidation primitive.
+```
+DTSTART;TZID=Europe/Moscow:20251001T094500
+DTEND;TZID=Europe/Moscow:20251001T144500
+RRULE:FREQ=WEEKLY;BYDAY=MO,FR,SA;UNTIL=20251015T144500Z
+```
+
+and an occurrence incorrectly appears on Wednesday Oct 1.
+
+**APRES** — the same user action now snaps DTSTART (and DTEND, duration
+preserved) forward to the nearest upcoming BYDAY match before saving:
+
+```
+DTSTART;TZID=Europe/Moscow:20251003T094500
+DTEND;TZID=Europe/Moscow:20251003T144500
+RRULE:FREQ=WEEKLY;BYDAY=MO,FR,SA;UNTIL=20251015T144500Z
+```
+
+so the series runs Fri Oct 3, Sat Oct 4, Mon Oct 6, Fri Oct 10, Sat Oct 11 and
+no occurrence exists outside the rule. The synchronization happens in the
+web-editor save path (`iCalEvent+SOGo setAttributes:inContext:` → new
+`synchronizeStartDateWithRecurrenceRule`), only for weekly rules carrying a
+BYDAY list, never for occurrence overrides, and CalDAV imports keep storing
+exactly what the client sent. Backed by 12 new unit tests in
+`Tests/Unit/TestiCalEvent+SOGo.m` covering every guard branch (non-weekly
+rules, no BYDAY, unparsable BYDAY, matching weekday, week-boundary wrap,
+all-day events, occurrences) plus the full `setAttributes` save path.
