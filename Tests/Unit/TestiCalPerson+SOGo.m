@@ -30,6 +30,7 @@
 #import <NGObjWeb/WOContext.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 
+#import <SOGo/NSArray+Utilities.h>
 #import <SOGo/SOGoUser.h>
 
 #import "SOGoTest.h"
@@ -61,18 +62,7 @@
 
 - (BOOL) hasEmail: (NSString *) email
 {
-  NSArray *emails;
-  NSUInteger i, max;
-  BOOL found;
-
-  found = NO;
-  emails = [self allEmails];
-  max = [emails count];
-  for (i = 0; !found && i < max; i++)
-    found = ([[emails objectAtIndex: i] caseInsensitiveCompare: email]
-             == NSOrderedSame);
-
-  return found;
+  return [[self allEmails] containsCaseInsensitiveString: email];
 }
 
 @end
