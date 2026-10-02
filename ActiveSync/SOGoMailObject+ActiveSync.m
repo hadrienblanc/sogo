@@ -69,6 +69,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <SOGo/SOGoUserFolder.h>
 #import <SOGo/NSArray+Utilities.h>
 
+#include "iCalEvent+ActiveSync.h"
 #include "iCalTimeZone+ActiveSync.h"
 #include "NSData+ActiveSync.h"
 #include "NSDate+ActiveSync.h"
@@ -1071,13 +1072,13 @@ struct GlobalObjectId {
       [s appendFormat: @"<InstanceType xmlns=\"Email:\">%d</InstanceType>", 0];
 
       // Location
-      if ([[event location] length])
+      if ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0)
         {
-          if ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0)
-            [s appendFormat: @"<Location xmlns=\"AirSyncBase:\"><DisplayName>%@</DisplayName></Location>", [[event location] activeSyncRepresentationInContext: context]];
-          else
-            [s appendFormat: @"<Location xmlns=\"Email:\">%@</Location>", [[event location] activeSyncRepresentationInContext: context]];
+          if ((value = [event activeSyncStructuredLocationInContext: context]))
+            [s appendString: value];
         }
+      else if ([[event location] length])
+        [s appendFormat: @"<Location xmlns=\"Email:\">%@</Location>", [[event location] activeSyncRepresentationInContext: context]];
 
       [s appendFormat: @"<Organizer xmlns=\"Email:\">%@</Organizer>", [[[event organizer] mailAddress] activeSyncRepresentationInContext: context]];
 

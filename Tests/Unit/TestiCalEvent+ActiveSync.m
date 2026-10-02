@@ -23,6 +23,7 @@
 
 #import <NGCards/iCalCalendar.h>
 #import <NGCards/iCalEvent.h>
+#import <NGCards/NSString+NGCards.h>
 
 #import <NGObjWeb/WOContext.h>
 
@@ -304,8 +305,329 @@
                                         forKey: @"StartTime"];
 
   testWithMessage ([[self _allDayAttendeeEvent] hasActiveSyncScheduleChange: changes
-                                                                inContext: context],
+                                                                 inContext: context],
                    @"a moved all-day event must be detected");
+}
+
+- (iCalEvent *) _structuredLocationEvent
+{
+  return [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6236-structured\r\n"
+                     @"SUMMARY:Dinner in Oslo\r\n"
+                     @"DTSTART:20260811T190000Z\r\n"
+                     @"DTEND:20260811T210000Z\r\n"
+                     @"LOCATION:Oslo S\r\n"
+                     @"GEO:59.911081;10.749770\r\n"
+                     @"X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=\"Jernbanetorget 1\\nOslo\\n\\n0154\\nNorway\";X-TITLE=\"Oslo S\":geo:59.911081,10.749770\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+}
+
+- (iCalEvent *) _minimalEvent
+{
+  return [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6236-minimal\r\n"
+                     @"SUMMARY:Termin\r\n"
+                     @"DTSTART:20260811T190000Z\r\n"
+                     @"DTEND:20260811T210000Z\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+}
+
+- (void) test_structuredLocationIsExposedOnTheWire
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _structuredLocationEvent];
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage ([s rangeOfString: @"<Location xmlns=\"AirSyncBase:\">"].length > 0,
+                   @"EAS 16.x must carry an AirSyncBase Location element");
+  testWithMessage ([s rangeOfString: @"<DisplayName>Oslo S</DisplayName>"].length > 0,
+                   @"LOCATION must map to DisplayName");
+  testWithMessage ([s rangeOfString: @"<Street>Jernbanetorget 1</Street>"].length > 0,
+                   @"X-ADDRESS street line must map to Street");
+  testWithMessage ([s rangeOfString: @"<City>Oslo</City>"].length > 0,
+                   @"X-ADDRESS city line must map to City");
+  testWithMessage ([s rangeOfString: @"<PostalCode>0154</PostalCode>"].length > 0,
+                   @"X-ADDRESS postal code line must map to PostalCode");
+  testWithMessage ([s rangeOfString: @"<Country>Norway</Country>"].length > 0,
+                   @"X-ADDRESS country line must map to Country");
+  testWithMessage ([s rangeOfString: @"<State>"].length == 0,
+                   @"an empty address component must be omitted");
+  testWithMessage ([s rangeOfString: @"<Latitude>59.911081</Latitude>"].length > 0,
+                   @"GEO latitude must map to Latitude");
+  testWithMessage ([s rangeOfString: @"<Longitude>10.749770</Longitude>"].length > 0,
+                   @"GEO longitude must map to Longitude");
+  testWithMessage ([s rangeOfString: @"<LocationUri>geo:59.911081,10.749770</LocationUri>"].length > 0,
+                   @"the structured-location URI must map to LocationUri");
+}
+
+- (void) test_locationStaysFlatBeforeProtocol16
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _structuredLocationEvent];
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage ([s rangeOfString: @"<Location xmlns=\"Calendar:\">Oslo S</Location>"].length > 0,
+                   @"EAS 14.1 must keep the flat text location");
+  testWithMessage ([s rangeOfString: @"<Location xmlns=\"AirSyncBase:\">"].length == 0,
+                   @"no structured location must be emitted before EAS 16.0");
+}
+
+- (void) test_structuredLocationRoundTrip
+{
+  WOContext *context;
+  NSDictionary *location;
+  CardElement *structured;
+  iCalEvent *event;
+  NSString *s;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+
+  location = [NSDictionary dictionaryWithObjectsAndKeys:
+                           @"Oslo S", @"DisplayName",
+                           @"Jernbanetorget 1", @"Street",
+                           @"Oslo", @"City",
+                           @"Norway", @"Country",
+                           @"0154", @"PostalCode",
+                           @"59.911081", @"Latitude",
+                           @"10.749770", @"Longitude",
+                           nil];
+
+  event = [self _minimalEvent];
+  [event takeActiveSyncValues: [NSDictionary dictionaryWithObject: location
+                                                           forKey: @"Location"]
+                    inContext: context];
+
+  testEquals ([event location], @"Oslo S");
+  testEquals ([[event firstChildWithTag: @"geo"] flattenedValuesForKey: @""],
+              @"59.911081;10.749770");
+
+  structured = [event firstChildWithTag: @"x-apple-structured-location"];
+  testWithMessage (structured != nil,
+                   @"a structured location received from EAS must be preserved");
+  testEquals ([structured flattenedValuesForKey: @""], @"geo:59.911081,10.749770");
+  testEquals ([structured value: 0 ofAttribute: @"X-ADDRESS"],
+              @"\"Jernbanetorget 1\nOslo\n\n0154\nNorway\"");
+  testEquals ([structured value: 0 ofAttribute: @"X-TITLE"], @"\"Oslo S\"");
+  s = [[structured versitString] stringByReplacingString: @"\r\n " withString: @""];
+  testWithMessage (([s hasPrefix: @"X-APPLE-STRUCTURED-LOCATION;"]
+                    && [s rangeOfString: @"VALUE=URI"].length
+                    && [s rangeOfString: @"X-ADDRESS=\"Jernbanetorget 1\\nOslo\\n\\n0154\\nNorway\""].length
+                    && [s rangeOfString: @"X-TITLE=\"Oslo S\""].length
+                    && [s hasSuffix: @":geo:59.911081,10.749770"]),
+                   @"the stored location must render as an Apple-compatible "
+                   @"structured-location property");
+
+  s = [event activeSyncRepresentationInContext: context];
+  testWithMessage (([s rangeOfString: @"<DisplayName>Oslo S</DisplayName>"].length
+                    && [s rangeOfString: @"<Street>Jernbanetorget 1</Street>"].length
+                    && [s rangeOfString: @"<City>Oslo</City>"].length
+                    && [s rangeOfString: @"<Country>Norway</Country>"].length
+                    && [s rangeOfString: @"<PostalCode>0154</PostalCode>"].length
+                    && [s rangeOfString: @"<Latitude>59.911081</Latitude>"].length
+                    && [s rangeOfString: @"<Longitude>10.749770</Longitude>"].length
+                    && [s rangeOfString: @"<LocationUri>geo:59.911081,10.749770</LocationUri>"].length),
+                   @"the structured location must survive an EAS round trip");
+}
+
+- (void) test_displayNameOnlyLocationRoundTrip
+{
+  WOContext *context;
+  NSDictionary *location;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  location = [NSDictionary dictionaryWithObject: @"Somewhere"
+                                        forKey: @"DisplayName"];
+
+  event = [self _minimalEvent];
+  [event takeActiveSyncValues: [NSDictionary dictionaryWithObject: location
+                                                           forKey: @"Location"]
+                    inContext: context];
+
+  testEquals ([event location], @"Somewhere");
+  testWithMessage ([event firstChildWithTag: @"geo"] == nil,
+                   @"no GEO must be invented without coordinates");
+  testWithMessage ([event firstChildWithTag: @"x-apple-structured-location"] == nil,
+                   @"no structured-location property must be invented");
+}
+
+- (void) test_plainLocationUpdateDropsStaleStructuredData
+{
+  WOContext *context;
+  NSDictionary *location;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+
+  event = [self _structuredLocationEvent];
+  location = [NSDictionary dictionaryWithObject: @"Somewhere"
+                                        forKey: @"DisplayName"];
+  [event takeActiveSyncValues: [NSDictionary dictionaryWithObject: location
+                                                           forKey: @"Location"]
+                    inContext: context];
+
+  testEquals ([event location], @"Somewhere");
+  testWithMessage ([event firstChildWithTag: @"geo"] == nil,
+                   @"a plain-text location update must drop a stale GEO");
+  testWithMessage ([event firstChildWithTag: @"x-apple-structured-location"] == nil,
+                   @"a plain-text location update must drop a stale structured location");
+}
+
+- (void) test_locationUriWithoutCoordinatesRoundTrip
+{
+  WOContext *context;
+  NSDictionary *location;
+  CardElement *structured;
+  iCalEvent *event;
+  NSString *s;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+
+  location = [NSDictionary dictionaryWithObjectsAndKeys:
+                           @"HQ", @"DisplayName",
+                           @"1 Main Street", @"Street",
+                           @"Oslo", @"City",
+                           @"https://maps.example.com/hq", @"LocationUri",
+                           nil];
+
+  event = [self _minimalEvent];
+  [event takeActiveSyncValues: [NSDictionary dictionaryWithObject: location
+                                                           forKey: @"Location"]
+                    inContext: context];
+
+  structured = [event firstChildWithTag: @"x-apple-structured-location"];
+  testWithMessage (structured != nil,
+                   @"missing coordinates must not prevent the structured location");
+  testEquals ([structured flattenedValuesForKey: @""], @"https://maps.example.com/hq");
+
+  s = [event activeSyncRepresentationInContext: context];
+  testWithMessage (([s rangeOfString: @"<LocationUri>https://maps.example.com/hq</LocationUri>"].length
+                    && [s rangeOfString: @"<Street>1 Main Street</Street>"].length
+                    && [s rangeOfString: @"<Latitude>"].length == 0),
+                   @"address and URI must survive without coordinates");
+}
+
+- (void) test_geoOnlyEventExposesCoordinatesWithoutDisplayName
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6236-geoonly\r\n"
+                     @"SUMMARY:Termin\r\n"
+                     @"DTSTART:20260811T190000Z\r\n"
+                     @"DTEND:20260811T210000Z\r\n"
+                     @"GEO:59.911081;10.749770\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage ([s rangeOfString: @"<Location xmlns=\"AirSyncBase:\">"].length > 0,
+                   @"a GEO-only event must still expose a Location");
+  testWithMessage ([s rangeOfString: @"<Latitude>59.911081</Latitude>"].length > 0,
+                   @"a GEO-only event must expose its latitude");
+  testWithMessage ([s rangeOfString: @"<DisplayName>"].length == 0,
+                   @"no DisplayName must be invented");
+}
+
+- (void) test_appleThreeLineAddressMapsToStreetCityCountry
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6236-apple3\r\n"
+                     @"SUMMARY:Termin\r\n"
+                     @"DTSTART:20260811T190000Z\r\n"
+                     @"DTEND:20260811T210000Z\r\n"
+                     @"X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=\"Jernbanetorget 1\\n0154 Oslo\\nNorway\";X-TITLE=\"Oslo S\":geo:59.911081,10.749770\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage ([s rangeOfString: @"<DisplayName>Oslo S</DisplayName>"].length > 0,
+                   @"X-TITLE must provide DisplayName when LOCATION is absent");
+  testWithMessage (([s rangeOfString: @"<Street>Jernbanetorget 1</Street>"].length
+                    && [s rangeOfString: @"<City>0154 Oslo</City>"].length
+                    && [s rangeOfString: @"<Country>Norway</Country>"].length),
+                   @"Apple's three-line address must map to Street, City, Country");
+  testWithMessage (([s rangeOfString: @"<State>"].length == 0
+                    && [s rangeOfString: @"<PostalCode>"].length == 0),
+                   @"no invented components for a three-line address");
+}
+
+- (void) test_invalidGeoValueIsIgnored
+{
+  iCalEvent *event;
+  WOContext *context;
+  NSString *s;
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6236-badgeo\r\n"
+                     @"SUMMARY:Termin\r\n"
+                     @"DTSTART:20260811T190000Z\r\n"
+                     @"DTEND:20260811T210000Z\r\n"
+                     @"LOCATION:Oslo S\r\n"
+                     @"GEO:nonsense\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  s = [event activeSyncRepresentationInContext: context];
+
+  testWithMessage (([s rangeOfString: @"<Latitude>"].length == 0
+                    && [s rangeOfString: @"<Longitude>"].length == 0),
+                   @"an unparseable GEO must not produce coordinates");
+  testWithMessage ([s rangeOfString: @"<DisplayName>Oslo S</DisplayName>"].length > 0,
+                   @"an unparseable GEO must not prevent the location");
+}
+
+- (void) test_flatLocationAcceptedBeforeProtocol16
+{
+  WOContext *context;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+
+  event = [self _minimalEvent];
+  [event takeActiveSyncValues: [NSDictionary dictionaryWithObject: @"Oslo S"
+                                                           forKey: @"Location"]
+                    inContext: context];
+
+  testEquals ([event location], @"Oslo S");
+  testWithMessage ([event firstChildWithTag: @"x-apple-structured-location"] == nil,
+                   @"no structured location must be stored before EAS 16.0");
 }
 
 @end

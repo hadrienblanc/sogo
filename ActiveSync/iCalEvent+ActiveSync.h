@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (NSString *) activeSyncStartTimeInContext: (WOContext *) context;
 - (NSString *) activeSyncEndTimeInContext: (WOContext *) context;
+- (NSString *) activeSyncStructuredLocationInContext: (WOContext *) context;
 - (BOOL) hasActiveSyncScheduleChange: (NSDictionary *) theValues
                            inContext: (WOContext *) context;
 - (NSString *) activeSyncRepresentationInContext: (WOContext *) context;

@@ -161,6 +161,228 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   return NO;
 }
 
+static BOOL _isNumericCoordinate (NSString * aValue)
+{
+  NSUInteger i, max;
+  unichar c;
+
+  max = [aValue length];
+  if (!max)
+    return NO;
+
+  for (i = 0; i < max; i++)
+    {
+      c = [aValue characterAtIndex: i];
+      if (!((c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+'))
+        return NO;
+    }
+
+  return YES;
+}
+
+static NSString * _unquotedValue (NSString * aValue)
+{
+  if ([aValue length] > 1 && [aValue hasPrefix: @"\""] && [aValue hasSuffix: @"\""])
+    return [aValue substringWithRange: NSMakeRange (1, [aValue length] - 2)];
+
+  return aValue;
+}
+
+- (NSArray *) _coordinatePartsFromValue: (NSString *) aValue
+{
+  NSArray *parts;
+
+  parts = nil;
+
+  if ([aValue length])
+    {
+      parts = [aValue componentsSeparatedByString: @";"];
+      if ([parts count] != 2)
+        parts = [aValue componentsSeparatedByString: @","];
+
+      if ([parts count] == 2)
+        {
+          if (!_isNumericCoordinate ([parts objectAtIndex: 0])
+              || !_isNumericCoordinate ([parts objectAtIndex: 1]))
+            parts = nil;
+        }
+      else
+        parts = nil;
+    }
+
+  return parts;
+}
+
+- (NSString *) activeSyncStructuredLocationInContext: (WOContext *) context
+{
+  CardElement *structured;
+  NSMutableString *s;
+  NSDictionary *addressFields;
+  NSString *displayName, *geo, *uri, *address, *value;
+  NSArray *addressParts, *coordinateParts, *addressKeys;
+  int i;
+
+  structured = [self firstChildWithTag: @"x-apple-structured-location"];
+
+  displayName = [self location];
+  if (![displayName length])
+    displayName = (structured ? _unquotedValue ([structured value: 0 ofAttribute: @"X-TITLE"]) : nil);
+  if (![displayName length])
+    displayName = nil;
+
+  geo = [[self firstChildWithTag: @"geo"] flattenedValuesForKey: @""];
+  coordinateParts = [self _coordinatePartsFromValue: geo];
+
+  uri = (structured ? [structured flattenedValuesForKey: @""] : nil);
+  if (![uri length] || ([uri rangeOfString: @":"].location == NSNotFound))
+    uri = nil;
+
+  if (!coordinateParts && [uri hasPrefix: @"geo:"])
+    coordinateParts = [self _coordinatePartsFromValue: [uri substringFromIndex: 4]];
+
+  address = (structured ? _unquotedValue ([structured value: 0 ofAttribute: @"X-ADDRESS"]) : nil);
+  if ([address length])
+    address = [address stringByReplacingString: @"\\n" withString: @"\n"];
+  addressParts = nil;
+  if ([address length])
+    {
+      addressParts = [address componentsSeparatedByString: @"\n"];
+      if (![addressParts count] || ([addressParts count] != 3 && [addressParts count] != 5))
+        addressParts = nil;
+    }
+
+  if (addressParts)
+    {
+      if ([addressParts count] == 5)
+        addressFields = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   [addressParts objectAtIndex: 0], @"Street",
+                                   [addressParts objectAtIndex: 1], @"City",
+                                   [addressParts objectAtIndex: 2], @"State",
+                                   [addressParts objectAtIndex: 3], @"PostalCode",
+                                   [addressParts objectAtIndex: 4], @"Country",
+                                   nil];
+      else
+        addressFields = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   [addressParts objectAtIndex: 0], @"Street",
+                                   [addressParts objectAtIndex: 1], @"City",
+                                   [addressParts objectAtIndex: 2], @"Country",
+                                   nil];
+    }
+  else
+    addressFields = nil;
+
+  if (displayName || addressFields || coordinateParts || uri)
+    {
+      s = [NSMutableString stringWithString: @"<Location xmlns=\"AirSyncBase:\">"];
+
+      if (displayName)
+        [s appendFormat: @"<DisplayName>%@</DisplayName>", [displayName activeSyncRepresentationInContext: context]];
+
+      if (addressFields)
+        {
+          addressKeys = [NSArray arrayWithObjects: @"Street", @"City", @"State",
+                                  @"Country", @"PostalCode", nil];
+          for (i = 0; i < [addressKeys count]; i++)
+            {
+              value = [addressFields objectForKey: [addressKeys objectAtIndex: i]];
+              if ([value length])
+                [s appendFormat: @"<%@>%@</%@>",
+                         [addressKeys objectAtIndex: i],
+                         [value activeSyncRepresentationInContext: context],
+                         [addressKeys objectAtIndex: i]];
+            }
+        }
+
+      if (coordinateParts)
+        {
+          [s appendFormat: @"<Latitude>%f</Latitude>", [[coordinateParts objectAtIndex: 0] doubleValue]];
+          [s appendFormat: @"<Longitude>%f</Longitude>", [[coordinateParts objectAtIndex: 1] doubleValue]];
+        }
+
+      if (uri)
+        [s appendFormat: @"<LocationUri>%@</LocationUri>", [uri activeSyncRepresentationInContext: context]];
+
+      [s appendString: @"</Location>"];
+    }
+  else
+    s = nil;
+
+  return s;
+}
+
+- (void) _takeActiveSyncStructuredLocation: (NSDictionary *) theLocation
+{
+  CardElement *geo, *structured;
+  NSMutableArray *addressParts;
+  NSString *uri, *value;
+  NSArray *addressKeys, *groups;
+  double latitude, longitude;
+  BOOL hasCoordinates, hasAddress;
+  unsigned int i;
+
+  [self removeChildren: [self childrenWithTag: @"geo"]];
+  [self removeChildren: [self childrenWithTag: @"x-apple-structured-location"]];
+
+  hasCoordinates = ([[theLocation objectForKey: @"Latitude"] length]
+                    && [[theLocation objectForKey: @"Longitude"] length]);
+  latitude = [[theLocation objectForKey: @"Latitude"] doubleValue];
+  longitude = [[theLocation objectForKey: @"Longitude"] doubleValue];
+
+  uri = [theLocation objectForKey: @"LocationUri"];
+  if (![uri length])
+    uri = nil;
+
+  addressKeys = [NSArray arrayWithObjects: @"Street", @"City", @"State",
+                          @"PostalCode", @"Country", nil];
+  addressParts = [NSMutableArray arrayWithCapacity: [addressKeys count]];
+  hasAddress = NO;
+  for (i = 0; i < [addressKeys count]; i++)
+    {
+      value = [theLocation objectForKey: [addressKeys objectAtIndex: i]];
+      if (![value length])
+        value = @"";
+      else
+        hasAddress = YES;
+      [addressParts addObject: value];
+    }
+
+  if (hasCoordinates)
+    {
+      geo = [self uniqueChildWithTag: @"geo"];
+      [geo setValues: [NSArray arrayWithObject: [NSString stringWithFormat: @"%f", latitude]]
+             atIndex: 0 forKey: @""];
+      [geo setValues: [NSArray arrayWithObject: [NSString stringWithFormat: @"%f", longitude]]
+             atIndex: 1 forKey: @""];
+    }
+
+  if (!uri && hasCoordinates)
+    uri = [NSString stringWithFormat: @"geo:%f,%f", latitude, longitude];
+
+  if (uri || hasAddress)
+    {
+      structured = [[CardElement alloc] init];
+      [structured setTag: @"X-APPLE-STRUCTURED-LOCATION"];
+      [structured addAttribute: @"VALUE" value: @"URI"];
+      if (hasAddress)
+        [structured addAttribute: @"X-ADDRESS"
+                            value: [NSString stringWithFormat: @"\"%@\"",
+                                     [addressParts componentsJoinedByString: @"\n"]]];
+      if ([[theLocation objectForKey: @"DisplayName"] length])
+        [structured addAttribute: @"X-TITLE"
+                            value: [NSString stringWithFormat: @"\"%@\"",
+                                     [theLocation objectForKey: @"DisplayName"]]];
+      if (uri)
+        {
+          groups = [uri componentsSeparatedByString: @";"];
+          for (i = 0; i < [groups count]; i++)
+            [structured setValues: [[groups objectAtIndex: i] componentsSeparatedByString: @","]
+                          atIndex: i forKey: @""];
+        }
+      [self addChild: structured];
+      [structured release];
+    }
+}
+
 - (NSString *) activeSyncRepresentationInContext: (WOContext *) context
 {
   NSMutableString *s;
@@ -291,13 +513,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     [s appendFormat: @"<Subject xmlns=\"Calendar:\">%@</Subject>", [[self summary] activeSyncRepresentationInContext: context]];
   
   // Location
-  if ([[self location] length])
+  if ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0)
     {
-      if ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0)
-        [s appendFormat: @"<Location xmlns=\"AirSyncBase:\"><DisplayName>%@</DisplayName></Location>", [[self location] activeSyncRepresentationInContext: context]];
-      else
-         [s appendFormat: @"<Location xmlns=\"Calendar:\">%@</Location>", [[self location] activeSyncRepresentationInContext: context]];
+      if ((o = [self activeSyncStructuredLocationInContext: context]))
+        [s appendString: o];
     }
+  else if ([[self location] length])
+    [s appendFormat: @"<Location xmlns=\"Calendar:\">%@</Location>", [[self location] activeSyncRepresentationInContext: context]];
   
   // Importance - NOT SUPPORTED - DO NOT ENABLE
   //o = [self priority];
@@ -587,7 +809,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   if ([[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0 && (o = [theValues objectForKey: @"Location"]))
     [self setLocation: o];
   else if ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0 && (o = [theValues objectForKey: @"Location"]) && [o isKindOfClass: [NSDictionary class]])
-    [self setLocation: [o objectForKey: @"DisplayName"]];
+    {
+      [self setLocation: [o objectForKey: @"DisplayName"]];
+      [self _takeActiveSyncStructuredLocation: o];
+    }
 
   deltasecs = 0;
   start = nil;
