@@ -50,7 +50,6 @@ $(TEST_TOOL)_OBJC_FILES += \
 TEST_TOOL_NAME = $(TEST_TOOL)
 
 $(TEST_TOOL)_CPPFLAGS += \
-	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange `xml2-config --cflags`
 	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange $(shell xml2-config --cflags)
 
 ADDITIONAL_LIB_DIRS += \
