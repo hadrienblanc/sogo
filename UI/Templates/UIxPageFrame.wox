@@ -128,6 +128,10 @@
             // This is the equivalent of an AJAX call to /SOGo/so/_UserLogin_/date
             var currentDay = <var:string value="currentDayDescription" const:escapeHTML="NO"/>;
 
+            <var:if condition="hasCKEditorUserAgentOverride">
+              Object.defineProperty(navigator, 'userAgent', { get: function () { return '<var:string value="ckEditorUserAgentOverride" const:escapeHTML="NO"/>'; } });
+            </var:if>
+
             <var:string value="commonLocalizableStrings" const:escapeHTML="NO" />
             <var:string value="productLocalizableStrings" const:escapeHTML="NO" />
           </script>

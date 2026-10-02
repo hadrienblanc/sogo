@@ -149,6 +149,17 @@
   return [self value: 0 ofAttribute: @"role"];
 }
 
+- (NSString *) roleWithDefault
+{
+  NSString *s;
+
+  s = [self role];
+  if ([s length] > 0)
+    return s;
+
+  return @"REQ-PARTICIPANT";
+}
+
 - (void)setPartStat:(NSString *)_s
 {
   [self setValue: 0 ofAttribute: @"partstat" to: _s];

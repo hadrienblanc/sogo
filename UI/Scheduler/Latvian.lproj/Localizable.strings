@@ -245,6 +245,7 @@
 "All day Event" = "Visas dienas notikums";
 "check for conflicts" = "Pārbaudi, vai nav konfliktu";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Pievienot dalībnieku";
 
 /* calendar modes */

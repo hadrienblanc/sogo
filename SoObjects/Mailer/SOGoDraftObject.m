@@ -1268,6 +1268,9 @@ static NSString    *userAgent      = nil;
                                            reason: @"Missing attachment content!"];
     }
 
+  if ([_attach isKindOfClass: [NSString class]])
+    _attach = [(NSString *) _attach dataUsingEncoding: NSUTF8StringEncoding];
+
   if (![self _ensureDraftFolderPath])
     {
       return [NSException exceptionWithHTTPStatus: 500 /* Server Error */
@@ -1340,6 +1343,16 @@ static NSString    *userAgent      = nil;
                                             reason: @"Could not delete attachment from draft!"];
 
   return error;
+}
+
+- (void) deleteAttachmentsWithNames: (NSArray *) theNames
+{
+  NSEnumerator *names;
+  NSString *currentName;
+
+  names = [theNames objectEnumerator];
+  while ((currentName = [names nextObject]))
+    [self deleteAttachmentWithName: currentName];
 }
 
 //
@@ -1511,7 +1524,7 @@ static NSString    *userAgent      = nil;
   NGMimeBodyPart   *bodyPart;
   NSString         *s;
   NSData           *content;
-  BOOL             attachAsString, attachAsRFC822;
+  BOOL             attachAsRFC822;
   NSString         *p;
   id body;
 
@@ -1525,7 +1538,6 @@ static NSString    *userAgent      = nil;
     [self errorWithFormat: @"did not find attachment: '%@'", _name];
     return nil;
   }
-  attachAsString = NO;
   attachAsRFC822 = NO;
 
   /* prepare header of body part */
@@ -1534,9 +1546,7 @@ static NSString    *userAgent      = nil;
 
   if ((s = [self contentTypeForAttachmentWithName:_name]) != nil) {
     [map setObject: s forKey: @"content-type"];
-    if ([s hasPrefix: @"text/plain"] || [s hasPrefix: @"text/html"])
-      attachAsString = YES;
-    else if ([s hasPrefix: @"message/rfc822"])
+    if ([s hasPrefix: @"message/rfc822"])
       attachAsRFC822 = YES;
   }
   if ((s = [self bodyIdForAttachmentWithName:_name]) != nil) {
@@ -1553,48 +1563,28 @@ static NSString    *userAgent      = nil;
 
   /* prepare body content */
 
-  if (attachAsString) { // TODO: is this really necessary?
-    NSString *s;
+  /*
+    Note: in OGo this is done in LSWImapMailEditor.m:2477. Apparently
+    NGMimeFileData objects are not processed by the MIME generator!
+  */
+  content = [[NSData alloc] initWithContentsOfMappedFile:p];
+  [content autorelease];
 
-    content = [[NSData alloc] initWithContentsOfMappedFile:p];
-
-    s = [[NSString alloc] initWithData: content
-                              encoding: [NSString defaultCStringEncoding]];
-    if (s != nil) {
-      body = s;
-      [content release]; content = nil;
+  if (attachAsRFC822)
+    {
+      [map setObject: @"8bit" forKey: @"content-transfer-encoding"];
     }
-    else {
-      [self warnWithFormat:
-              @"could not get text attachment as string: '%@'", _name];
-      body = content;
-      content = nil;
+  else
+    {
+      content = [content dataByEncodingBase64];
+      [map setObject: @"base64" forKey: @"content-transfer-encoding"];
     }
-  }
-  else {
-    /*
-      Note: in OGo this is done in LSWImapMailEditor.m:2477. Apparently
-      NGMimeFileData objects are not processed by the MIME generator!
-    */
-    content = [[NSData alloc] initWithContentsOfMappedFile:p];
-    [content autorelease];
+  [map setObject: [NSNumber numberWithInt: [content length]]
+          forKey: @"content-length"];
 
-    if (attachAsRFC822)
-      {
-        [map setObject: @"8bit" forKey: @"content-transfer-encoding"];
-      }
-    else
-      {
-	content = [content dataByEncodingBase64];
-        [map setObject: @"base64" forKey: @"content-transfer-encoding"];
-      }
-    [map setObject: [NSNumber numberWithInt: [content length]]
-            forKey: @"content-length"];
-
-    /* Note: the -init method will create a temporary file! */
-    body = [[NGMimeFileData alloc] initWithBytes:[content bytes]
-                                          length:[content length]];
-  }
+  /* Note: the -init method will create a temporary file! */
+  body = [[NGMimeFileData alloc] initWithBytes:[content bytes]
+                                        length:[content length]];
 
   bodyPart = [[[NGMimeBodyPart alloc] initWithHeader:map] autorelease];
   [bodyPart setBody:body];
@@ -2411,7 +2401,8 @@ static NSString    *userAgent      = nil;
   //  - SOGoMailKeepDraftsAfterSend is not set;
   //  - draft is successfully deleted;
   //  - drafts mailbox exists.
-  [self delete];
+  if (!error)
+    [self delete];
   if (!error &&
       ![dd mailKeepDraftsAfterSend] &&
       [imap4 doesMailboxExistAtURL: [container imap4URL]])

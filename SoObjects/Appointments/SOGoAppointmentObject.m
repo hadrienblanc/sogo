@@ -2620,7 +2620,7 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
   BOOL mustUpdate;
   
   rq = [_ctx request];
-  rqCalendar = [iCalCalendar parseSingleFromSource: [rq contentAsString]];
+  rqCalendar = [iCalCalendar parseSingleFromSource: [rq davBodyAsString]];
   mustUpdate = YES;
   ex = nil;
 

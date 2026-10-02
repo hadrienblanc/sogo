@@ -44,6 +44,8 @@
 + (id) distantFuture;
 + (id) distantPast;
 
+- (NSCalendarDate *) dateByClampingToInt32EpochRange;
+
 @end
 
 #endif /* NSCALENDARDATE_SCHEDULER_H */

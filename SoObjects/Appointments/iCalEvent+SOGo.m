@@ -26,6 +26,7 @@
 #import <NGExtensions/NSObject+Logs.h>
 
 #import <NGCards/iCalCalendar.h>
+#import <NGCards/iCalByDayMask.h>
 #import <NGCards/iCalDateTime.h>
 #import <NGCards/iCalPerson.h>
 #import <NGCards/iCalRecurrenceRule.h>
@@ -347,6 +348,59 @@
 }
 
 /**
+ * Move the start and end dates of the event forward to the first day
+ * of the current week accepted by the weekly recurrence rule, as
+ * required by RFC 5545 (DTSTART synchronized with BYDAY).
+ * @see [UIxAppointmentEditor saveAction]
+ */
+- (void) synchronizeStartDateWithRecurrenceRule
+{
+  NSCalendarDate *startDate, *endDate, *currentDate;
+  iCalRecurrenceRule *rule;
+  iCalByDayMask *dayMask;
+  NSInteger delta, i;
+
+  if ([self recurrenceId] || ![[self recurrenceRules] count])
+    return;
+
+  rule = [[self recurrenceRules] objectAtIndex: 0];
+  if ([rule frequency] != iCalRecurrenceFrequenceWeekly)
+    return;
+
+  dayMask = [rule byDayMask];
+  if (dayMask == nil)
+    return;
+
+  startDate = [self startDate];
+  if ([dayMask occursOnDay: [startDate dayOfWeek]])
+    return;
+
+  delta = 0;
+  currentDate = startDate;
+  for (i = 1; i <= 6 && delta == 0; i++)
+    {
+      currentDate = [currentDate dateByAddingYears: 0 months: 0 days: 1];
+      if ([dayMask occursOnDay: [currentDate dayOfWeek]])
+        delta = i;
+    }
+
+  if (delta == 0)
+    return;
+
+  if ([self isAllDay])
+    {
+      endDate = [self endDate];
+      [self setAllDayWithStartDate: [startDate dateByAddingYears: 0 months: 0 days: delta]
+                          duration: (unsigned int) round ([endDate timeIntervalSinceDate: startDate] / 86400.0)];
+    }
+  else
+    {
+      [self setStartDate: [startDate dateByAddingYears: 0 months: 0 days: delta]];
+      [self setEndDate: [[self endDate] dateByAddingYears: 0 months: 0 days: delta]];
+    }
+}
+
+/**
  * @see [iCalRepeatableEntityObject+SOGo attributes]
  * @see [iCalEntityObject+SOGo attributes]
  * @see [UIxAppointmentEditor viewAction]
@@ -437,6 +491,8 @@
           [self setStartDate: aptStartDate];
           [self setEndDate: aptEndDate];
         }
+
+      [self synchronizeStartDateWithRecurrenceRule];
     }
 
   if (!isAllDay)

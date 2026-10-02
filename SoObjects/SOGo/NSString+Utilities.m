@@ -24,6 +24,7 @@
 #import <NGExtensions/NSDictionary+misc.h>
 #import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NGBase64Coding.h>
+#import <NGExtensions/NSString+misc.h>
 
 #import <NGMime/NGMimeHeaderFieldGenerator.h>
 #import <SBJson/SBJsonParser.h>
@@ -101,6 +102,21 @@ static int cssEscapingCount;
     newUrl = self;
 
   return newUrl;
+}
+
+- (NSString *) variantByUnescapingURL
+{
+  NSString *variant;
+
+  variant = nil;
+  if ([self containsURLEscapeCharacters])
+    {
+      variant = [self stringByUnescapingURL];
+      if ([variant isEqualToString: self])
+        variant = nil;
+    }
+
+  return variant;
 }
 
 - (NSRange) _rangeOfURLInRange: (NSRange) refRange
@@ -616,6 +632,91 @@ static int cssEscapingCount;
 }
 
 
+- (NSString *) stringByEncodingImap4LabelName
+{
+  NSMutableString *encoded;
+  unichar currentChar;
+  NSUInteger count, max;
+  BOOL isAtomSafe;
+
+  max = [self length];
+  isAtomSafe = (max > 0);
+  for (count = 0; isAtomSafe && count < max; count++)
+    {
+      currentChar = [self characterAtIndex: count];
+      if (currentChar <= 0x20 || currentChar >= 0x7F
+          || currentChar == '(' || currentChar == ')'
+          || currentChar == '{' || currentChar == '}'
+          || currentChar == '%' || currentChar == '*'
+          || currentChar == '"' || currentChar == '\\'
+          || currentChar == ']')
+        isAtomSafe = NO;
+    }
+
+  if (isAtomSafe)
+    return self;
+
+  encoded = [NSMutableString stringWithCapacity: 4 + (max * 4)];
+  [encoded appendString: @"_u7_"];
+  for (count = 0; count < max; count++)
+    [encoded appendFormat: @"%04x", [self characterAtIndex: count]];
+
+  return encoded;
+}
+
+- (NSString *) stringByDecodingImap4LabelName
+{
+  NSString *decoded;
+  unichar *characters;
+  unichar currentChar;
+  unsigned int value;
+  NSUInteger count, digit, max;
+  BOOL isHex;
+
+  if (![self hasPrefix: @"_u7_"])
+    return self;
+
+  decoded = [self substringFromIndex: 4];
+  max = [decoded length];
+  isHex = (max > 0 && (max % 4) == 0);
+  for (count = 0; isHex && count < max; count++)
+    {
+      currentChar = [decoded characterAtIndex: count];
+      if (!((currentChar >= '0' && currentChar <= '9')
+            || (currentChar >= 'a' && currentChar <= 'f')
+            || (currentChar >= 'A' && currentChar <= 'F')))
+        isHex = NO;
+    }
+
+  if (!isHex)
+    return self;
+
+  characters = NSZoneMalloc (NULL, ((max / 4) + 1) * sizeof (unichar));
+  for (count = 0; count < max / 4; count++)
+    {
+      value = 0;
+      for (digit = 0; digit < 4; digit++)
+        {
+          currentChar = [decoded characterAtIndex: (count * 4) + digit];
+          value <<= 4;
+          if (currentChar >= '0' && currentChar <= '9')
+            value += currentChar - '0';
+          else if (currentChar >= 'a' && currentChar <= 'f')
+            value += currentChar - 'a' + 10;
+          else
+            value += currentChar - 'A' + 10;
+        }
+      characters[count] = (unichar) value;
+    }
+
+  characters[max / 4] = 0;
+  decoded = [NSString stringWithCharacters: characters length: max / 4];
+  NSZoneFree (NULL, characters);
+
+  return decoded;
+}
+
+
 - (NSString *) mailDomain
 {
   NSArray *mailSeparated;
@@ -807,6 +908,23 @@ static int cssEscapingCount;
   return count;
 }
 
+- (NSString *) stringByReplacingFirstOccurrenceOfString: (NSString *) target
+                                             withString: (NSString *) replacement
+{
+  NSMutableString *newString;
+  NSRange range;
+
+  range = [self rangeOfString: target];
+  if (range.location == NSNotFound)
+    return self;
+
+  newString = [NSMutableString stringWithString: self];
+  [newString replaceCharactersInRange: range
+                           withString: replacement];
+
+  return newString;
+}
+
 - (NSString *) stringByReplacingPrefix: (NSString *) oldPrefix
                             withPrefix: (NSString *) newPrefix
 {
@@ -906,6 +1024,18 @@ static int cssEscapingCount;
   return result;
 }
 
+static NSString * ReplaceRegexMatches(NSString *string, NSRegularExpression *regex, NSString *template)
+{
+  NSString *result;
+
+  result = [regex stringByReplacingMatchesInString: string
+                                            options: 0
+                                              range: NSMakeRange(0, [string length])
+                                       withTemplate: template];
+
+  return (result != nil) ? result : @"";
+}
+
 /**
  * Remove all HTML tags except for <a> </a>
  * @return A clean string
@@ -918,7 +1048,7 @@ static int cssEscapingCount;
     error = nil;
     
     regex = [NSRegularExpression regularExpressionWithPattern: @"<(?!a|\\/a\\b)[^>]*>" options: NSRegularExpressionCaseInsensitive error: &error];
-    stringWithoutHTML = [regex stringByReplacingMatchesInString: self options: 0 range: NSMakeRange(0, [self length]) withTemplate:@""];
+    stringWithoutHTML = ReplaceRegexMatches(self, regex, @"");
 
     if (error) {
       [self logWithFormat: @"Error while removing tags : %@", [error localizedDescription]];
@@ -933,6 +1063,42 @@ static int cssEscapingCount;
  * @param stripHTMLCode Remove all HTML code from content
  * @return A safe string
  */
+
+/* GNUstep-base regex replacements with an empty template misbehave when the
+   result is empty (no-op or nil, depending on the variant), so deletions
+   are performed by concatenating the unmatched parts ourselves */
+static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *regex)
+{
+  NSMutableString *result;
+  NSArray *matches;
+  NSEnumerator *enumerator;
+  NSTextCheckingResult *match;
+  NSUInteger position;
+
+  result = [NSMutableString stringWithCapacity: [string length]];
+  matches = [regex matchesInString: string
+                            options: 0
+                              range: NSMakeRange(0, [string length])];
+  position = 0;
+  enumerator = [matches objectEnumerator];
+
+  while ((match = [enumerator nextObject]))
+    {
+      NSRange range;
+
+      range = [match range];
+      if (range.location > position)
+        [result appendString:
+                   [string substringWithRange:
+                              NSMakeRange(position, range.location - position)]];
+      position = range.location + range.length;
+    }
+  if (position < [string length])
+    [result appendString: [string substringFromIndex: position]];
+
+  return result;
+}
+
 - (NSString *) stringWithoutHTMLInjection: (BOOL)stripHTMLCode stripAngular: (BOOL)stripAngular
 {
   NSString *result, *text, *newResult;
@@ -987,55 +1153,47 @@ static int cssEscapingCount;
       // loop until stable: a single pass lets nested tokens reconstruct
       // the scheme, e.g. "javajavascript:script:" -> "javascript:"
       while ([regex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@""];
-        result = [NSString stringWithString: newResult];
+        result = RemoveRegexMatches(result, regex);
       }
 
       // Remove vbscript:
       regex = [NSRegularExpression regularExpressionWithPattern:@"v[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*b[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*:"
                                   options: NSRegularExpressionCaseInsensitive error:&error];
       while ([regex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@""];
-        result = [NSString stringWithString: newResult];
+        result = RemoveRegexMatches(result, regex);
       }
 
       // Remove livescript:
       regex = [NSRegularExpression regularExpressionWithPattern:@"l[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*v[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*:"
                                   options: NSRegularExpressionCaseInsensitive error:&error];
       while ([regex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@""];
-        result = [NSString stringWithString: newResult];
+        result = RemoveRegexMatches(result, regex);
       }
 
       // Remove <script
-      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t" 
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"<scr***"];
-      result = [NSString stringWithString: newResult];
+      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t"
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, regex, @"<scr***");
 
       // Remove </script
-      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*/[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t" 
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"</scr***"];
-      result = [NSString stringWithString: newResult];
+      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*/[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t"
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, regex, @"</scr***");
 
       // Remove <iframe
-      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*f[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*a[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e" 
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"<ifr***"];
-      result = [NSString stringWithString: newResult];
+      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*f[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*a[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e"
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, regex, @"<ifr***");
 
       // Remove <form
-      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*f[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*o[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m" 
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"<for*"];
-      result = [NSString stringWithString: newResult];
+      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*f[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*o[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m"
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, regex, @"<for*");
 
       // Remove </form
-      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*/[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*f[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*o[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m" 
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"</for*"];
-      result = [NSString stringWithString: newResult];
+      regex = [NSRegularExpression regularExpressionWithPattern:@"<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*/[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*f[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*o[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m"
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, regex, @"</for*");
 
       // Remove ANY inline event handler (on...=) in one rule instead of an
       // incomplete allow list. This also covers obfuscation by whitespace
@@ -1043,15 +1201,13 @@ static int cssEscapingCount;
       // before (onfocus, onbegin, onanimationstart, ...). With onfocus gone,
       // a lone "autofocus" has no handler left to trigger.
       regex = [NSRegularExpression regularExpressionWithPattern:@"\\bon(click|error|focus|load|mouseover|animationstart)[\\s\\u200B&#x09;&#x0A;&#x0D;\\r\\n\\t]*="
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"data-blocked="];
-      result = [NSString stringWithString: newResult];
-      
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, regex, @"data-blocked=");
+
       // Remove @import css (in style tags)
-      importRegex = [NSRegularExpression regularExpressionWithPattern:@"(<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*y[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*l[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e.*)([\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*@[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*o[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t)(.*<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*\\/[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*y[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*l[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*>)" 
-                                  options: NSRegularExpressionCaseInsensitive error:&error];
-      newResult = [importRegex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"$1@im****$3"];
-      result = [NSString stringWithString: newResult];
+      importRegex = [NSRegularExpression regularExpressionWithPattern:@"(<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*y[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*l[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e.*)([\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*@[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*m[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*o[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t)(.*<[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*\\/[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*y[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*l[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*>)"
+                                   options: NSRegularExpressionCaseInsensitive error:&error];
+      result = ReplaceRegexMatches(result, importRegex, @"$1@im****$3");
 
 
       if(stripAngular) {
@@ -1061,21 +1217,17 @@ static int cssEscapingCount;
         // any of them back to a brace before AngularJS parses the node.
         regex = [NSRegularExpression regularExpressionWithPattern:@"(\\{\\{)|(&#x0*7b;&#x0*7b;)|(&#0*123;&#0*123;)"
                                     options: NSRegularExpressionCaseInsensitive error:&error];
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"{\\\\{"];
-        result = [NSString stringWithString: newResult];
+        result = ReplaceRegexMatches(result, regex, @"{\\\\{");
         regex = [NSRegularExpression regularExpressionWithPattern:@"(\\}\\})|(&#x0*7d;&#x0*7d;)|(&#0*125;&#0*125;)"
                                     options: NSRegularExpressionCaseInsensitive error:&error];
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@"}/}"];
-        result = [NSString stringWithString: newResult];
+        result = ReplaceRegexMatches(result, regex, @"}/}");
       }
 
-      newResult = result;
-      while([importRegex numberOfMatchesInString:newResult options:0 range:NSMakeRange(0, [newResult length])] > 0) {
-        newResult = [importRegex stringByReplacingMatchesInString:newResult options:0 range:NSMakeRange(0, [newResult length]) withTemplate:@"$1@im****$3"];
+      while([importRegex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
+        result = ReplaceRegexMatches(result, importRegex, @"$1@im****$3");
       }
-      result = [NSString stringWithString: newResult];
     }
-  }  
+  }
   NS_HANDLER
   {
     [self logWithFormat: @"Error while stripping HTML injection : %@", [localException name]];
@@ -1094,6 +1246,25 @@ static int cssEscapingCount;
   s = [s stringByReplacingOccurrencesOfString:@"<!--<!" withString:@"<!--"];
 
   return s;
+}
+
+- (NSString *) ckEditorUserAgentOverride
+{
+  NSRange matched;
+  NSString *geckoVersion;
+
+  if ([self rangeOfString: @"Android"].location == NSNotFound)
+    return nil;
+
+  matched = [self rangeOfString: @"Gecko/[0-9]+"
+                         options: NSRegularExpressionSearch];
+  if (matched.location == NSNotFound)
+    return nil;
+
+  geckoVersion = [self substringWithRange: NSMakeRange(matched.location + 6, matched.length - 6)];
+
+  return [NSString stringWithFormat: @"Mozilla/5.0 (X11; Linux x86_64) Gecko/%@ Firefox/%@",
+                   geckoVersion, geckoVersion];
 }
 
 @end

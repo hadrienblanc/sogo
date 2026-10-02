@@ -22,6 +22,7 @@
     // Data is immediately available
     if (typeof futureMessageData.then !== 'function') {
       //console.debug(JSON.stringify(futureMessageData, undefined, 2));
+      this.flags = [];
       if (angular.isUndefined(lazy) || !lazy) {
         this.init(futureMessageData);
       }
@@ -29,7 +30,6 @@
       this.selected = !!futureMessageData.selected;
       this.level = parseInt(futureMessageData.level);
       this.first = parseInt(futureMessageData.first) === 1;
-      this.flags = [];
       if (this.first) {
         this.threadCount = parseInt(futureMessageData.count);
         this.collapsed = (futureMessageData.collapsed === true);
@@ -66,10 +66,8 @@
     } else {
       Message.$tags = {};
     }
-    if (Preferences.defaults.SOGoMailDisplayRemoteInlineImages &&
-      Preferences.defaults.SOGoMailDisplayRemoteInlineImages == 'always') {
-      Message.$displayRemoteInlineImages = true;
-    }
+    Message.$displayRemoteInlineImages
+      = Preferences.defaults.SOGoMailDisplayRemoteInlineImages || 'never';
 
     return Message; // return constructor
   }];
@@ -425,7 +423,11 @@
           }
           if (part.type == 'UIxMailPartHTMLViewer') {
             part.html = true;
-            if (_this.$loadUnsafeContent || Message.$displayRemoteInlineImages) {
+            if (_this.$loadUnsafeContent
+              || ((_this.$mailbox || { type: '' }).type != 'junk'
+                  && (Message.$displayRemoteInlineImages == 'always'
+                      || (Message.$displayRemoteInlineImages == 'known'
+                          && _this.senderInAddressBook)))) {
               if (angular.isUndefined(part.unsafeContent)) {
                 part.unsafeContent = document.createElement('div');
                 part.unsafeContent.innerHTML = part.safeContent;

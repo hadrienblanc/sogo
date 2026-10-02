@@ -24,11 +24,14 @@
 #import <NGCards/iCalPerson.h>
 
 @class NSString;
+@class SOGoUser;
+@class WOContext;
 
 @interface iCalPerson (SOGoExtension)
 
 - (NSString *) mailAddress;
 - (NSString *) uid;
+- (NSString *) uidForUser: (SOGoUser *) user;
 - (NSString *) uidInDomain: (NSString *) domain;
 - (NSString *) uidInContext: (WOContext *) context;
 - (NSString *) contactIDInContext: (WOContext *) context;

@@ -59,6 +59,7 @@
 
 - (void) addCardReference: (NGVCardReference *) newCardRef;
 - (void) deleteCardReference: (NGVCardReference *) cardRef;
+- (NGVCardReference *) cardReferenceForReference: (NSString *) cardRef;
 - (NSArray *) cardReferences;
 
 @end

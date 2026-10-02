@@ -21,6 +21,8 @@
 #import <Foundation/NSTimeZone.h>
 #import <Foundation/NSValue.h>
 
+#include <limits.h>
+
 #import <NGExtensions/NSCalendarDate+misc.h>
 
 #import <SOGo/SOGoUser.h>
@@ -189,6 +191,19 @@ static NSString *rfc822Months[] = {@"", @"Jan", @"Feb", @"Mar", @"Apr",
       = [[self alloc] initWithTimeIntervalSinceReferenceDate: secondsOfDistantPast];
 
   return date;
+}
+
+- (NSCalendarDate *) dateByClampingToInt32EpochRange
+{
+  NSTimeInterval ti;
+
+  ti = [self timeIntervalSince1970];
+  if (ti < INT_MIN)
+    return [NSCalendarDate dateWithTimeIntervalSince1970: INT_MIN];
+  if (ti > INT_MAX)
+    return [NSCalendarDate dateWithTimeIntervalSince1970: INT_MAX];
+
+  return self;
 }
 
 @end

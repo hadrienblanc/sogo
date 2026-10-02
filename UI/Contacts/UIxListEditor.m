@@ -177,7 +177,7 @@
   NSDictionary *values;
   NSArray *initialReferences, *refs, *emails, *folders;
   NSDictionary *currentReference;
-  NSString *uid, *workMail, *fn, *newUID;
+  NSString *uid, *memberEmail, *workMail, *fn, *newUID;
   int i, count;
   NGVCardReference *cardReference;
   SOGoContactGCSFolder *folder;
@@ -197,8 +197,6 @@
       if (![refs containsObject: [cardReference reference]])
         [list deleteCardReference: cardReference];
     }
-
-  // TODO: update existing cards?
 
   // Add new cards
   count = [references count];
@@ -222,9 +220,17 @@
 
           uid = [currentReference objectForKey: @"id"];
 
-          
-          if (![self cardReferences: [list cardReferences]
-                            contain: uid])
+          memberEmail = [currentReference objectForKey: @"email"];
+          if (![memberEmail isKindOfClass: [NSString class]])
+            memberEmail = nil;
+
+          cardReference = [list cardReferenceForReference: uid];
+          if (cardReference)
+            {
+              if ([memberEmail length] > 0)
+                [cardReference setEmail: memberEmail];
+            }
+          else
             {
               // Search contact by vCard UID
 	      values = [folder lookupContactWithName: uid];
@@ -233,20 +239,23 @@
                   emails = [[values objectForKey: @"c_mail"] componentsSeparatedByString: @","];
 		  cardReference = [NGVCardReference elementWithTag: @"card"];
 		  [cardReference setFn: [values objectForKey: @"c_cn"]];
-                  if ([emails count])
-                    [cardReference setEmail: [emails objectAtIndex: 0]];
+                  if (![memberEmail length] && [emails count])
+                    memberEmail = [emails objectAtIndex: 0];
+                  if ([memberEmail length])
+                    [cardReference setEmail: memberEmail];
 		  [cardReference setReference: uid];
 
 		  [list addCardReference: cardReference];
 		}
               else if ([currentReference objectForKey:@"sourceid"] && [publicSourceIDs containsObject:[currentReference objectForKey:@"sourceid"]]) {
               // Create reference for shared AB (public)
-              uid = [currentReference objectForKey: @"id"];
               emails = [[currentReference objectForKey: @"c_mail"] componentsSeparatedByString: @","];
               cardReference = [NGVCardReference elementWithTag: @"card"];
               [cardReference setFn: [currentReference objectForKey: @"c_cn"]];
-                          if ([emails count])
-                            [cardReference setEmail: [emails objectAtIndex: 0]];
+              if (![memberEmail length] && [emails count])
+                memberEmail = [emails objectAtIndex: 0];
+              if ([memberEmail length])
+                [cardReference setEmail: memberEmail];
               [cardReference setReference: uid];
 
               [list addCardReference: cardReference];

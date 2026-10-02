@@ -380,7 +380,7 @@ static Class SOGoContactGCSEntryK = Nil;
               o = [o objectForKey: @"value"];
               if (o && [o isKindOfClass: [NSString class]] && [(NSString *) o length] > 0)
                 {
-                  [categories addObject: o];
+                  [categories addObject: [o stringWithoutHTMLInjection: YES stripAngular: NO]];
                 }
             }
         }

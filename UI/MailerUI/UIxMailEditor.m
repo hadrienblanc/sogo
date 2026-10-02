@@ -48,6 +48,7 @@
 #import <Mailer/SOGoMailObject+Draft.h>
 #import <Mailer/SOGoMailFolder.h>
 #import <Mailer/SOGoMailAccount.h>
+#import <Mailer/NSString+Mail.h>
 
 #import <UI/MailPartViewers/UIxMailSizeFormatter.h>
 
@@ -82,6 +83,7 @@
   NSArray  *attachmentAttrs;
   NSString *currentAttachment;
   NSMutableArray *attachedFiles;
+  NSMutableArray *savedAttachments;
 }
 
 @end
@@ -111,6 +113,7 @@ static NSArray *infoKeys = nil;
       currentAttachment = nil;
       attachmentAttrs = nil;
       attachedFiles = nil;
+      savedAttachments = [[NSMutableArray alloc] init];
     }
   
   return self;
@@ -134,6 +137,7 @@ static NSArray *infoKeys = nil;
   [currentAttachment release];
   [attachmentAttrs release];
   [attachedFiles release];
+  [savedAttachments release];
   [currentFolder release];
   [super dealloc];
 }
@@ -533,19 +537,33 @@ static NSArray *infoKeys = nil;
   unsigned int count, max;
   NGMimeBodyPart *part;
   NGMimeContentDispositionHeaderField *header;
-  NSString *mimeType, *filename;
+  NSString *mimeType, *filename, *declaredMimeType;
+  id body;
 
   parts = [httpBody parts];
   max = [parts count];
   files = [NSMutableDictionary dictionaryWithCapacity: max];
+  declaredMimeType = nil;
 
   for (count = 0; count < max; count++)
     {
       part = [parts objectAtIndex: count];
       header = (NGMimeContentDispositionHeaderField *)[part headerForKey: @"content-disposition"];
-      if ([[header name] hasPrefix: @"attachments"])
+      if ([[header name] isEqualToString: @"attachmentMimeType"])
+        {
+          body = [part body];
+          if ([body isKindOfClass: [NSString class]])
+            ASSIGNCOPY(declaredMimeType, body);
+          else if ([body isKindOfClass: [NSData class]])
+            ASSIGNCOPY(declaredMimeType,
+                       [[[NSString alloc] initWithData: body
+                                               encoding: NSUTF8StringEncoding] autorelease]);
+        }
+      else if ([[header name] hasPrefix: @"attachments"])
         {
           mimeType = [(NGMimeType *)[part headerForKey: @"content-type"] stringValue];
+          if ([declaredMimeType length] > 0)
+            mimeType = declaredMimeType;
           filename = [self _fixedFilename: [header filename]];
           file = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                       filename, @"filename",
@@ -555,6 +573,8 @@ static NSArray *infoKeys = nil;
           [files setObject: file forKey: [NSString stringWithFormat: @"%@_%@", [header name], filename]];
         }
     }
+
+  [declaredMimeType release];
 
   return files;
 }
@@ -587,6 +607,8 @@ static NSArray *infoKeys = nil;
     {
       error = [co saveAttachment: (NSData *) [attrs objectForKey: @"body"]
                     withMetadata: attrs];
+      if (!error)
+        [savedAttachments addObject: [attrs objectForKey: @"filename"]];
       // Keep the name of the last attachment saved
       ASSIGN(currentAttachment, [attrs objectForKey: @"filename"]);
     }
@@ -631,7 +653,9 @@ static NSArray *infoKeys = nil;
           // Set a base font size if mail is HTML and user has set a default font-size
           ud = [[context activeUser] userDefaults];
           fontSize = [ud mailComposeFontSize];
-          if (fontSize > 0)
+          if ([text isFullHTMLDocument])
+            content = text;
+          else if (fontSize > 0)
             content = [NSString stringWithFormat: @"<html><span style=\"font-size: %ipx;\">%@</span></html>",
                                 fontSize, text];
           else
@@ -708,11 +732,13 @@ static NSArray *infoKeys = nil;
  */
 - (void) setBase64ImagesInText:(SOGoDraftObject *) draft
 {
-  NSString *contentId, *lText;
+  NSString *contentId, *lText, *inlineImage;
   NGMimeBodyPart *mime;
+  NSArray *draftFileAttachements;
 
-  if ([self isHTML] && [[draft fetchAttachmentAttrs] count] > 0) {
-        for (NSDictionary *draftFileAttachement in [draft fetchAttachmentAttrs]) {
+  if ([self isHTML]) {
+        draftFileAttachements = [draft fetchAttachmentAttrs];
+        for (NSDictionary *draftFileAttachement in draftFileAttachements) {
           mime = [draftFileAttachement objectForKey: @"part"];
           if ([mime isImage]) {
             contentId = [mime contentId];
@@ -723,10 +749,11 @@ static NSArray *infoKeys = nil;
               if ([[mime encoding] isEqualToString: @"base64"] && contentId) {
                 if ([text rangeOfString: contentId].location != NSNotFound) {
                   if (nil != [[mime body] bytes]) {
-                    lText = [text stringByReplacingOccurrencesOfString: contentId 
-                    withString: [NSString stringWithFormat: @"data:%@;base64,%@", 
-                    [[mime contentType] stringValue], 
-                    [NSString stringWithUTF8String: [[mime body] bytes]]]];
+                    inlineImage = [NSString stringWithFormat: @"data:%@;base64,%@",
+                    [[mime contentType] stringValue],
+                    [NSString stringWithUTF8String: [[mime body] bytes]]];
+                    lText = [text stringByReplacingFirstOccurrenceOfString: contentId
+                    withString: inlineImage];
                     [self setText: lText];
                     [draft deleteAttachmentWithName: [draftFileAttachement objectForKey:@"filename"]];
                   }
@@ -817,6 +844,7 @@ static NSArray *infoKeys = nil;
 
       // Prepare response
       attachmentAttrs = nil;
+      [savedAttachments removeAllObjects];
       attrs = [self attachmentAttrs];
       data = [NSDictionary dictionaryWithObjectsAndKeys:
                              [self sourceUID], @"uid",
@@ -826,7 +854,10 @@ static NSArray *infoKeys = nil;
                               andString: [data jsonRepresentation]];
     }
   else
-    result = [self failedToSaveFormResponse: [result reason]];
+    {
+      [co deleteAttachmentsWithNames: savedAttachments];
+      result = [self failedToSaveFormResponse: [result reason]];
+    }
 
   return result;
 }

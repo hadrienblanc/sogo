@@ -13,6 +13,8 @@
     // Data is immediately available
     if (typeof futureAccountData.then !== 'function') {
       angular.extend(this, futureAccountData);
+      if (this.name && typeof punycode !== 'undefined')
+        this.name = punycode.toUnicode(this.name);
       _.forEach(this.identities, function(identity) {
         if (identity.fullName && identity.email)
           identity.full = identity.fullName + ' <' + identity.email + '>';

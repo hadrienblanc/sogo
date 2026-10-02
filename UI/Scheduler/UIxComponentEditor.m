@@ -594,47 +594,16 @@ static NSArray *reminderValues = nil;
 
 - (NSArray *) attachUrls
 {
-  NSMutableArray *attachUrls;
-  NSArray *values;
-  NSString *attachUrl;
-  NSURL *url;
-  NSUInteger count, max;
-
-  values = [component attach];
-  max = [values count];
-  if (max > 0)
-    {
-      attachUrls = [NSMutableArray arrayWithCapacity: max];
-      for (count = 0; count < max; count++)
-        {
-          attachUrl = [values objectAtIndex: count];
-          if ([attachUrl length] > 0)
-            [attachUrls addObject: [NSDictionary dictionaryWithObject: attachUrl forKey: @"value"]];
-        }
-    }
-  else
-    attachUrls = nil;
-
-  url = [component url];
-  if(url && attachUrls)
-    [attachUrls addObject: [NSDictionary dictionaryWithObject: [url absoluteString] forKey: @"value"]];
-  else
-    attachUrls = [NSArray arrayWithObjects: [NSDictionary dictionaryWithObject: [url absoluteString] forKey: @"value"], nil];
-
-  return attachUrls;
+  return [component attachUrlsForEditor];
 }
 
 - (void) setAttributes: (NSDictionary *) data
 {
-  NSArray *values;
-  NSURL *url;
   NSCalendarDate *now;
-  NSMutableArray *attachUrls;
   NSMutableDictionary *dataWithOwner;
   NSString *owner;
-  NSUInteger i;
   SOGoAppointmentFolders *folders;
-  id destinationCalendar, o;
+  id destinationCalendar;
 
   now = [NSCalendarDate calendarDate];
   owner = [componentCalendar ownerInContext: context];
@@ -661,30 +630,7 @@ static NSArray *reminderValues = nil;
   //But the other property URL, in the ics, will also be seen as an ATTACH in the UI.
   //To avoid having both ATTACH and URL with the same uri, check the presence and value of URL first.
   if ([[data objectForKey: @"attachUrls"] isKindOfClass: [NSArray class]])
-    {
-      values = [component childrenWithTag: @"attach"];
-      [component removeChildren: values];
-      values = [data objectForKey: @"attachUrls"];
-
-      url = [component url];
-      attachUrls = [NSMutableArray arrayWithCapacity: [values count]];
-      for (i = 0; i < [values count]; i++)
-        {
-          o = [values objectAtIndex: i];
-          if ([o isKindOfClass: [NSDictionary class]])
-            {
-              if(url && [[url absoluteString] isEqualToString: [o objectForKey: @"value"]])
-                continue; //this uri is already in URL property
-              else
-                [attachUrls addObject: [o objectForKey: @"value"]];
-            }
-        }
-    }
-  else
-    {
-      attachUrls = nil;
-    }
-  [component setAttach: attachUrls];
+    [component setAttachUrlsFromEditor: [data objectForKey: @"attachUrls"]];
 
   if ([[self clientObject] isNew])
     {

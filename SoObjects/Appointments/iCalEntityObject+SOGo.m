@@ -124,7 +124,7 @@ NSNumber *iCalDistantFutureNumber = nil;
                                              [organizer rfc822Email], @"email",
                                            ([[organizer cnWithoutQuotes] length] ? [organizer cnWithoutQuotes] : [organizer rfc822Email]), @"name",
                                            nil];
-      uid = [organizer uid];
+      uid = [organizer uidForUser: [context activeUser]];
       if ([uid length]) [organizerData setObject: uid forKey: @"uid"];
       sentBy = [organizer sentBy];
       if ([sentBy length]) [organizerData setObject: sentBy forKey: @"sentBy"];
@@ -367,6 +367,69 @@ NSNumber *iCalDistantFutureNumber = nil;
   // - timestamps (creation/modification)
 }
 
+- (NSArray *) attachUrlsForEditor
+{
+  NSMutableArray *attachUrls;
+  NSArray *values;
+  NSString *attachUrl, *urlValue;
+  NSUInteger count, max;
+
+  values = [self attach];
+  max = [values count];
+  attachUrls = [NSMutableArray arrayWithCapacity: max];
+  for (count = 0; count < max; count++)
+    {
+      attachUrl = [values objectAtIndex: count];
+      if ([attachUrl length] > 0)
+        [attachUrls addObject: [NSDictionary dictionaryWithObject: attachUrl
+                                                           forKey: @"value"]];
+    }
+
+  urlValue = [[self url] absoluteString];
+  if ([urlValue length] > 0)
+    [attachUrls addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                             urlValue, @"value",
+                                             [NSNumber numberWithBool: YES], @"isUrl",
+                                             nil]];
+
+  return attachUrls;
+}
+
+- (void) setAttachUrlsFromEditor: (NSArray *) attachUrls
+{
+  NSMutableArray *newAttachUrls;
+  NSString *urlValue, *currentUrlValue, *value;
+  id o;
+  NSUInteger count, max;
+
+  [self removeChildren: [self childrenWithTag: @"attach"]];
+
+  currentUrlValue = [[self url] absoluteString];
+  urlValue = nil;
+  newAttachUrls = [NSMutableArray arrayWithCapacity: [attachUrls count]];
+  max = [attachUrls count];
+  for (count = 0; count < max; count++)
+    {
+      o = [attachUrls objectAtIndex: count];
+      if (![o isKindOfClass: [NSDictionary class]])
+        continue;
+      value = [o objectForKey: @"value"];
+      if (![value isKindOfClass: [NSString class]] || [value length] == 0)
+        continue;
+      if ([[o objectForKey: @"isUrl"] boolValue])
+        urlValue = value;
+      else if ([currentUrlValue isEqualToString: value])
+        continue;
+      else
+        [newAttachUrls addObject: value];
+    }
+
+  if ([urlValue length] > 0)
+    [self setUrl: urlValue];
+
+  [self setAttach: newAttachUrls];
+}
+
 - (BOOL) userIsAttendee: (SOGoUser *) user
 {
   NSEnumerator *attendees;
@@ -528,7 +591,8 @@ NSNumber *iCalDistantFutureNumber = nil;
   for (count = 0; count < max; count++)
     {
       currentAttendee = [oldAttendees objectAtIndex: count];
-      if (![[currentAttendee uidInDomain: domain] isEqualToString: userID])
+      if (![user hasEmail: [currentAttendee rfc822Email]]
+	  && ![[currentAttendee uidInDomain: domain] isEqualToString: userID])
 	[newAttendees addObject: currentAttendee];
     }
 
@@ -695,7 +759,8 @@ NSNumber *iCalDistantFutureNumber = nil;
 
   int email_alarm_number;
 
-  if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms])
+  if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms]
+      && theContainer)
     {
       af = [[GCSFolderManager defaultFolderManager] alarmsFolder];
       path = [theContainer ocsPath];

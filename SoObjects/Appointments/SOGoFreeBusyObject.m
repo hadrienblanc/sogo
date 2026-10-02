@@ -44,6 +44,8 @@
 - (NSString *) iCalStringForFreeBusyInfos: (NSArray *) _infos
                                      from: (NSCalendarDate *) _startDate
                                        to: (NSCalendarDate *) _endDate;
++ (NSCalendarDate *) _viewDateForDate: (NSCalendarDate *) theDate
+                          inTimeZone: (NSTimeZone *) theTimeZone;
 @end
 
 @implementation SOGoFreeBusyObject
@@ -339,82 +341,120 @@
   ud = [user userDefaults];
 
   if ([ud busyOffHours])
+    [infos addObjectsFromArray: [self busyOffHoursInfosFrom: startDate
+                                                         to: endDate
+                                               dayStartHour: [ud dayStartHour]
+                                                 dayEndHour: [ud dayEndHour]
+                                             ownerTimeZone: [ud timeZone]
+                                               viewTimeZone: [[[context activeUser] userDefaults] timeZone]]];
+
+  return infos;
+}
+
++ (NSCalendarDate *) _viewDateForDate: (NSCalendarDate *) theDate
+                          inTimeZone: (NSTimeZone *) theTimeZone
+{
+  NSCalendarDate *viewDate;
+
+  viewDate = [NSCalendarDate dateWithTimeIntervalSince1970: [theDate timeIntervalSince1970]];
+  [viewDate setTimeZone: theTimeZone];
+
+  return viewDate;
+}
+
++ (NSArray *) busyOffHoursInfosFrom: (NSCalendarDate *) startDate
+                                 to: (NSCalendarDate *) endDate
+                       dayStartHour: (unsigned int) dayStartHour
+                         dayEndHour: (unsigned int) dayEndHour
+                     ownerTimeZone: (NSTimeZone *) ownerTimeZone
+                       viewTimeZone: (NSTimeZone *) viewTimeZone
+{
+  NSMutableArray *infos;
+  NSCalendarDate *currentStartDate, *currentEndDate, *weekendStartDate, *weekendEndDate;
+  NSCalendarDate *ownerStartDate;
+  unsigned int intervalHours;
+  BOOL firstRange;
+
+  infos = [NSMutableArray array];
+  intervalHours = dayStartHour + 24 - dayEndHour;
+  firstRange = YES;
+
+  ownerStartDate = [self _viewDateForDate: startDate inTimeZone: ownerTimeZone];
+  currentStartDate = [NSCalendarDate dateWithYear: [ownerStartDate yearOfCommonEra]
+                                            month: [ownerStartDate monthOfYear]
+                                              day: [ownerStartDate dayOfMonth]
+                                             hour: 0
+                                           minute: 0
+                                           second: 0
+                                         timeZone: ownerTimeZone];
+  currentEndDate = [NSCalendarDate dateWithYear: [ownerStartDate yearOfCommonEra]
+                                          month: [ownerStartDate monthOfYear]
+                                            day: [ownerStartDate dayOfMonth]
+                                            hour: dayStartHour
+                                          minute: 0
+                                          second: 0
+                                        timeZone: ownerTimeZone];
+
+  while ([currentStartDate compare: endDate] == NSOrderedAscending ||
+         [currentStartDate compare: endDate] == NSOrderedSame)
     {
-      NSCalendarDate *currentStartDate, *currentEndDate, *weekendStartDate, *weekendEndDate;
-      NSTimeZone *timeZone;
-      unsigned int dayStartHour, dayEndHour, intervalHours;
-      BOOL firstRange;
+      if ([endDate compare: currentEndDate] == NSOrderedAscending)
+        currentEndDate = endDate;
 
-      dayStartHour = [ud dayStartHour];
-      dayEndHour = [ud dayEndHour];
-      intervalHours = dayStartHour + 24 - dayEndHour;
-      timeZone = [ud timeZone];
-      firstRange = YES;
-
-      currentStartDate = [NSCalendarDate dateWithYear: [startDate yearOfCommonEra]
-                                                month: [startDate monthOfYear]
-                                                  day: [startDate dayOfMonth]
-                                                 hour: 0
-                                               minute: 0
-                                               second: 0
-                                             timeZone: timeZone];
-      currentEndDate = [NSCalendarDate dateWithYear: [startDate yearOfCommonEra]
-                                              month: [startDate monthOfYear]
-                                                day: [startDate dayOfMonth]
-                                               hour: dayStartHour
-                                             minute: 0
-                                             second: 0
-                                           timeZone: timeZone];
-
-      while ([currentStartDate compare: endDate] == NSOrderedAscending ||
-             [currentStartDate compare: endDate] == NSOrderedSame)
+      if ([currentStartDate compare: startDate] == NSOrderedAscending)
         {
-          if ([endDate compare: currentEndDate] == NSOrderedAscending)
-            currentEndDate = endDate;
-
-          if ([currentStartDate compare: startDate] == NSOrderedAscending)
-            {
-              if ([startDate compare: currentEndDate] == NSOrderedAscending)
-                {
-                  [infos addObject: [NSDictionary dictionaryWithObjectsAndKeys:
-                                                      [NSNumber numberWithBool: YES], @"c_isopaque",
-                                                  startDate, @"startDate",
-                                                  currentEndDate, @"endDate", nil]];
-                }
-            }
-          else
+          if ([startDate compare: currentEndDate] == NSOrderedAscending)
             {
               [infos addObject: [NSDictionary dictionaryWithObjectsAndKeys:
                                                   [NSNumber numberWithBool: YES], @"c_isopaque",
-                                              currentStartDate, @"startDate",
-                                              currentEndDate, @"endDate", nil]];
+                                                  startDate, @"startDate",
+                                                  [self _viewDateForDate: currentEndDate
+                                                            inTimeZone: viewTimeZone], @"endDate",
+                                                  nil]];
             }
-
-          if (currentEndDate != endDate
-              && ([currentEndDate dayOfWeek] == 6 || [currentEndDate dayOfWeek] == 0))
-            {
-              // Fill weekend days
-              weekendStartDate = currentEndDate;
-              weekendEndDate = [weekendStartDate addYear:0 month:0 day:0 hour:(-[weekendStartDate hourOfDay] + dayEndHour) minute:0 second:0];
-              [infos addObject: [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool: YES], @"c_isopaque",
-                                              weekendStartDate, @"startDate",
-                                              weekendEndDate, @"endDate", nil]];
-            }
-
-          // Compute next range
-          if (firstRange)
-            {
-              currentStartDate = [currentStartDate addYear:0 month:0 day:0 hour:dayEndHour minute:0 second:0];
-              firstRange = NO;
-            }
-          else
-            {
-              currentStartDate = [currentStartDate addYear:0 month:0 day:1 hour:0 minute:0 second:0];
-            }      
-          currentEndDate = [currentStartDate addYear:0 month:0 day:0 hour:intervalHours minute:0 second:0];
         }
+      else
+        {
+          [infos addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                              [NSNumber numberWithBool: YES], @"c_isopaque",
+                                              [self _viewDateForDate: currentStartDate
+                                                        inTimeZone: viewTimeZone], @"startDate",
+                                              [self _viewDateForDate: currentEndDate
+                                                        inTimeZone: viewTimeZone], @"endDate",
+                                              nil]];
+        }
+
+      if (currentEndDate != endDate
+          && ([currentEndDate dayOfWeek] == 6 || [currentEndDate dayOfWeek] == 0))
+        {
+          weekendStartDate = currentEndDate;
+          weekendEndDate = [weekendStartDate addYear: 0 month: 0 day: 0
+                                       hour: (-[weekendStartDate hourOfDay] + dayEndHour)
+                                     minute: 0 second: 0];
+          [infos addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                          [NSNumber numberWithBool: YES], @"c_isopaque",
+                                          [self _viewDateForDate: weekendStartDate
+                                                    inTimeZone: viewTimeZone], @"startDate",
+                                          [self _viewDateForDate: weekendEndDate
+                                                    inTimeZone: viewTimeZone], @"endDate",
+                                          nil]];
+        }
+
+      if (firstRange)
+        {
+          currentStartDate = [currentStartDate addYear: 0 month: 0 day: 0
+                                                 hour: dayEndHour minute: 0 second: 0];
+          firstRange = NO;
+        }
+      else
+        {
+          currentStartDate = [currentStartDate addYear: 0 month: 0 day: 1
+                                                 hour: 0 minute: 0 second: 0];
+        }
+      currentEndDate = [currentStartDate addYear: 0 month: 0 day: 0
+                                            hour: intervalHours minute: 0 second: 0];
     }
-  
+
   return infos;
 }
 

@@ -293,6 +293,46 @@ static BOOL showNamedTextAttachmentsInline = NO;
   return [self linkViewer];
 }
 
+- (WOComponent *) viewerForNonRootRelatedBodyInfo: (id) _info
+{
+  NSString *mt, *st;
+
+  mt = [[_info valueForKey:@"type"] lowercaseString];
+  st = [[_info valueForKey:@"subtype"] lowercaseString];
+
+  if ([mt isEqualToString: @"text"]
+      && ([st isEqualToString: @"plain"] || [st isEqualToString: @"html"]))
+    return [self linkViewer];
+
+  return [self viewerForBodyInfo: _info];
+}
+
+- (NSUInteger) rootPartIndexOfRelatedBodyInfo: (id) _info
+{
+  NSArray *parts;
+  NSString *start;
+  NSUInteger i, max;
+
+  parts = [_info objectForKey: @"parts"];
+  max = [parts count];
+  if (max == 0)
+    return 0;
+
+  start = [[_info objectForKey: @"parameterList"] objectForKey: @"start"];
+  if ([start length])
+    {
+      if (![start hasPrefix: @"<"])
+        start = [NSString stringWithFormat: @"<%@>", start];
+
+      for (i = 0; i < max; i++)
+        if ([[[parts objectAtIndex: i] objectForKey: @"bodyId"]
+              isEqualToString: start])
+          return i;
+    }
+
+  return 0;
+}
+
 /* debugging */
 
 - (BOOL) isDebuggingEnabled

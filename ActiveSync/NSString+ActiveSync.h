@@ -39,6 +39,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 @interface NSString (ActiveSync)
 
++ (NSString *) activeSyncCacheCleanupLogMessageForDevice: (NSString *) deviceId
+                                                    user: (NSString *) login
+                                                 syncKey: (NSString *) syncKey
+                                          cachedSyncKey: (NSString *) cachedSyncKey;
+
 - (NSString *) sanitizedServerIdWithType: (SOGoMicrosoftActiveSyncFolderType) folderType;
 - (NSString *) activeSyncRepresentationInContext: (WOContext *) context;
 - (int) activeSyncFolderType;

@@ -51,6 +51,7 @@ UI/WebServerResources/js/vendor/ckeditor/skins/n1theme/*.md
 
 # Tests
 Tests/node_modules
+Tests/Unit/UI/
 Tests/lib/config.js
 Tests/results.xml
 Tests/results

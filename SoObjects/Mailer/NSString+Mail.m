@@ -612,6 +612,17 @@
   return [handler result];
 }
 
+- (BOOL) isFullHTMLDocument
+{
+  NSRange r;
+
+  r = [self rangeOfString: @"<!doctype" options: NSCaseInsensitiveSearch];
+  if (r.length == 0)
+    r = [self rangeOfString: @"<html" options: NSCaseInsensitiveSearch];
+
+  return (r.length > 0);
+}
+
 - (NSString *) htmlByExtractingImages: (NSMutableArray *) theImages
 {
   _SOGoHTMLContentHandler *handler;

@@ -216,6 +216,29 @@ static NSString *sieveScriptName = @"sogo";
     }
 }
 
++ (NSString *) sieveFlagForArgument: (NSString *) argument
+                         mailLabels: (NSDictionary *) mailLabels
+{
+  NSString *flag;
+
+  flag = [sieveFlags objectForKey: argument];
+  if (!flag && [mailLabels objectForKey: argument])
+    flag = argument;
+
+  return flag;
+}
+
++ (NSString *) sieveDateFromEpoch: (int) epoch
+                         timeZone: (NSTimeZone *) timeZone
+{
+  NSCalendarDate *date;
+
+  date = [NSCalendarDate dateWithTimeIntervalSince1970: epoch];
+  [date setTimeZone: timeZone];
+
+  return [date descriptionWithCalendarFormat: @"%Y-%m-%d"];
+}
+
 + (id) sieveManagerForUser: (SOGoUser *) newUser
 {
   SOGoSieveManager *newManager;
@@ -319,8 +342,8 @@ static NSString *sieveScriptName = @"sogo";
               if ([customHeader length])
                 *field = [customHeader asSieveQuotedString];
               else
-                scriptError = (@"Pseudo-header field 'header' without"
-                               @" 'custom_header' parameter.");
+                ASSIGN(scriptError, @"Pseudo-header field 'header' without"
+                        @" 'custom_header' parameter.");
             }
           else if ([jsonField isEqualToString: @"body"] ||
                    [jsonField isEqualToString: @"size"])
@@ -333,12 +356,12 @@ static NSString *sieveScriptName = @"sogo";
             [requirements addObjectUniquely: requirement];
         }
       else
-        scriptError
-          = [NSString stringWithFormat: @"Rule based on unknown field '%@'",
-                      jsonField];
+        ASSIGN(scriptError,
+               ([NSString stringWithFormat: @"Rule based on unknown field '%@'",
+                                        jsonField]));
     }
   else
-    scriptError = @"Rule without any specified field.";
+    ASSIGN(scriptError, @"Rule without any specified field.");
 
   return (scriptError == nil);
 }
@@ -373,12 +396,13 @@ static NSString *sieveScriptName = @"sogo";
           *operator = baseOperator;
         }
       else
-        scriptError = [NSString stringWithFormat:
-                                  @"Rule has unknown operator '%@'",
-                                baseOperator];
+        ASSIGN(scriptError,
+               ([NSString stringWithFormat:
+                           @"Rule has unknown operator '%@'",
+                         baseOperator]));
     }
   else
-    scriptError = @"Rule without any specified operator";
+    ASSIGN(scriptError, @"Rule without any specified operator");
 
   return (scriptError == nil);
 }
@@ -414,7 +438,7 @@ static NSString *sieveScriptName = @"sogo";
         *value = [extractedValue asSieveQuotedString];
     }
   else
-    scriptError = @"Rule lacks a 'value' parameter";
+    ASSIGN(scriptError, @"Rule lacks a 'value' parameter");
 
   return (scriptError == nil);
 }
@@ -500,7 +524,6 @@ static NSString *sieveScriptName = @"sogo";
                          delimiter: (NSString *) delimiter
 {
   NSString *sieveAction, *method, *requirement, *argument, *flag, *mailbox;
-  NSDictionary *mailLabels;
 
   sieveAction = nil;
 
@@ -518,21 +541,16 @@ static NSString *sieveScriptName = @"sogo";
             {
               if ([method isEqualToString: @"addflag"])
                 {
-                  flag = [sieveFlags objectForKey: argument];
-                  if (!flag)
-                    {
-                      mailLabels = [[user userDefaults] mailLabelsColors];
-                      if ([mailLabels objectForKey: argument])
-                        flag = argument;
-                    }
+                  flag = [SOGoSieveManager sieveFlagForArgument: argument
+                                                       mailLabels: [[user userDefaults] mailLabelsColors]];
                   if (flag)
                     sieveAction = [NSString stringWithFormat: @"%@ %@",
                                             method, [flag asSieveQuotedString]];
                   else
-                    scriptError
-                      = [NSString stringWithFormat:
-                                    @"Action with invalid flag argument '%@'",
-                                  argument];
+                    ASSIGN(scriptError,
+                           ([NSString stringWithFormat:
+                                       @"Action with invalid flag argument '%@'",
+                                     argument]));
                 }
               else if ([method isEqualToString: @"fileinto"])
                 {
@@ -557,12 +575,13 @@ static NSString *sieveScriptName = @"sogo";
                 sieveAction = [NSString stringWithFormat: @"%@ %@",
                                 method, [argument asSieveQuotedString]];
               else
-                scriptError
-                  = [NSString stringWithFormat: @"Action has unknown method '%@'",
-                              method];
+                ASSIGN(scriptError,
+                       ([NSString stringWithFormat:
+                                   @"Action has unknown method '%@'",
+                                 method]));
             }
           else
-            scriptError = @"Action missing 'argument' parameter";
+            ASSIGN(scriptError, @"Action missing 'argument' parameter");
         }
       if (method)
         {
@@ -572,7 +591,7 @@ static NSString *sieveScriptName = @"sogo";
         }
     }
   else
-    scriptError = @"Action missing 'method' parameter";
+    ASSIGN(scriptError, @"Action missing 'method' parameter");
 
   return sieveAction;
 }
@@ -621,13 +640,15 @@ static NSString *sieveScriptName = @"sogo";
                        match,
                        [sieveRules componentsJoinedByString: @", "]];
           else
-            scriptError = [NSString stringWithFormat:
-                                    @"Test '%@' used without any"
-                                    @" specified rule",
-                                    match];
+            ASSIGN(scriptError,
+                   ([NSString stringWithFormat:
+                              @"Test '%@' used without any"
+                              @" specified rule",
+                              match]));
         }
       else
-        scriptError = [NSString stringWithFormat: @"Bad test: %@", match];
+        ASSIGN(scriptError,
+               ([NSString stringWithFormat: @"Bad test: %@", match]));
     }
   sieveActions = [self _extractSieveActions: [newScript objectForKey: @"actions"]
                                   withReq: req
@@ -674,7 +695,6 @@ static NSString *sieveScriptName = @"sogo";
         }
     }
 
-  [scriptError retain];
   DESTROY(requirements);
 
   if (scriptError)
@@ -992,12 +1012,12 @@ static NSString *sieveScriptName = @"sogo";
       (![[values objectForKey: @"endDateEnabled"] boolValue] ||
        dateCapability || [[values objectForKey: @"endDate"] intValue] > now))
     {
-      NSCalendarDate *startDate, *endDate;
       NSMutableArray *allConditions, *timeConditions;
       NSMutableString *vacation_script;
       NSArray *addresses, *weekdays;
       NSString *text, *templateFilePath, *customSubject, *weekday, *startTime, *endTime, *timeCondition, *timeZone;
       SOGoTextTemplateFile *templateFile;
+      NSTimeZone *userTimeZone;
 
       BOOL ignore, alwaysSend, useCustomSubject, discardMails;
       int days, i, seconds;
@@ -1011,6 +1031,7 @@ static NSString *sieveScriptName = @"sogo";
       useCustomSubject = [[values objectForKey: @"customSubjectEnabled"] boolValue];
       customSubject = [values objectForKey: @"customSubject"];
       text = [values objectForKey: @"autoReplyText"];
+      userTimeZone = [ud timeZone];
       b = YES;
 
       if (!text)
@@ -1063,10 +1084,10 @@ static NSString *sieveScriptName = @"sogo";
             {
               [req addObjectUniquely: @"date"];
               [req addObjectUniquely: @"relational"];
-              startDate = [NSCalendarDate dateWithTimeIntervalSince1970:
-                                                  [[values objectForKey: @"startDate"] intValue]];
               [allConditions addObject: [NSString stringWithFormat: @"currentdate :value \"ge\" \"date\" \"%@\"",
-                                                  [startDate descriptionWithCalendarFormat: @"%Y-%m-%d"]]];
+                                                  [SOGoSieveManager sieveDateFromEpoch:
+                                                                    [[values objectForKey: @"startDate"] intValue]
+                                                                              timeZone: userTimeZone]]];
             }
 
           // End date of auto-reply
@@ -1074,13 +1095,13 @@ static NSString *sieveScriptName = @"sogo";
             {
               [req addObjectUniquely: @"date"];
               [req addObjectUniquely: @"relational"];
-              endDate = [NSCalendarDate dateWithTimeIntervalSince1970:
-                                                [[values objectForKey: @"endDate"] intValue]];
               [allConditions addObject: [NSString stringWithFormat: @"currentdate :value \"le\" \"date\" \"%@\"",
-                                                  [endDate descriptionWithCalendarFormat: @"%Y-%m-%d"]]];
+                                                  [SOGoSieveManager sieveDateFromEpoch:
+                                                                    [[values objectForKey: @"endDate"] intValue]
+                                                                              timeZone: userTimeZone]]];
             }
 
-          seconds = [[ud timeZone] secondsFromGMT];
+          seconds = [userTimeZone secondsFromGMT];
           timeZone = [NSString stringWithFormat: @"%@%.2i%02i", seconds >= 0 ? @"+" : @"", seconds/60/60, seconds/60%60];
           timeConditions = [NSMutableArray array];
           startTime = endTime = nil;

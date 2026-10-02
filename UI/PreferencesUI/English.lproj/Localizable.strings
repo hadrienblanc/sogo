@@ -214,6 +214,7 @@
 
 "Display remote inline images" = "Display remote inline images";
 "displayremoteinlineimages_never" = "Never";
+"displayremoteinlineimages_known" = "From known senders";
 "displayremoteinlineimages_always" = "Always";
 "Auto save every" = "Auto save every";
 "minutes" = "minutes";

@@ -245,6 +245,7 @@
 "All day Event" = "Celodenná udalosť";
 "check for conflicts" = "Skontrolovať konflikty";
 "URL" = "URL";
+"Document URL" = "Document URL";
 "newAttendee" = "Pridať účastníka";
 
 /* calendar modes */

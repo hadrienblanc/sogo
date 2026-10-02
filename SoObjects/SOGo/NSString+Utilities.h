@@ -38,6 +38,8 @@
 
 - (NSString *) urlWithoutParameters;
 
+- (NSString *) variantByUnescapingURL;
+
 - (NSString *) stringByDetectingURLs;
 
 /* escaping */
@@ -46,6 +48,10 @@
 /* CSS and URL safety */
 - (NSString *) asCSSIdentifier;
 - (NSString *) fromCSSIdentifier;
+
+/* IMAP mail labels */
+- (NSString *) stringByEncodingImap4LabelName;
+- (NSString *) stringByDecodingImap4LabelName;
 
 /* JavaScript safety */
 - (NSString *) asSafeJSString;
@@ -89,6 +95,8 @@
 
 /* substrings */
 - (NSUInteger) countOccurrencesOfString: (NSString *) substring;
+- (NSString *) stringByReplacingFirstOccurrenceOfString: (NSString *) target
+                                             withString: (NSString *) replacement;
 - (NSString *) stringByReplacingPrefix: (NSString *) oldPrefix
                             withPrefix: (NSString *) newPrefix;
 
@@ -98,6 +106,9 @@
 
 /* HTML */
 - (NSString *) cleanInvalidHTMLTags;
+
+/* CKEditor compatibility */
+- (NSString *) ckEditorUserAgentOverride;
 
 @end
 

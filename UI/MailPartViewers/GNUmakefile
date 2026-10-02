@@ -11,6 +11,7 @@ MailPartViewers_LANGUAGES = $(SOGO_LANGUAGES)
 MailPartViewers_OBJC_FILES += \
 	MailPartViewersProduct.m	\
 	\
+	UIxHTMLMailContentHandler.m	\
 	UIxMailRenderingContext.m	\
 	UIxMailSizeFormatter.m		\
 	\

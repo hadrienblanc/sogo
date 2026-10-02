@@ -205,4 +205,97 @@ describe('Sieve', function() {
     .withContext(`sogo Sieve script`)
     .toBe(sieveFilter)
   })
+
+  it('add sieve filter with system flags', async function() {
+    const subject = 'add sieve filter with system flags'
+    const sieveFilter = `require ["imap4flags"];\r\nif anyof (header :contains "subject" "${subject}") {\r\n    addflag "\\\\Seen";\r\n    addflag "\\\\Flagged";\r\n}\r\n`
+
+    await prefs.set('SOGoSieveFilters', [{
+      active: true,
+      actions: [{
+        method: 'addflag',
+        argument: 'seen'
+      },
+      {
+        method: 'addflag',
+        argument: 'flagged'
+      }],
+      rules: [{
+        operator: 'contains',
+        field: 'subject',
+        value: subject
+      }],
+      match: 'any',
+      name: 'system flags'
+    }])
+
+    const createdScript = await _getSogoSieveScript()
+    expect(createdScript)
+    .withContext(`sogo Sieve script`)
+    .toBe(sieveFilter)
+  })
+
+  it('add sieve filter with junk keywords', async function() {
+    const subject = 'add sieve filter with junk keywords'
+    const sieveFilter = `require ["imap4flags"];\r\nif anyof (header :contains "subject" "${subject}") {\r\n    addflag "Junk";\r\n    addflag "NotJunk";\r\n}\r\n`
+
+    await prefs.set('SOGoSieveFilters', [{
+      active: true,
+      actions: [{
+        method: 'addflag',
+        argument: 'junk'
+      },
+      {
+        method: 'addflag',
+        argument: 'not_junk'
+      }],
+      rules: [{
+        operator: 'contains',
+        field: 'subject',
+        value: subject
+      }],
+      match: 'any',
+      name: 'junk keywords'
+    }])
+
+    const createdScript = await _getSogoSieveScript()
+    expect(createdScript)
+    .withContext(`sogo Sieve script`)
+    .toBe(sieveFilter)
+  })
+
+  it('add sieve filter with a custom label', async function() {
+    const subject = 'add sieve filter with a custom label'
+    const sieveFilter = `require ["imap4flags"];\r\nif anyof (header :contains "subject" "${subject}") {\r\n    addflag "$label5";\r\n}\r\n`
+    const originalLabels = await prefs.get('SOGoMailLabelsColors')
+
+    await prefs.setOrCreate('SOGoMailLabelsColors', {
+      $label5: ['Probe Label', '#000000']
+    })
+
+    try {
+      await prefs.set('SOGoSieveFilters', [{
+        active: true,
+        actions: [{
+          method: 'addflag',
+          argument: '$label5'
+        }],
+        rules: [{
+          operator: 'contains',
+          field: 'subject',
+          value: subject
+        }],
+        match: 'any',
+        name: 'custom label'
+      }])
+
+      const createdScript = await _getSogoSieveScript()
+      expect(createdScript)
+      .withContext(`sogo Sieve script`)
+      .toBe(sieveFilter)
+    }
+    finally {
+      await prefs.set('SOGoMailLabelsColors', originalLabels)
+    }
+  })
 })

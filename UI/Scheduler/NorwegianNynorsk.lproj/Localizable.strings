@@ -245,6 +245,7 @@
 "All day Event" = "Heldagshendelse";
 "check for conflicts" = "Kontroller konflikter";
 "URL" = "URL";
+"Document URL" = "Dokument-URL";
 "newAttendee" = "Legg til deltakere";
 
 /* calendar modes */

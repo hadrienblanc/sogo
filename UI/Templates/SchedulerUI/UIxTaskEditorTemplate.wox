@@ -109,7 +109,8 @@
               </md-button>
               <md-input-container class="md-block md-flex">
                 <label>
-                  <var:string label:value="URL"/>
+                  <span ng-if="attach.isUrl"><var:string label:value="URL"/></span>
+                  <span ng-if="!attach.isUrl"><var:string label:value="Document URL"/></span>
                 </label>
                 <input type="text" ng-model="attach.value"
                        sg-focus-on="attachUrl_{{$index}}"/>

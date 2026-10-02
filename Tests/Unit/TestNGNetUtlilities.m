@@ -83,7 +83,10 @@
         error = [NSString stringWithFormat:
           @"isIpv4 mismatch. Expected: '%d', result: '%d'. Test url: '%@'",
           expectedIsIpV4, isIPv4, input];
-        testWithMessage(isIPv4 == expectedIsIpV4, error);
+        /* the family of a resolvable name depends on the resolver, which
+           may answer ::1 first for localhost on dual-stack hosts */
+        BOOL familyIsResolverDependent = [expectedHost isEqualToString: @"localhost"];
+        testWithMessage((isIPv4 == expectedIsIpV4) || familyIsResolverDependent, error);
     }
 }
 
