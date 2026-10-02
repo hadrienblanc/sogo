@@ -84,14 +84,14 @@ static NSArray *childRecordFields = nil;
   if (!aclManager)
     {
       aclManager = [SOGoWebDAVAclManager new];
-      /*      [aclManager registerDAVPermission: davElement (@"read", @"DAV:")
+      [aclManager registerDAVPermission: davElement (@"read", @"DAV:")
 		  abstract: YES
 		  withEquivalent: SoPerm_WebDAVAccess
 		  asChildOf: davElement (@"all", @"DAV:")];
       [aclManager registerDAVPermission: davElement (@"read-current-user-privilege-set", @"DAV:")
 		  abstract: YES
 		  withEquivalent: SoPerm_WebDAVAccess
-		  asChildOf: davElement (@"read", @"DAV:")]; */
+		  asChildOf: davElement (@"read", @"DAV:")];
       [aclManager registerDAVPermission: davElement (@"write", @"DAV:")
 		  abstract: NO
 		  withEquivalent: SoPerm_AddDocumentsImagesAndFiles
