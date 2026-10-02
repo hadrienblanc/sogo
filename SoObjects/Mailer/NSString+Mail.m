@@ -748,10 +748,10 @@ convertChars (const char *oldString, unsigned int oldLength,
     safeName = [NSMutableString stringWithString: self];
   [safeName replaceString: @"/" withString: @"_"];
 
-  if ([self isEqualToString: @"."])
+  if ([safeName isEqualToString: @"."])
     return @"_";
 
-  if ([self isEqualToString: @".."])
+  if ([safeName isEqualToString: @".."])
     return @"__";
 
   return safeName;
