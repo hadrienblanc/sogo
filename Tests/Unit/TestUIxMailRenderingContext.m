@@ -83,8 +83,8 @@
 }
 
 - (void) selectViewerForType: (NSString *) type
-                     subtype: (NSString *) subtype
-                      bodyId: (NSString *) bodyId
+                      subtype: (NSString *) subtype
+                       bodyId: (NSString *) bodyId
 {
   NSDictionary *info;
 
@@ -95,6 +95,120 @@
                      nil];
 
   [renderingContext viewerForBodyInfo: info];
+}
+
+- (void) selectNonRootRelatedViewerForType: (NSString *) type
+                                   subtype: (NSString *) subtype
+{
+  NSDictionary *info;
+
+  info = [NSDictionary dictionaryWithObjectsAndKeys:
+                     type, @"type",
+                   subtype, @"subtype",
+                     nil];
+
+  [renderingContext viewerForNonRootRelatedBodyInfo: info];
+}
+
+- (NSDictionary *) relatedInfoWithStart: (NSString *) start
+                             childBodyIds: (NSArray *) childBodyIds
+{
+  NSMutableArray *parts;
+  NSString *bodyId;
+  NSUInteger i, max;
+
+  parts = [NSMutableArray arrayWithCapacity: [childBodyIds count]];
+  max = [childBodyIds count];
+  for (i = 0; i < max; i++)
+    {
+      bodyId = [childBodyIds objectAtIndex: i];
+      [parts addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                     @"text", @"type",
+                                   @"html", @"subtype",
+                                   bodyId, @"bodyId",
+                                    nil]];
+    }
+
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+                    @"multipart", @"type",
+                  @"related", @"subtype",
+      [NSDictionary dictionaryWithObject: (start ? (id)start : (id)@"")
+                                forKey: @"start"],
+                   @"parameterList",
+                              parts, @"parts",
+                               nil];
+}
+
+- (void) test_rootPartOfRelatedWithoutStartIsFirstPartOfTicket6240
+{
+  NSDictionary *info;
+
+  info = [self relatedInfoWithStart: nil
+                       childBodyIds: [NSArray arrayWithObjects: @"", @"<resource>", nil]];
+  test ([renderingContext rootPartIndexOfRelatedBodyInfo: info] == 0);
+}
+
+- (void) test_rootPartOfRelatedWithStartMatchesContentIdOfTicket6240
+{
+  NSDictionary *info;
+
+  info = [self relatedInfoWithStart: @"<resource>"
+                       childBodyIds: [NSArray arrayWithObjects: @"", @"<resource>", nil]];
+  test ([renderingContext rootPartIndexOfRelatedBodyInfo: info] == 1);
+}
+
+- (void) test_rootPartOfRelatedWithBracketlessStartMatchesContentId
+{
+  NSDictionary *info;
+
+  info = [self relatedInfoWithStart: @"resource"
+                       childBodyIds: [NSArray arrayWithObjects: @"", @"<resource>", nil]];
+  test ([renderingContext rootPartIndexOfRelatedBodyInfo: info] == 1);
+}
+
+- (void) test_rootPartOfRelatedWithUnknownStartFallsBackToFirstPart
+{
+  NSDictionary *info;
+
+  info = [self relatedInfoWithStart: @"<unknown>"
+                       childBodyIds: [NSArray arrayWithObjects: @"", @"<resource>", nil]];
+  test ([renderingContext rootPartIndexOfRelatedBodyInfo: info] == 0);
+}
+
+- (void) test_rootPartOfEmptyRelatedIsFirstPart
+{
+  test ([renderingContext rootPartIndexOfRelatedBodyInfo:
+          [self relatedInfoWithStart: @"<resource>" childBodyIds: [NSArray array]]] == 0);
+}
+
+- (void) test_rootTextPartsOfRelatedKeepTheirViewer
+{
+  [self selectViewerForType: @"text" subtype: @"html" bodyId: nil];
+  testEquals ([viewer requestedPageName], @"UIxMailPartHTMLViewer");
+
+  [self selectViewerForType: @"text" subtype: @"plain" bodyId: nil];
+  testEquals ([viewer requestedPageName], @"UIxMailPartTextViewer");
+}
+
+- (void) test_nonRootInlineHtmlOfRelatedIsRenderedAsAttachmentOfTicket6240
+{
+  [self selectNonRootRelatedViewerForType: @"text" subtype: @"html"];
+  testEquals ([viewer requestedPageName], @"UIxMailPartLinkViewer");
+}
+
+- (void) test_nonRootPlainTextOfRelatedIsRenderedAsAttachment
+{
+  [self selectNonRootRelatedViewerForType: @"text" subtype: @"plain"];
+  testEquals ([viewer requestedPageName], @"UIxMailPartLinkViewer");
+}
+
+- (void) test_nonRootNonTextPartsOfRelatedKeepTheirViewer
+{
+  [self selectNonRootRelatedViewerForType: @"image" subtype: @"png"];
+  testEquals ([viewer requestedPageName], @"UIxMailPartImageViewer");
+
+  [self selectNonRootRelatedViewerForType: @"multipart" subtype: @"alternative"];
+  testEquals ([viewer requestedPageName], @"UIxMailPartAlternativeViewer");
 }
 
 - (void) test_svgImagesAreNeverRenderedThroughImageViewerOfTicket6152

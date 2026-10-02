@@ -105,7 +105,8 @@
   id viewer, info;
   NSArray *parts;
   SOGoUserDefaults *ud;
-  BOOL displayAttachment;
+  BOOL displayAttachment, isRelated;
+  NSUInteger rootIndex;
 
   NSUInteger i, max;
 
@@ -117,6 +118,12 @@
   max = [parts count];
   renderedParts = [NSMutableArray arrayWithCapacity: max];
 
+  isRelated = ([[[self bodyInfo] objectForKey: @"subtype"]
+                 caseInsensitiveCompare: @"related"] == NSOrderedSame);
+  rootIndex = isRelated
+    ? [[[self context] mailRenderingContext] rootPartIndexOfRelatedBodyInfo: [self bodyInfo]]
+    : 0;
+
   for (i = 0; i < max; i++)
     {
       [self setChildIndex: i];
@@ -127,9 +134,12 @@
         [self setChildInfo: [parts objectAtIndex: i]];
 
       info = [self childInfo];
-      
+
       ud = [[[self context] activeUser] userDefaults];
-      viewer = [[[self context] mailRenderingContext] viewerForBodyInfo: info];
+      if (isRelated && i != rootIndex)
+        viewer = [[[self context] mailRenderingContext] viewerForNonRootRelatedBodyInfo: info];
+      else
+        viewer = [[[self context] mailRenderingContext] viewerForBodyInfo: info];
       [viewer setBodyInfo: info];
       [viewer setPartPath: [self childPartPath]];
       
