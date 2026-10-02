@@ -1,131 +1,113 @@
-# Ticket 6142 — "Refresh does not work anymore" — REPORT
+# Bug 6133 — Timezone updates not being taken into account
 
-**Verdict: NOT A BUG in this codebase.** The regression shipped by upstream in
-SOGo 5.12.3 never landed in the `experimental` lineage; our tree is already
-byte-identical to upstream's fixed (reverted) state on every refresh call site.
-Per the ticket rules, this lands **tests only**, locking the string contract
-that the regression violated.
+## Root cause
 
-## Root cause (file:line)
+Two layers, one bug:
 
-The upstream regression, commit `55dbae6` ("fix(view): automatically refresh
-view only if a number is set", shipped in v5.12.3), added
-`&& !isNaN(refreshViewCheck)` to the five auto-refresh timers:
+1. **Primary (already fixed upstream, present in our branch)** — `SOPE/NGCards/iCalDateTime.m:86-98`
+   (`-timeZone`, upstream commit 244d1388, imported here via d902756aa): SOGo trusted the
+   event's inline VTIMEZONE to resolve a TZID. Thunderbird/Evolution ship stale VTIMEZONEs
+   for zones that abolished DST (Brazil 2019, Chile…), so SOGo resolved `America/Sao_Paulo`
+   to -0200 for 2025 dates and stored startdates one hour early. The upstream fix prefers
+   `[iCalTimeZone timeZoneForName:]` (SOGo's own vzic/IANA database shipped under
+   `SOPE/NGCards/TimeZones/`) and only falls back to the inline VTIMEZONE.
 
-- `UI/WebServerResources/js/Mailer/Mailbox.service.js:465`
-- `UI/WebServerResources/js/Mailer/Account.service.js:159`
-- `UI/WebServerResources/js/Preferences/Preferences.service.js:590`
-- `UI/WebServerResources/js/Contacts/AddressBook.service.js:461`
-- `UI/WebServerResources/js/Scheduler/Component.service.js:132`
+2. **Residual (fixed by this branch)** — `SOPE/NGCards/iCalTimeZonePeriod.m:298-304`
+   (`-occurrenceForDate:`): when a period's RRULE carries an `UNTIL` in the past of the
+   reference date, the method returned **nil**, making that period invisible to
+   `iCalTimeZone _occurrenceForPeriodNamed:forDate:` (iCalTimeZone.m:186-218). The final
+   `STANDARD` rule (`UNTIL=20190217`) therefore dropped out of the comparison in
+   `periodForDate:` and the latest `DAYLIGHT` period (2018-11-04, -0200) won for any
+   post-2019 date — the exact 1-hour shift of the ticket. This path is still live whenever
+   the TZID is absent from the NGCards IANA database (custom IDs such as
+   `/mozilla.org/…/America/Sao_Paulo`, `tzone://Microsoft/…`, or deployments without the
+   timezone resources installed).
 
-`SOGoRefreshViewCheck` is a **documented string token** (`manually`,
-`every_minute`, `every_2/5/10/20/30_minutes`, `once_per_hour` —
-Documentation/SOGoInstallationGuide.asciidoc:2608) mapped to seconds by
-`String.prototype.timeInterval()` (UI/WebServerResources/js/Common/utils.js:168).
-`isNaN("every_minute")` is `true`, so `!isNaN(...)` disabled every timer: no
-`/Mail/0/folderINBOX/changes` polling, no auto-refresh. Upstream resolved the
-ticket by reverting (`b9f6b9074`, Mantis note ~0018314 "I've reverted it").
+## What changed
 
-Evidence this never affected our lineage:
+`SOPE/NGCards/iCalTimeZonePeriod.m` — one branch collapsed:
 
-- `git merge-base --is-ancestor 55dbae6 HEAD` → exit 1 (regression absent)
-- `git merge-base --is-ancestor b9f6b9074 HEAD` → exit 1 (revert absent too — not needed)
-- `git diff HEAD b9f6b9074 -- <the 5 service files>` restricted to the guard
-  lines → empty: our guard is already
-  `if (refreshViewCheck && refreshViewCheck != 'manually')`
+- **Before**: a refDate past the rule's UNTIL got an occurrence only if the
+  refDate-year occurrence preceded the UNTIL (same-year case); otherwise `nil`.
+- **After**: any refDate at/after the UNTIL resolves the period's last occurrence to the
+  UNTIL date itself (RFC 5545: UNTIL is inclusive — the rule's last transition), so the
+  period stays a candidate and `periodForDate:` correctly picks the latest transition
+  at-or-before the date.
 
-Server side is type-safe by construction: `-[SOGoUserDefaults refreshViewCheck]`
-(SoObjects/SOGo/SOGoUserDefaults.m:564) goes through
-`-[SOGoDefaultsSource stringForKey:]` (SoObjects/SOGo/SOGoDefaultsSource.m:265),
-which warns and returns nil for any non-string value, and
-`-[UIxJSONPreferences jsonDefaults]` (UI/PreferencesUI/UIxJSONPreferences.m:186)
-injects that string into the JSON defaults when the user source lacks the key.
+Demonstrated live on the e2e stack (deployed build = upstream fix only), same VTIMEZONE,
+events at 11:00 `America/Sao_Paulo` (= 14:00 UTC):
 
-Adjacent hazard observed but intentionally not fixed here (misconfiguration
-required, pattern shared by ~10 sibling keys — separate concern): a *numeric*
-`SOGoRefreshViewCheck` in `sogo.conf` makes `refreshViewCheck` return nil, and
-jsonDefaults' `setObject:nil` injection would raise; likewise a number stored
-directly in the user's own defaults blob would reach the browser as a JSON
-number. Neither is reachable through the Preferences UI, which only stores
-dropdown string tokens.
+- AVANT (custom TZID, fallback path): `FREEBUSY;FBTYPE=BUSY:20261007T130000Z/20261007T140000Z` — one hour early.
+- APRÈS (IANA TZID, reference): `FREEBUSY;FBTYPE=BUSY:20261005T140000Z/20261005T150000Z` — correct.
 
-## What changed (before/after)
-
-No production code changed. Added contract locks:
-
-- **AVANT** (upstream 5.12.3): `RefreshViewCheck = "every_minute"` in sogo.conf,
-  webmail open → devtools Network shows **zero** requests to
-  `/SOGo/so/USER/Mail/0/folderINBOX/changes`; new mail appears only on F5,
-  which then dumps 40 unread messages.
-- **APRÈS** (our tree, unchanged): same config → the client polls
-  `.../folderINBOX/changes` every `timeInterval()` = 60 s and the mailbox
-  refreshes itself; the delivered `jsonDefaults.SOGoRefreshViewCheck` is always
-  a string token (`"manually"` observed live on the e2e stack).
+With this branch, the fallback path yields the same -0300 result as the IANA path
+(locked by unit tests below); no new code paths, no API changes.
 
 ## Tests
 
-- `Tests/Unit/TestSOGoUserDefaults.m` (new, registered in
-  `Tests/Unit/GNUmakefile`) — 6 tests locking the accessor contract:
-  user-level string returned; parent-source (domain) fallback; nil when unset
-  everywhere; **NSNumber value rejected** (the guard that keeps numbers out of
-  the JSON layer); `setRefreshViewCheck:` stores the string; legacy
-  `RefreshViewCheck` key migrates to `SOGoRefreshViewCheck`
-  (SoObjects/SOGo/SOGoUserDefaults.m:235).
-- `Tests/spec/HTTPRefreshViewCheckSpec.js` (new, auto-discovered by
-  jasmine.json) — locks the browser-facing contract: `jsonDefaults` must always
-  deliver `SOGoRefreshViewCheck` as a string, and a valid token must round-trip
-  unchanged through `Preferences/save`. Restores the user's original value in
-  `afterAll`.
+`Tests/Unit/TestiCalTimeZoneFallback.m` (registered in `Tests/Unit/GNUmakefile`), using the
+ticket's two VTIMEZONEs verbatim (reduced Mozilla history + Evolution `calendar-2.ics`):
 
-Full unit suite: **215 tests, 2 failures — both known host noise**
-(`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
+- `test_offsetBeyondLastTransition` — 2025 and post-Feb-2019 dates resolve -10800;
+  dates inside the 2018 DST window still resolve -7200; southern winter 2015 -10800;
+  Evolution-style zone: 2025 -10800, DST 2018 -7200.
+- `test_eventStartDateBeyondLastTransition` — DTSTART/DTEND epochs: Mozilla
+  2025-06-24 11:00→`1750773600` (14:00 UTC), Evolution 2025-07-10 10:00→`1752152400`
+  (13:00 UTC); both were one hour early before the fix.
+- `test_offsetWithRecurringRules` — regression guard: Europe/Berlin stays +7200 summer /
+  +3600 winter (rules without UNTIL untouched).
+
+Suite result: 218 tests, 0 new failures (only the two documented host-noise failures
+`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
 
 ## Verification steps for the orchestrator
 
-Unit suite (already run on this worktree):
+Unit (host):
 
-    /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c16-6142
+```
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c16-6133
+# expect: Ran 218 tests, only the two known host-noise failures
+```
 
-E2e spec (inside the rebuilt `sogo_dev` container):
+E2E residual-defect repro on the deployed stack (before this fix is deployed; artifacts
+must be cleaned up afterwards):
 
-    cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
-      npx jasmine --config=spec/support/jasmine.json --filter="refresh view check defaults (bug 6142)" ; \
-      sed -i 's/port: "50000"/port: "50001"/' lib/config.js
+```
+# 1. create scratch calendar
+curl -s -u sogo-tests1:sogo -X MKCALENDAR http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6133-tz/
+# 2. PUT an ics with the ticket's VTIMEZONE twice: once TZID=America/Sao_Paulo,
+#    once TZID=/mozilla.org/20070129_1/America_Sao_Paulo, both
+#    DTSTART;TZID=...:20261005T110000 / DTEND ...T120000
+# 3. check the stored busy time:
+curl -s -u sogo-tests1:sogo "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/freebusy.ifb" | grep FREEBUSY
+#    pre-fix deployed build: IANA TZID -> 20261005T140000Z/150000Z (ok)
+#                            mozilla TZID -> 20261005T130000Z/140000Z (one hour early)
+#    after deploying this branch: both -> 140000Z/150000Z
+# 4. cleanup: DELETE each event and the test-6133-tz calendar
+```
 
-Read-only spot-check of the live contract (validated during this session, value
-restored afterwards):
-
-    curl -s -c /tmp/c.txt -X POST http://127.0.0.1:50001/SOGo/connect \
-      -H 'Content-Type: application/json' \
-      -d '{"userName":"sogo-tests1","password":"sogo"}'
-    curl -s -b /tmp/c.txt http://127.0.0.1:50001/SOGo/so/sogo-tests1/jsonDefaults \
-      | python3 -c "import sys,json; v=json.load(sys.stdin)['SOGoRefreshViewCheck']; print(repr(v), type(v).__name__)"
-    # observed: 'manually' str
-
-Guards (no source regression possible without CI noticing):
-
-    grep -rn "isNaN(refreshViewCheck)" UI/WebServerResources/js/   # → no matches
+The exact scratch ics used are reproducible from the unit-test constants in
+`Tests/Unit/TestiCalTimeZoneFallback.m` (`tzMozilla`/`tzEvolution`).
 
 ## PR body draft
 
-Bug 6142 reported that auto-refresh silently stopped in 5.12.3: with
-`SOGoRefreshViewCheck = "every_minute"`, no `/Mail/0/folderINBOX/changes`
-polling ever fired and new mail only appeared on a manual F5. Root cause was
-upstream commit 55dbae6, which guarded every refresh timer with
-`!isNaN(refreshViewCheck)` although the setting is a documented *string* token
-consumed by `String.prototype.timeInterval()` — `isNaN("every_minute")` is
-true, so every timer was disabled. Upstream fixed it by reverting; that
-regression never existed in our lineage, so this PR changes **no production
-code** and instead locks the contract the bug violated.
+When Thunderbird or Evolution sends an invitation for a timezone that has since dropped
+DST (e.g. `America/Sao_Paulo`, no DST since 2019), the client still attaches the full
+historical VTIMEZONE whose last DAYLIGHT entry dates from 2018 and whose final STANDARD
+rule carries `UNTIL=20190217`. SOGo's VTIMEZONE evaluator dropped any period whose RRULE
+had already expired, so for post-2019 dates the 2018 DAYLIGHT period (-0200) won over the
+final STANDARD rule and events were stored one hour early: an 11:00 São Paulo meeting
+(16:00 CEST) appeared at 15:00 CEST in the web UI and notifications — exactly bug 6133.
+The already-merged IANA-first lookup (244d1388) masks this for standard TZIDs, but the
+defect remained reachable for custom TZIDs (`/mozilla.org/…`, `tzone://Microsoft/…`)
+verified live on the e2e stack: the same invitation stored at 13:00Z instead of 14:00Z
+when the TZID was not an IANA name.
 
-Two test layers now pin the behavior: a unit suite
-(`TestSOGoUserDefaults.m`) covering the `refreshViewCheck` accessor —
-user-level value, domain-source fallback, non-string rejection, and the legacy
-`RefreshViewCheck` key migration — and an e2e spec
-(`HTTPRefreshViewCheckSpec.js`) asserting `jsonDefaults` always delivers
-`SOGoRefreshViewCheck` as a string token that round-trips unchanged. If anyone
-re-introduces a numeric guard or a numeric value slips into the delivery path,
-the suites fail instead of the users' mailboxes going stale. AVANT (upstream
-5.12.3): zero `changes` requests, 40 mails dumped on F5. APRÈS: polling every
-60 s, `jsonDefaults.SOGoRefreshViewCheck` observed as `'manually'` (str) on the
-e2e stack.
+This PR fixes the evaluator: when a reference date is past a period's RRULE UNTIL, the
+period's last occurrence is now its UNTIL date (inclusive per RFC 5545) instead of nil,
+so `periodForDate:` picks the genuinely last transition at-or-before the date. The change
+is one branch in `iCalTimeZonePeriod occurrenceForDate:`; the only caller is
+`iCalTimeZone _occurrenceForPeriodNamed:forDate:`. Unit tests lock the ticket's exact
+VTIMEZONEs (Mozilla full-history and Evolution `calendar-2.ics`): 2025 dates resolve
+-0300 with correct event epochs, the 2018 DST window still resolves -0200, and
+still-DSTing zones (Europe/Berlin) are unchanged.
