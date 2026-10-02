@@ -1054,6 +1054,35 @@ static int cssEscapingCount;
  * @param stripHTMLCode Remove all HTML code from content
  * @return A safe string
  */
+
+/* GNUstep-base regex replacements with an empty template misbehave when the
+   result is empty (no-op or nil, depending on the variant), so deletions
+   are performed by concatenating the unmatched parts ourselves */
+static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *regex)
+{
+  NSMutableString *result = [NSMutableString stringWithCapacity: [string length]];
+  NSArray *matches = [regex matchesInString: string
+                                     options: 0
+                                       range: NSMakeRange(0, [string length])];
+  NSUInteger position = 0;
+  NSEnumerator *enumerator = [matches objectEnumerator];
+  NSTextCheckingResult *match;
+
+  while ((match = [enumerator nextObject])) {
+    NSRange range = [match range];
+
+    if (range.location > position)
+      [result appendString:
+                 [string substringWithRange:
+                            NSMakeRange(position, range.location - position)]];
+    position = range.location + range.length;
+  }
+  if (position < [string length])
+    [result appendString: [string substringFromIndex: position]];
+
+  return result;
+}
+
 - (NSString *) stringWithoutHTMLInjection: (BOOL)stripHTMLCode stripAngular: (BOOL)stripAngular
 {
   NSString *result, *text, *newResult;
@@ -1108,24 +1137,21 @@ static int cssEscapingCount;
       // loop until stable: a single pass lets nested tokens reconstruct
       // the scheme, e.g. "javajavascript:script:" -> "javascript:"
       while ([regex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@""];
-        result = [NSString stringWithString: newResult];
+        result = RemoveRegexMatches(result, regex);
       }
 
       // Remove vbscript:
       regex = [NSRegularExpression regularExpressionWithPattern:@"v[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*b[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*:"
                                   options: NSRegularExpressionCaseInsensitive error:&error];
       while ([regex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@""];
-        result = [NSString stringWithString: newResult];
+        result = RemoveRegexMatches(result, regex);
       }
 
       // Remove livescript:
       regex = [NSRegularExpression regularExpressionWithPattern:@"l[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*v[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*e[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*s[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*c[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*r[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*i[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*p[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*t[\\s\\u200B&#x09;&#x0A;&#x0D;\\\\0]*:"
                                   options: NSRegularExpressionCaseInsensitive error:&error];
       while ([regex numberOfMatchesInString:result options:0 range:NSMakeRange(0, [result length])] > 0) {
-        newResult = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, [result length]) withTemplate:@""];
-        result = [NSString stringWithString: newResult];
+        result = RemoveRegexMatches(result, regex);
       }
 
       // Remove <script
