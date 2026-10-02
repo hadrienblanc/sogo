@@ -1017,6 +1017,7 @@ static NSString *sieveScriptName = @"sogo";
       NSArray *addresses, *weekdays;
       NSString *text, *templateFilePath, *customSubject, *weekday, *startTime, *endTime, *timeCondition, *timeZone;
       SOGoTextTemplateFile *templateFile;
+      NSTimeZone *userTimeZone;
 
       BOOL ignore, alwaysSend, useCustomSubject, discardMails;
       int days, i, seconds;
@@ -1030,6 +1031,7 @@ static NSString *sieveScriptName = @"sogo";
       useCustomSubject = [[values objectForKey: @"customSubjectEnabled"] boolValue];
       customSubject = [values objectForKey: @"customSubject"];
       text = [values objectForKey: @"autoReplyText"];
+      userTimeZone = [ud timeZone];
       b = YES;
 
       if (!text)
@@ -1085,7 +1087,7 @@ static NSString *sieveScriptName = @"sogo";
               [allConditions addObject: [NSString stringWithFormat: @"currentdate :value \"ge\" \"date\" \"%@\"",
                                                   [SOGoSieveManager sieveDateFromEpoch:
                                                                     [[values objectForKey: @"startDate"] intValue]
-                                                                              timeZone: [ud timeZone]]]];
+                                                                              timeZone: userTimeZone]]];
             }
 
           // End date of auto-reply
@@ -1096,10 +1098,10 @@ static NSString *sieveScriptName = @"sogo";
               [allConditions addObject: [NSString stringWithFormat: @"currentdate :value \"le\" \"date\" \"%@\"",
                                                   [SOGoSieveManager sieveDateFromEpoch:
                                                                     [[values objectForKey: @"endDate"] intValue]
-                                                                              timeZone: [ud timeZone]]]];
+                                                                              timeZone: userTimeZone]]];
             }
 
-          seconds = [[ud timeZone] secondsFromGMT];
+          seconds = [userTimeZone secondsFromGMT];
           timeZone = [NSString stringWithFormat: @"%@%.2i%02i", seconds >= 0 ? @"+" : @"", seconds/60/60, seconds/60%60];
           timeConditions = [NSMutableArray array];
           startTime = endTime = nil;
