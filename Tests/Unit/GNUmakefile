@@ -52,6 +52,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSURL+misc.m \
 	TestNGMailAddressParser.m \
 	TestNGInternetSocketAddress.m \
+	TestNGVList.m \
 	TestSOGoDraftObject.m \
 	TestSOGoMailFolder.m \
 	TestSOGoMailForward.m \
