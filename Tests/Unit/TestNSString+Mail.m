@@ -111,7 +111,7 @@
   result = [@"<p>Test signature</p>"
             @"<p><img src=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo=\""
             @" width=\"391\" height=\"232\"></p>"
-              htmlByExtractingImages: images];
+            htmlByExtractingImages: images];
 
   testWithMessage ([images count] == 1, @"the SVG data URI image should be extracted");
   testEquals ([[[images objectAtIndex: 0] contentType] stringValue], @"image/svg+xml");
