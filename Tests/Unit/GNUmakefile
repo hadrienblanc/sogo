@@ -36,6 +36,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Mail.m \
 	TestNSStringMailHelpers.m \
 	TestNSDataMail.m \
+ 	TestNSCalendarDateSOGo.m \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
 	TestNSURL+misc.m \
