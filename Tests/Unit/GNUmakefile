@@ -50,6 +50,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \
 	TestSOGoContactSourceFolder.m \
+	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
 	TestUIxHTMLMailContentHandler.m \
 	TestWORequest+SOGo.m \
