@@ -584,7 +584,7 @@ FIXME
   NSMutableDictionary *folderMetadata, *syncCache, *uidCache;
   SOGoUser *ownerUser;
 
-  int i;
+  int i, itemStatus;
 
   changes = (id)[theDocumentElement getElementsByTagName: @"Change"];
 
@@ -597,7 +597,8 @@ FIXME
       for (i = 0; i < [changes count]; i++)
         {
           aChange = [changes objectAtIndex: i];
-          
+          itemStatus = 1;
+
           origServerId = [[(id)[aChange getElementsByTagName: @"ServerId"] lastObject] textValue];
           easId = origServerId;
 
@@ -682,17 +683,32 @@ FIXME
                 if (theFolderType == ActiveSyncEventFolder &&
                     [(iCalEvent *)o userIsAttendee: [context activeUser]])
                   {
+                    BOOL timeChange;
+
+                    timeChange = [(iCalEvent *)o hasActiveSyncScheduleChange: allChanges  inContext: context];
+
 		    // Don't update the component without proper permission
 		    if ([roles containsObject: SOGoCalendarRole_ComponentResponder] || [[sogoObject ownerInContext: context] isEqualToString: [[context activeUser] login]])
 		      {
 			[o changeParticipationStatus: allChanges  inContext: context  component: sogoObject];
+
+			if (timeChange)
+			  {
+			    itemStatus = 7;
+			    [sogoObject touch];
+			  }
 
 			if ([syncCache objectForKey: serverId])
 			  [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]]  forKey: serverId];
 		      }
 		    // Trigger a change-command to override client changes since we don't have permissions
 		    else
-		      [sogoObject touch];
+		      {
+			[sogoObject touch];
+
+			if (timeChange)
+			  itemStatus = 7;
+		      }
                   }
                 else
                   {
@@ -772,7 +788,7 @@ FIXME
           if ([allChanges objectForKey: @"Body"] && theFolderType == ActiveSyncMailFolder)
             [theBuffer appendFormat: @"<Status>%d</Status>", 8];
           else
-            [theBuffer appendFormat: @"<Status>%d</Status>", 1];
+            [theBuffer appendFormat: @"<Status>%d</Status>", itemStatus];
 
           [theBuffer appendString: @"</Change>"];
         }

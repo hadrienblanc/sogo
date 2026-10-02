@@ -38,6 +38,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 @interface iCalEvent (ActiveSync)
 
+- (NSString *) activeSyncStartTimeInContext: (WOContext *) context;
+- (NSString *) activeSyncEndTimeInContext: (WOContext *) context;
+- (BOOL) hasActiveSyncScheduleChange: (NSDictionary *) theValues
+                           inContext: (WOContext *) context;
 - (NSString *) activeSyncRepresentationInContext: (WOContext *) context;
 - (void) takeActiveSyncValues: (NSDictionary *) theValues
                     inContext: (WOContext *) context;

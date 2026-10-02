@@ -20,6 +20,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalEvent+SOGo.m \
+	TestiCalEvent+ActiveSync.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
 	TestNSCalendarDateClamping.m \
@@ -55,6 +56,9 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestRTFHandler.m \
 	\
 	../../UI/MailPartViewers/UIxHTMLMailContentHandler.m \
+	../../ActiveSync/iCalEvent+ActiveSync.m \
+	../../ActiveSync/NSString+ActiveSync.m \
+	../../ActiveSync/NSDate+ActiveSync.m \
 	\
     # I don't know how to link against -l:SOGoBackend \
 	     undefined reference to `__objc_class_name_SOGoMailFolder'
@@ -62,13 +66,14 @@ $(TEST_TOOL)_OBJC_FILES += \
 TEST_TOOL_NAME = $(TEST_TOOL)
 
 $(TEST_TOOL)_CPPFLAGS += \
-	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../UI/MailPartViewers -I../../OpenChange \
+	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../UI/MailPartViewers -I../../OpenChange -I../../ActiveSync \
 	$(shell xml2-config --cflags)
 
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lNGObjWeb -lobjc \
+	-L../../SoObjects/Appointments/Appointments.SOGo -l:Appointments \
 	-L/usr/local/lib  -lSaxObjC -lNGStreams \
-	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj
+	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj -Wl,-rpath,../../SoObjects/Appointments/Appointments.SOGo
 ADDITIONAL_LDFLAGS += -Wl,--no-as-needed
 
 ifeq ($(HAS_LIBRARY_sodium), yes)
