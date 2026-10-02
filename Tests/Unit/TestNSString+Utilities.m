@@ -229,7 +229,7 @@
 {
   testEquals([@"[1," objectFromJSONString], nil);
   testEquals([@"{invalid" objectFromJSONString], nil);
-  testEquals([@"\"a\\\\\"b\"" objectFromJSONString], nil);
+  testEquals([@"\"a\\\\\"b\"" objectFromJSONString], @"a\"b");
 }
 
 - (void) test_asSafeSQLString

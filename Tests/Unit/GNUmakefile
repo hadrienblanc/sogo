@@ -69,7 +69,7 @@ $(TEST_TOOL)_CPPFLAGS += \
 	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange -I../../SoObjects/Contacts $(shell xml2-config --cflags)
 
 ADDITIONAL_LIB_DIRS += \
-	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
+	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGObjWeb -lDOM -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
 	-L/usr/local/lib  -lSaxObjC -lNGStreams \
 	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj
 ADDITIONAL_LDFLAGS += -Wl,--no-as-needed

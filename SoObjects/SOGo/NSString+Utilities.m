@@ -757,11 +757,8 @@ static int cssEscapingCount;
                                          withString: @"\\"];
           object = [parser objectWithString: unescaped
                                       error: &error];
-          if (error)
-            {
-              [self errorWithFormat: @"total failure. Original string is: %@", self];
-              object = nil;
-            }
+          if (object == nil)
+            [self errorWithFormat: @"total failure. Original string is: %@", self];
           else
             [self logWithFormat: @"initial object deserialized successfully!"];
         }

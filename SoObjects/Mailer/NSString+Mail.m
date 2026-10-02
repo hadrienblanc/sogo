@@ -106,9 +106,9 @@
 
   [htmlToTextContentHandler setIgnoreContentTags: [NSArray arrayWithObjects: @"head", @"script",
                                                            @"style", nil]];
-  [htmlToTextContentHandler setSpecialTreatmentTags: [NSArray arrayWithObjects: @"p", @"ul",
-                                                              @"li", @"table", @"tr", @"td", @"th",
-                                                              @"br", @"hr", @"dt", @"dd", nil]];
+  [htmlToTextContentHandler setSpecialTreatmentTags: [NSArray arrayWithObjects: @"p", @"ul", @"ol",
+                                                               @"li", @"table", @"tr", @"td", @"th",
+                                                               @"br", @"hr", @"dt", @"dd", nil]];
 
   return htmlToTextContentHandler;
 }
@@ -183,6 +183,9 @@
 
   [result release];
   result = [NSMutableString new];
+  orderedList = NO;
+  unorderedList = NO;
+  listCount = 0;
 }
 
 - (void) endDocument
@@ -313,7 +316,8 @@
                 i = 5;
 
               // We might get a stupid value. We discard anything that doesn't have a / in it
-              if ([mimeType indexOf: '/'] < 0)
+              if (mimeType == nil || [mimeType length] == 0
+                  || [mimeType indexOf: '/'] < 0)
                 mimeType = @"image/jpeg";
 
               // We check and skip the charset

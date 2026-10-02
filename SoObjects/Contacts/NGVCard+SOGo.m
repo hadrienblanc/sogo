@@ -254,23 +254,25 @@ convention:
   mail = [ldifRecord objectForKey: @"mail"];
   if (mail)
     {
-      emails = [self emails];
       if ([mail isKindOfClass: [NSArray class]])
         {
           mailList = [(NSArray *)mail objectEnumerator];
           while ((mail = [mailList nextObject]))
             {
+              emails = [self emails];
               if ([mail length] && ![emails containsObject: mail])
                 [self addElementWithTag: @"email"
                                  ofType: @"work"
                               withValue: mail];
             }
         }
-      else if ([mail length] && ![emails containsObject: mail])
+      else
         {
-          [self addElementWithTag: @"email"
-                           ofType: @"work"
-                        withValue: mail];
+          emails = [self emails];
+          if ([mail length] && ![emails containsObject: mail])
+            [self addElementWithTag: @"email"
+                             ofType: @"work"
+                          withValue: mail];
         }
     }
 
@@ -280,6 +282,7 @@ convention:
       mailList = [(NSArray *)mail objectEnumerator];
       while ((mail = [mailList nextObject]))
         {
+          emails = [self emails];
           if ([mail length] && ![emails containsObject: mail])
             [self addElementWithTag: @"email"
                              ofType: @"home"

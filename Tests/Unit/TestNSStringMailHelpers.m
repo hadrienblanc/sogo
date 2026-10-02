@@ -91,6 +91,9 @@
              @"\nab\nc______________________________________________________________________________\nd");
   testEquals([@"<ul><li>one</li><li>two</li>" htmlToText], @"\n * one * two");
   testEquals([@"<ul><li>a<ul><li>b</ul></li></ul>" htmlToText], @"\n * a\n * b");
+  testEquals([@"<ol><li>one</li><li>two</li></ol>" htmlToText], @"\n 1. one 2. two");
+  testEquals([@"<ol><li>a<ol><li>b</ol></li></ol>" htmlToText], @"\n 1. a\n 1. b");
+  testEquals([@"<ol start=\"3\"><li>x</li><li>y</li></ol>" htmlToText], @"\n 1. x 2. y");
   testEquals([@"<dl><dt>term</dt><dd>def</dd></dl>" htmlToText], @"term  def");
   testEquals([@"<table><tr><td>c1</td><th>h</th></tr></table>" htmlToText], @"c1h");
   testEquals([@"<html><head><li>inhead</li></head><body>x</body></html>" htmlToText],
@@ -167,14 +170,17 @@
   images = [NSMutableArray array];
   result = [@"<img src=\"data:;base64,iVBORw0KGgo=\" />" htmlByExtractingImages: images];
   testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
-  testWithMessage([result rangeOfString: @"\" type=\"(null)\"/>"].location != NSNotFound, result);
+  testWithMessage([result rangeOfString: @"\" type=\"image/jpeg\"/>"].location != NSNotFound, result);
   testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"base64");
+  testWithMessage([[[images objectAtIndex: 0] headerForKey: @"content-type"] hasPrefix: @"image/jpeg; name=\""],
+                  [[images objectAtIndex: 0] headerForKey: @"content-type"]);
 
   images = [NSMutableArray array];
   result = [@"<img src=\"data:img/x,,DATA\" />" htmlByExtractingImages: images];
   testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
   testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"mg/x");
   testEquals([[images objectAtIndex: 0] headerForKey: @"content-length"], [NSNumber numberWithInt: 5]);
+  testWithMessage([result rangeOfString: @"\" type=\"image/jpeg\"/>"].location != NSNotFound, result);
 
   images = [NSMutableArray array];
   result = [@"<img src=\"data:img/j;,D\" />" htmlByExtractingImages: images];

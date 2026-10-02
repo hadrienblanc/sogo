@@ -690,7 +690,8 @@
                            [NSArray arrayWithObjects: @"m@x.y", @"m@x.y", nil], @"mail",
                            nil]];
   emails = [card emails];
-  test([emails count] == 2);
+  test([emails count] == 1);
+  test([emails containsObject: @"m@x.y"]);
 
   card = [NGVCard cardWithUid: @"dup6"];
   [card updateFromLDIFRecord:
@@ -702,6 +703,39 @@
   emails = [card emails];
   test([emails count] == 1);
   test([emails containsObject: @"s@x.y"]);
+
+  card = [NGVCard cardWithUid: @"dup7"];
+  [card updateFromLDIFRecord:
+            [NSDictionary dictionaryWithObjectsAndKeys:
+                           @"Nom", @"sn",
+                           @"m@x.y", @"mail",
+                           [NSArray arrayWithObjects: @"m@x.y", @"s@x.y", nil], @"mozillasecondemail",
+                           nil]];
+  emails = [card emails];
+  test([emails count] == 2);
+  test([emails containsObject: @"m@x.y"]);
+  test([emails containsObject: @"s@x.y"]);
+
+  card = [NGVCard cardWithUid: @"dup8"];
+  [card updateFromLDIFRecord:
+            [NSDictionary dictionaryWithObjectsAndKeys:
+                           @"Nom", @"sn",
+                           [NSArray arrayWithObjects: @"s1@x.y", @"s2@x.y", nil], @"mozillasecondemail",
+                           nil]];
+  emails = [card emails];
+  test([emails count] == 2);
+  test([emails containsObject: @"s1@x.y"]);
+  test([emails containsObject: @"s2@x.y"]);
+
+  card = [NGVCard cardWithUid: @"dup9"];
+  [card updateFromLDIFRecord:
+            [NSDictionary dictionaryWithObjectsAndKeys:
+                           @"Nom", @"sn",
+                           [NSArray arrayWithObjects: @"s1@x.y", @"s1@x.y", nil], @"mozillasecondemail",
+                           nil]];
+  emails = [card emails];
+  test([emails count] == 1);
+  test([emails containsObject: @"s1@x.y"]);
 }
 
 - (void) test_element_with_tag_and_add_element
