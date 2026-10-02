@@ -1,132 +1,153 @@
-# Ticket 6179 — CardDAV shared read-only address books: empty `current-user-privilege-set`
+# Ticket 6171 — Calendar ACLs set via sogo-tool are lost when accessing the web interface
 
-Branch: `fix-6179-mantis` — commit `954ed35d2`
-Verdict: **confirmed bug**, fixed.
+Branch: `fix-6171-mantis` (commit `fa4002464`) — https://bugs.sogo.nu/view.php?id=6171
 
-## Root cause
+## Root cause (file:line)
 
-- `SoObjects/SOGo/SOGoGCSFolder.m:87-94` (`+webdavAclManager`): the registration of the
-  `{DAV:}read` and `{DAV:}read-current-user-privilege-set` privileges has been **commented
-  out since the file was created**. The GCS ACL tree therefore only contains write/admin
-  privileges.
-- `SOGoContactGCSFolder` (CardDAV address books) does not override `webdavAclManager`, so
-  `davCurrentUserPrivilegeSet` (`SoObjects/SOGo/SOGoObject.m:447-457`) walks a tree with no
-  `read` node. Any user whose roles do not imply a write permission (i.e. a read-only
-  subscriber with role `ObjectViewer`) gets **zero** privileges, and even owners never see
-  `{DAV:}read`.
-- Calendars are unaffected because `SOGoAppointmentFolder.m:107` has its own manager that
-  registers `{DAV:}read` → `SoPerm_WebDAVAccess` (which is why shared read-only calendars
-  are discoverable in Thunderbird while address books are not).
+This **is** a bug, reproduced live on the e2e stack. Two independent defects make
+subscriptions installed by `sogo-tool manage-acl subscribe` disappear at the first
+web login:
 
-Reproduced on the e2e stack (before fix):
+1. **Destructive pruning driven by stale ACL cache.**
+   On every web request that lists folders (first one at login:
+   `/SOGo/so/<user>/Calendar/calendarslist`), `-[SOGoParentFolder appendSubscribedSources]`
+   (`SoObjects/SOGo/SOGoParentFolder.m:313-392`) walks `Calendar.SubscribedFolders` and
+   calls `-_appendSubscribedSource:` (`SOGoParentFolder.m:287-311`). That method fails —
+   and the entry is **removed and synchronized to the DB** (`SOGoParentFolder.m:351-389`) —
+   whenever `validatePermission: SOGoPerm_AccessObject` denies access, which happens when
+   `-[SOGoGCSFolder aclsForUser:]` returns no authorizing role. Folder-level "Access
+   Object" is granted only via Owner/AuthorizedSubscriber (`UI/MainUI/product.plist:61`,
+   `SOGoUser.m:1260-1265`).
+   `sogo-tool manage-acl add` (`Tools/SOGoToolManageACL.m:284-318`) inserts ACL rows with
+   raw SQL and — unlike `manage-acl remove` (`SOGoToolManageACL.m:377-380`, which calls
+   `setACLs:nil forPath:`) and unlike the web `setRoles:` path
+   (`SOGoGCSFolder.m:1978`) — **never invalidates the `<path>+acl` memcached entry**
+   (`SOGoCache.m:748-769`). For up to `SOGoCacheCleanupInterval` (default 300 s,
+   `SOGoDefaults.plist:25`), sogod workers therefore keep serving the *pre-ACL* (empty)
+   roles for users on that path (`SOGoGCSFolder.m:1733-1755` also caches the empty
+   result), so any group member who logs in inside that window has their
+   freshly-subscribed calendar pruned — permanently, because the prune writes the user
+   settings. With a daily re-subscribe cron this looks exactly like "the web interface
+   drops SubscribedFolders".
 
-- `MKCOL /SOGo/dav/sogo-tests1/Contacts/test-6179-ab/` as sogo-tests1, share
-  `ObjectViewer` to sogo-tests2 (inverse-dav `acl-query`/`set-roles`, 204).
-- `PROPFIND` `current-user-privilege-set` as sogo-tests2 →
-  `<D:current-user-privilege-set xmlns:D="DAV:"></D:current-user-privilege-set>` (empty),
-  exactly the ticket's "bad" response. The equivalent read-only calendar returns
-  `<D:read/>` + `<D:read-current-user-privilege-set/>`.
+2. **Group ACLs evaluate to "no access" when memcached cannot serve the member list.**
+   `-[LDAPSource groupWithUIDHasMemberWithUID:memberUid:]`
+   (`SoObjects/SOGo/LDAPSource.m:2456-2484`) resolves membership *only* through the
+   `"<group>+<domain>"` memcached key written by `membersForGroupWithUID:`. When
+   memcached is unreachable (or the entry cannot be stored), `value` stays nil,
+   `[nil componentsSeparatedByString:]` yields nil and the method returns NO
+   unconditionally — the group grant silently vanishes, the user is seen as
+   unauthorized, and the subscription is pruned on login. Note the asymmetry that
+   matches the report: `sogo-tool manage-acl subscribe` uses `membersForGroupWithUID`
+   directly (live LDAP query, succeeds — "the status in the database is apparently
+   correct"), only the *evaluation* at web login is memcached-dependent.
 
-## What changed
+Live reproduction (stack at http://127.0.0.1:50001, LDAP group `@readers` with members
+sogo-tests1/2/3): calendar `test-6171-cal` created for sogo-tests1, group ACL set, group
+subscribed → `GET jsonSettings` for sogo-tests2 shows
+`SubscribedFolders: ["sogo-tests1:Calendar/test-6171-cal"]`; a **single**
+`calendarslist` fetch later the setting is `SubscribedFolders: []`,
+`FolderDisplayNames: {}` — the reported data loss, before any fix of the roles
+involved. (With the ticket's exact role set and healthy memcached the prune does not
+trigger — the two defects above are what make it fire in the field.)
 
-- `SoObjects/SOGo/SOGoGCSFolder.m` — reinstated (uncommented) the two registrations in the
-  GCS folder ACL tree, identical semantics to `SOGoAppointmentFolder`'s manager:
-  - `{DAV:}read` (abstract, equivalent `SoPerm_WebDAVAccess`, child of `{DAV:}all`)
-  - `{DAV:}read-current-user-privilege-set` (abstract, equivalent `SoPerm_WebDAVAccess`,
-    child of `{DAV:}read`)
+## What changed (before/after)
 
-The manager is only consumed for privilege *reporting* (`current-user-privilege-set`,
-`supported-privilege-set`, and `grant` ACEs of the ACL REPORT), so no permission checking
-behavior changes; roles that hold "WebDAV Access" (`ObjectViewer`, `ObjectEditor`, owner,
-…) are now simply advertised `DAV:read`.
+- `Tools/SOGoToolManageACL.m` (`addACLForUser:`): after inserting the ACL rows, invalidate
+  the distributed ACL cache — same as `removeACLForUser:` already did.
 
-### AVANT (read-only subscriber, PROPFIND as sogo-tests2)
+  AVANT: `sogo-tool manage-acl add ...` → sogod workers keep the old (empty) roles for
+  ≤ SOGoCacheCleanupInterval → member logs in → subscription judged unauthorized →
+  `SubscribedFolders` entry deleted from `sogo_user_profile`.
 
-```xml
-<D:current-user-privilege-set xmlns:D="DAV:"></D:current-user-privilege-set>
-```
+  APRES: the `<path>+acl` cache entry is dropped at once; the next evaluation re-reads
+  the ACL table, the member gets AuthorizedSubscriber via ObjectCreator/the viewer
+  roles, and the subscription survives the login.
 
-### APRÈS
+- `SoObjects/SOGo/LDAPSource.m` (`groupWithUIDHasMemberWithUID:memberUid:`): when the
+  member list cannot be served from memcached, fall back to a live membership check on
+  the array returned by `membersForGroupWithUID:` (same `loginInDomain` projection used
+  to build the cached list). Behaviour is unchanged when memcached answers.
 
-```xml
-<D:current-user-privilege-set xmlns:D="DAV:">
-  <D:privilege><D:read/></D:privilege>
-  <D:privilege><D:read-current-user-privilege-set/></D:privilege>
-</D:current-user-privilege-set>
-```
+  AVANT: no (or broken) memcached ⇒ every group-ACL check returns "not a member" ⇒
+  group subscriptions pruned at each web login, while `manage-acl subscribe` kept
+  re-adding them.
 
-(Owner additionally keeps write/bind/unbind/write-properties/write-content/read-acl/
-write-acl/admin/all, and now also `read` + `read-current-user-privilege-set`, as for
-calendars.)
+  APRES: the membership is resolved from LDAP and the group grant is honored, with or
+  without memcached.
 
 ## Tests
 
-- `Tests/Unit/TestSOGoWebDAVAclManager.m` (registered in `Tests/Unit/GNUmakefile`):
-  - `test_gcsFolderDavPrivilegesIncludeRead` — asserts `{DAV:}read` and
-    `{DAV:}read-current-user-privilege-set` are produced by
-    `[SOGoGCSFolder webdavAclManager] davPermissionsForRoles:onObject:`. **Fails on the
-    unfixed tree** (verified by stashing the fix), passes with it.
-  - `test_gcsFolderDavPrivilegesIncludeWriteForWriters` — guards the pre-existing write
-    privileges still being reported.
-- `Tests/spec/CardDAVPrivilegeSetSpec.js` (e2e, needs the stack): read-only subscriber
-  (`ObjectViewer`) gets `read` + `readCurrentUserPrivilegeSet` and no `write`; owner gets
-  both `read` and `write`.
+- `Tests/Unit/TestSOGoFolderSubscriptionRoles.m` (new, registered in
+  `Tests/Unit/GNUmakefile`): locks that the roles granted by the documented
+  `sogo-tool manage-acl add` example for calendars (ObjectCreator + Public/Private/
+  Confidential Modifier) and the calendar viewer roles intersect
+  `-[SOGoAppointmentFolder subscriptionRoles]` (the AuthorizedSubscriber source), and
+  that `-[SOGoFolder subscriptionRoles]` keeps the Object* roles — the invariant whose
+  violation turns a login into a prune.
+- `Tests/Unit/TestSOGoCacheACLs.m` (new): locks `-[SOGoCache setACLs:forPath:]` /
+  `aclsForPath:` round-trip and the nil-invalidation used by `manage-acl add/remove`
+  (bug 6171), plus harmlessness of invalidating an uncached path.
 
-Unit suite: `local/run-worktree-tests.sh wt/c12-6179` → 128 tests, only the two known
-host-noise failures (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`).
+Suite result: `Ran 133 tests, FAILED (2 failures, 0 errors)` — the two failures are the
+known host-noise ones (`test_NGInternetSocketAddressFromString`,
+`test_stringWithoutHTMLInjection`); the process-exit segfault after the summary is also
+present on the untouched baseline checkout. `Tools/` (sogo-tool) builds cleanly.
 
 ## Verification steps for the orchestrator
 
-After the fix is deployed on the e2e stack (deploys are orchestrator-only):
+Deploy this branch on the e2e stack, then:
 
 ```bash
-# setup: read-only share
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests1:sogo -X MKCOL \
-  http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Contacts/test-6179-ab/
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests1:sogo -X POST \
-  -H "Content-Type: application/xml; charset=utf-8" \
-  --data '<?xml version="1.0"?><acl-query xmlns="urn:inverse:params:xml:ns:inverse-dav"><set-roles user="sogo-tests2"><ObjectViewer/></set-roles></acl-query>' \
-  http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Contacts/test-6179-ab/
-
-# subscriber PROPFIND must now contain <D:privilege><D:read/></D:privilege>
-curl -s -u sogo-tests2:sogo -X PROPFIND -H "Depth: 0" -H "Content-Type: application/xml" \
-  --data '<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:prop><D:current-user-privilege-set/></D:prop></D:propfind>' \
-  http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Contacts/test-6179-ab/
-
-# cleanup
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests-super:sogo -X DELETE \
-  http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Contacts/test-6179-ab/
+BASE=http://127.0.0.1:50001
+# 1. fixture (as owner + super-user, group '@readers' exists in the e2e LDAP)
+curl -s -o /dev/null -u sogo-tests1:sogo -X MKCALENDAR -H "Content-Type: text/xml" \
+  --data '<mkcalendar xmlns="DAV:"><set><prop><resourcetype><calendar/></resourcetype><displayname>test-6171-cal</displayname></prop></set></mkcalendar>' \
+  "$BASE/SOGo/dav/sogo-tests1/Calendar/test-6171-cal/"
+docker exec sogo_dev su sogo -s /bin/sh -c \
+  "sogo-tool manage-acl add sogo-tests1 Calendar/test-6171-cal '@readers' '[\"ObjectCreator\",\"PublicModifier\",\"ConfidentialModifier\",\"PrivateModifier\"]'"
+# 2. login as a group member right away (< cache TTL) and prime a stale-empty role cache
+curl -s -o /dev/null -c /tmp/cj -X POST -H "Content-Type: application/json" \
+  -d '{"userName":"sogo-tests2","password":"sogo"}' "$BASE/SOGo/connect"
+# 3. subscribe via the tool (what the cron does)
+docker exec sogo_dev su sogo -s /bin/sh -c \
+  "sogo-tool manage-acl subscribe sogo-tests1 Calendar/test-6171-cal '@readers'"
+# 4. web login: fetch the calendar list (this used to prune the subscription)
+curl -s -b /tmp/cj "$BASE/SOGo/so/sogo-tests2/Calendar/calendarslist"
+# 5. EXPECT: the shared calendar is listed and SubscribedFolders still holds the ref
+curl -s -b /tmp/cj "$BASE/SOGo/so/sogo-tests2/jsonSettings"
+#    -> "SubscribedFolders": [ "sogo-tests1:Calendar/test-6171-cal" ]
+#    (before the fix this returned [] after step 4)
+# 6. unit suite
+local/run-worktree-tests.sh <this-worktree>   # 133 tests, only the 2 known host failures
+# 7. cleanup
+curl -s -o /dev/null -u sogo-tests-super:sogo -X DELETE "$BASE/SOGo/dav/sogo-tests1/Calendar/test-6171-cal/"
 ```
-
-Expected: `current-user-privilege-set` contains `<D:read/>` and
-`<D:read-current-user-privilege-set/>` (previously empty — see AVANT/APRÈS above).
-The e2e suite should also run `CardDAVPrivilegeSetSpec.js`
-(`npx jasmine --filter "current-user-privilege-set on address books (bug 6179) read-only subscriber gets the DAV read privilege"`).
 
 ## PR body draft
 
-> ### CardDAV: shared read-only address books reported an empty `current-user-privilege-set` (bug 6179)
->
-> **Context.** SOGo's WebDAV ACL manager builds `current-user-privilege-set` by walking a
-> per-class DAV privilege tree. For GCS folders (the base of every CardDAV address book)
-> the `{DAV:}read` and `{DAV:}read-current-user-privilege-set` registrations had been
-> commented out since the tree was introduced, while calendars
-> (`SOGoAppointmentFolder`) always registered them. As a result, a user with read-only
-> access to a shared address book received an empty
-> `<D:current-user-privilege-set/>` in discovery PROPFINDs — owners never saw
-> `{DAV:}read` either. Thunderbird 148 requires the `read` privilege (or the absence of
-> the property) before listing an address book as addable, so read-only shared address
-> books could not be subscribed to ("No address books found"), although they work fine
-> once forced.
->
-> **Change.** This PR reinstates the two registrations in
-> `+[SOGoGCSFolder webdavAclManager]` with the same semantics as the calendar manager
-> (`read` and `read-current-user-privilege-set`, both mapped to the `WebDAV Access`
-> permission). The DAV *avant* for a read-only subscriber was
-> `<D:current-user-privilege-set xmlns:D="DAV:"/>`; *après* it is
-> `<D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege>`,
-> matching what SOGo already returns for read-only shared calendars. Only privilege
-> reporting is affected (no ACL enforcement change). Covered by a new unit test locking
-> the GCS tree registration and a new e2e spec (`CardDAVPrivilegeSetSpec`) checking the
-> subscriber and owner PROPFIND responses.
+Subscriptions installed with `sogo-tool manage-acl subscribe` were silently deleted
+from the user profile at the first web login (bug 6171). The login-time folder listing
+(`-[SOGoParentFolder appendSubscribedSources]`) removes any `SubscribedFolders` entry
+whose folder fails the `Access Object` check and synchronizes that removal to the
+database — so anything that makes the ACL evaluation briefly answer "no access" turns
+into permanent data loss for the subscription.
+
+AVANT: `sogo-tool manage-acl add` wrote the ACL rows with raw SQL without invalidating
+the distributed ACL cache (while `manage-acl remove` did), so sogod workers kept serving
+the pre-ACL roles for up to `SOGoCacheCleanupInterval` (300 s); a group member logging
+in during that window saw no authorizing role and lost the calendar the cron had just
+installed — reproduced on the e2e stack where one `calendarslist` fetch turned
+`SubscribedFolders: ["sogo-tests1:Calendar/test-6171-cal"]` into `[]`. Additionally,
+`-[LDAPSource groupWithUIDHasMemberWithUID:memberUid:]` answered "not a member"
+whenever memcached could not serve the cached member list, making every group-ACL
+subscription prunable on each login while `manage-acl subscribe` (live LDAP query)
+kept succeeding.
+
+APRES: `manage-acl add` invalidates the `<path>+acl` cache entry exactly like
+`remove`, so freshly granted roles are visible immediately and the login-time
+authorization check passes; and the LDAP group-membership check falls back to a live
+evaluation of `membersForGroupWithUID:` when memcached has no answer, so group grants
+no longer depend on the cache to be honored. Behaviour is unchanged on healthy
+setups (verified: the ticket's exact role set survives login). Two unit suites lock
+the subscription-authorization roles and the ACL cache invalidation primitive.
