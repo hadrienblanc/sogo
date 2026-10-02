@@ -1046,14 +1046,25 @@ static NSInteger _compareFetchResultsByUID (id entry1, id entry2, NSDictionary *
 - (NSException *) postData: (NSData *) _data
 		     flags: (id) _flags
 {
+  NSException *error;
+
   // We check for the existence of the IMAP folder (likely to be the
   // Sent mailbox) prior to appending messages to it.
-  if ([self exists]
-      || ![[self imap4Connection] createMailbox: [[self imap4Connection] imap4FolderNameForURL: [self imap4URL]]
-                                          atURL: [[self mailAccountFolder] imap4URL]])
+  error = nil;
+  if (![self exists])
+    {
+      error = [[self imap4Connection] createMailbox: [[self imap4Connection] imap4FolderNameForURL: [self imap4URL]]
+                                              atURL: [[self mailAccountFolder] imap4URL]];
+      if (error
+          && [[error reason] rangeOfString: @"already exists"
+                                    options: NSCaseInsensitiveSearch].length > 0)
+        error = nil;
+    }
+
+  if (!error)
     return [[self imap4Connection] postData: _data flags: _flags
                                 toFolderURL: [self imap4URL]];
-  
+
   return [NSException exceptionWithHTTPStatus: 502 /* Bad Gateway */
                                        reason: [NSString stringWithFormat: @"%@ is not an IMAP4 folder", [self relativeImap4Name]]];
 }
