@@ -1,6 +1,6 @@
-import config from '../lib/config'
-import { default as WebDAV } from '../lib/WebDAV'
-import { fetch } from 'cross-fetch'
+import config from '../lib/config.js'
+import { default as WebDAV } from '../lib/WebDAV.js'
+const fetch = globalThis.fetch
 
 const message = `From: Cyril <cyril@cyril.dev>
 To: sogo-tests1@example.com

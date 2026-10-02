@@ -1,7 +1,7 @@
-import config from '../lib/config'
-import Preferences from '../lib/Preferences'
-import { default as WebDAV } from '../lib/WebDAV'
-import { fetch } from 'cross-fetch'
+import config from '../lib/config.js'
+import Preferences from '../lib/Preferences.js'
+import { default as WebDAV } from '../lib/WebDAV.js'
+const fetch = globalThis.fetch
 
 const relatedWithInlineResource = `Message-ID: <test-6240-a@sogo.local>
 From: "Related Sender" <related@example.com>

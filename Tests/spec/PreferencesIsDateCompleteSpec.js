@@ -1,5 +1,8 @@
-const path = require('path')
-const { readFileSync } = require('fs')
+import { readFileSync } from 'fs'
+
+global.angular = global.angular || { isNumber: v => typeof v === 'number' }
+global.Element = global.Element || class Element {}
+await import(new URL('../../UI/WebServerResources/js/Common/utils.js', import.meta.url).pathname)
 
 //
 // Unit test of the md-datepicker locale adapter installed by the
@@ -28,7 +31,7 @@ global.Element = global.Element || class Element {}
 global.labels = global.labels || {}
 global.clabels = global.clabels || {}
 
-require(path.join(__dirname, '../../UI/WebServerResources/js/Common/utils.js'))
+await import(new URL('../../UI/WebServerResources/js/Common/utils.js', import.meta.url).pathname)
 
 function loadDateLocale(defaults) {
   const registeredFactories = {}

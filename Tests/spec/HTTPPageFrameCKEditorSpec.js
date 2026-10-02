@@ -1,6 +1,6 @@
-import { fetch } from 'cross-fetch'
-import config from '../lib/config'
-import Preferences from '../lib/Preferences'
+const fetch = globalThis.fetch
+import config from '../lib/config.js'
+import Preferences from '../lib/Preferences.js'
 
 const FIREFOX_ANDROID_UA = 'Mozilla/5.0 (Android 16; Mobile; rv:149.0) Gecko/149.0 Firefox/149.0'
 const CHROME_ANDROID_UA = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36'

@@ -1,6 +1,6 @@
-import config from '../lib/config'
-import { fetch } from 'cross-fetch'
-import Preferences from '../lib/Preferences'
+import config from '../lib/config.js'
+const fetch = globalThis.fetch
+import Preferences from '../lib/Preferences.js'
 
 const ownerPrefs = new Preferences(config.username, config.password)
 const viewerPrefs = new Preferences(config.subscriber_username, config.subscriber_password)
