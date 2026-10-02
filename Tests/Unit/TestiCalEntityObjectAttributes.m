@@ -86,7 +86,6 @@ LoadAppointmentsBundle ()
 
 - (void) test_organizerIsExposedSeparatelyFromAttendees
 {
-  iCalEvent *event;
   NSDictionary *data, *organizer;
   NSArray *attendees;
   NSUInteger i;

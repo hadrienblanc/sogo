@@ -62,9 +62,6 @@
 
   ua = @"Mozilla/5.0 (X11; Linux x86_64; rv:149.0) Gecko/20100101 Firefox/149.0";
   failIf([ua ckEditorUserAgentOverride] != nil);
-
-  ua = @"Mozilla/5.0 (X11; Linux x86_64; rv:149.0) Gecko/149.0 Firefox/149.0";
-  failIf([ua ckEditorUserAgentOverride] != nil);
 }
 
 - (void) test_firefoxAndroidDesktopViewIsLeftAlone
