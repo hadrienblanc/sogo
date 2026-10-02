@@ -44,6 +44,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoDraftObject.m \
 	TestSOGoMailForward.m \
 	TestSOGoSieveManager.m \
+	TestSOGoWebDAVAclManager.m \
 	TestUIxHTMLMailContentHandler.m \
 	TestWORequest+SOGo.m \
 	\
