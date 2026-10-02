@@ -64,6 +64,14 @@ static SOGoUserManager *um = nil;
   return [um getUIDForEmail: [self rfc822Email]];
 }
 
+- (NSString *) uidForUser: (SOGoUser *) user
+{
+  if ([user hasEmail: [self rfc822Email]])
+    return [user login];
+
+  return [self uid];
+}
+
 /*
  It returns the login if the email of the iCalPerson exists on the
  domain of the current active user
@@ -71,8 +79,13 @@ static SOGoUserManager *um = nil;
 - (NSString *) uidInContext: (WOContext *) context
 {
   NSString *domain;
+  SOGoUser *user;
 
-  domain = [[context activeUser] domain];
+  user = [context activeUser];
+  if ([user hasEmail: [self rfc822Email]])
+    return [user login];
+
+  domain = [user domain];
 
   return [self uidInDomain: domain];
 }

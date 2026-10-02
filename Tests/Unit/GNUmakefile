@@ -21,6 +21,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalEvent+SOGo.m \
 	TestiCalEvent+ActiveSync.m \
+	TestiCalPerson+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
 	TestNSCalendarDateClamping.m \

@@ -1,102 +1,185 @@
-# Ticket 6156 — ActiveSync: attendee time change on an externally organized meeting returns Status=1 while ignoring the change
+# Ticket 6144 — DAV client: shared email alias attributes the event to the wrong user ("visible in SOGo" aliases)
 
-Branch: `fix-6156-mantis` (worktree `wt/c13-6156`)
+Branch: `fix-6144-mantis` (worktree `wt/c13-6144`)
 
 ## Root cause (file:line)
 
-`ActiveSync/SOGoActiveSyncDispatcher+Sync.m`, `-processSyncChangeCommand:inCollection:withType:objectsToTouch:inBuffer:` (lines ~675-712, attendee branch of `ActiveSyncEventFolder`).
+When several mailboxes publish the same email address in the authentication
+source (an alias with the "visible in SOGo" option — i.e. the address ends up
+in each account's mail fields / `emails` list), SOGo's reverse resolution
+**email → user** returns an arbitrary account:
 
-When the ActiveSync user is an **attendee** of an event organized by someone else (`userIsAttendee:` — e.g. a meeting received from an external organizer, `MeetingStatus=3`), SOGo intentionally applies only the participation status / reminder via `[o changeParticipationStatus:inContext:component:]` and silently drops every other field of the `<Change>` (notably `StartTime`/`EndTime` — an attendee cannot reschedule the organizer's meeting).
+- `SoObjects/SOGo/SOGoUserManager.m:962` (`_fillContactInfosForUser:`) — the
+  source lookup `lookupContactEntryWithUIDorEmail:` matches the first entry
+  whose `mail`/alias field equals the address (SQL: first row of
+  `c_uid = X OR mail = X OR <mailFields> = X`; LDAP: first entry of
+  `(|(uid=X)(mail=X)...)`). With N accounts sharing the alias, the winner is
+  database/directory order — "it could be any user which has the same alias".
+- `SoObjects/SOGo/SOGoUserManager.m:1040` (`_retainUser:withLogin:`) — every
+  user entry is additionally cached in memcached under **each** of the user's
+  emails, so the cache entry for the shared alias flips between accounts
+  depending on who logged in / was resolved last.
 
-However, the per-item `<Status>` emitted at the end of the loop was **hardcoded to 1 (Success)**:
+The calendar scheduling code, however, decides identity with
+`-[SOGoUser hasEmail:]` (`userIsOrganizer:`, `userIsAttendee:`,
+`userAsAttendee:` in `SoObjects/Appointments/iCalEntityObject+SOGo.m:441-513`)
+— for the current user that answer is unambiguous. The defect sits in the two
+spots that used the ambiguous directory lookup instead:
 
-```objc
-[theBuffer appendFormat: @"<Status>%d</Status>", 1];
-```
-
-So Outlook believes its move succeeded, while SOGo's authoritative copy keeps the original time (re-pushed afterwards via `touch`). The device that issued the request ends up with a divergent local copy — exactly the inconsistent state in the ticket log (step 3: `<Change>… <Status>1</Status>` although `StartTime` moved from `20251029T130000Z` to `20251029T090000Z`). Per [MS-ASCMD] §Sync item status codes, the correct response is **7 — "Conflict matching the client and server object"**, which tells the client to drop its local modification and take the server version.
-
-Secondary contributor (same file, same branch): the "no permission" `else` path (`[sogoObject touch]`) also returned Status=1 despite applying nothing.
+- `SoObjects/Appointments/iCalEntityObject+SOGo.m:594`
+  (`attendeesWithoutUser:`) — compared the *resolved uid* of each attendee to
+  the owner's login. A DAV client that includes the organizer's address in the
+  attendee list (Thunderbird/Outlook do) with a shared alias resolved the entry
+  to some *other* mailbox, so the entry was **not** filtered out: the invite
+  flow then treated that arbitrary account as a real attendee — freebusy
+  conflict checks against the wrong calendar and an event copy filed into the
+  wrong user's calendar (`_addOrUpdateEvent:forUID:`).
+- `SoObjects/Appointments/iCalPerson+SOGo.m:59-78` (`uid`, `uidInContext:`) —
+  the organizer/attendee→uid resolution handed to the UI
+  (`attributesInContext:` → `organizer.uid`, used for freebusy lookups) and to
+  the scheduling paths (`_handleAttendeesConflicts`, `_handleAttendee`,
+  `_updateAttendee:` …) returned the arbitrary account: the "creator" shown
+  and acted upon was not the own user.
 
 ## What changed (before/after)
 
-### `ActiveSync/iCalEvent+ActiveSync.m` / `.h`
+### `SoObjects/Appointments/iCalPerson+SOGo.h/.m`
 
-**Before**: the wire format of `<StartTime>`/`<EndTime>` was generated inline (twice, ~24 lines) inside `activeSyncRepresentationInContext:`, and there was no way to compare a client payload against the server's current schedule.
+New `- (NSString *) uidForUser: (SOGoUser *) user`: if the given user owns the
+person's email address (`hasEmail:`, aliases included), return that user's
+login; otherwise fall back to the unchanged directory lookup (`uid`).
 
-**After**:
-- `activeSyncStartTimeInContext:` / `activeSyncEndTimeInContext:` — extract the exact existing generation logic (identical output, including the all-day / EAS < 16.0 user-timezone shift) into two reusable methods; `activeSyncRepresentationInContext:` now calls them (pure refactor, byte-identical XML).
-- `hasActiveSyncScheduleChange:inContext:` (new) — parses the `StartTime`/`EndTime` strings sent by the client and compares them (as absolute instants, via `NSString(ActiveSync) -calendarDate`) against the server's current values **exactly as they were last sent to that client**. Absent/matching times → NO; moved/unparseable time → YES. Comparing through the same representation used on the wire makes the check immune to timezone/allday round-trip false positives.
+`uidInContext:` now applies the same preference for the **active user** before
+falling back to `uidInDomain:`.
 
-### `ActiveSync/SOGoActiveSyncDispatcher+Sync.m`
+**Before** (organizer = shared alias `team@example.org`, active user
+`mailbox-one` who owns that alias, `mailbox-two` owns it too):
 
-**Before** (attendee event, user has responder rights or owns the folder):
-
-```objc
-[o changeParticipationStatus: …];            // BusyStatus/Reminder only; time dropped
-// …
-[theBuffer appendFormat: @"<Status>%d</Status>", 1];   // always Success
+```
+[[event organizer] uidInContext: context]  →  @"mailbox-two"   (arbitrary: cache/directory order)
 ```
 
 **After**:
 
-```objc
-timeChange = [(iCalEvent *)o hasActiveSyncScheduleChange: allChanges inContext: context];
-
-if (responder-role || owner) {
-  [o changeParticipationStatus: …];                     // unchanged
-  if (timeChange) { itemStatus = 7; [sogoObject touch]; } // conflict + re-push authoritative copy
-}
-else {
-  [sogoObject touch];                                    // unchanged
-  if (timeChange) itemStatus = 7;
-}
-// …
-[theBuffer appendFormat: @"<Status>%d</Status>", itemStatus];
+```
+[[event organizer] uidInContext: context]  →  @"mailbox-one"   (deterministic: the acting user owns the address)
 ```
 
-- Per-item status defaults to 1 each iteration (`itemStatus`), only the attendee-with-time-change paths raise it to 7.
-- In the allowed branch, the participation change (accept/decline/reminder) is still applied, then `touch` guarantees the authoritative item is re-sent to clients (the "optional Commands/Change with the authoritative server item" of the ticket).
-- Organizer path (`takeActiveSyncValues`), contacts, tasks, mail: untouched (status stays 1).
+When the acting user does *not* own the address, the previous lookup is used
+unchanged — no behavior change for unambiguous addresses.
 
-Known limitation (unchanged vs. before): moving a **single occurrence** of a recurring attendee meeting (data in `Exceptions`, master times unchanged) is not detected and keeps returning 1; only master Start/End moves are flagged — which is the reported defect.
+### `SoObjects/Appointments/iCalEntityObject+SOGo.m`
+
+- `attendeesWithoutUser:` drops an attendee not only when its resolved uid
+  equals the user's login (unchanged) but **also when the user owns the
+  attendee's email** — making it consistent with `userIsOrganizer:` /
+  `userAsAttendee:` / `userIsAttendee:`, which are all email-based. Before: an
+  attendee entry `mailto:team@example.org` belonging to the owner via a shared
+  alias stayed in the list and was scheduled as another mailbox; after: it is
+  recognized as the owner themself.
+- `attributesInContext:` resolves the exposed `organizer.uid` through
+  `uidForUser: [context activeUser]` instead of the raw directory lookup, so
+  the creator/organizer identity served to the web UI is the acting user
+  whenever they own the organizer address (nil-context safe: falls back to the
+  previous behavior).
+
+The write paths in `SOGoAppointmentObject.m` are not touched; they become
+correct through `uidInContext:`/`attendeesWithoutUser:`
+(`_handleAttendeesConflicts`, `_handleSequenceUpdateInEvent`,
+`_handleUpdatedEvent`, `_handleAttendee`/`_updateAttendee`,
+`saveComponent:`, `updateContentWithCalendar:`).
 
 ## Tests
 
-New `Tests/Unit/TestiCalEvent+ActiveSync.m` (registered in `Tests/Unit/GNUmakefile`, which now also compiles `ActiveSync/iCalEvent+ActiveSync.m`, `NSString+ActiveSync.m`, `NSDate+ActiveSync.m` into the tool and links the Appointments bundle for the `SOGoAppointmentObject` class ref — the ActiveSync bundle itself cannot be built on the host, no libwbxml2):
+New `Tests/Unit/TestiCalPerson+SOGo.m` (registered in `Tests/Unit/GNUmakefile`),
+using a stub `SOGoUser` subclass (fixed `allEmails` = primary address + shared
+`test-6144-alias@example.org`, `trust:YES` init so no source is needed) and a
+real `WOContext` with `setActiveUser:`:
 
-- `test_representationsMatchWireFormat` — refactored start/end generation keeps the exact wire format (`20251029T130000Z` / `20251029T140000Z`), for EAS 14.1 and 16.1.
-- `test_allDayRepresentationsAreMidnightBased` — all-day generation (`VALUE=DATE` fixtures).
-- `test_attendeeMovingStartAndEndIsAScheduleChange` — exact ticket scenario (13:00Z→09:00Z, 14:00Z→10:00Z).
-- `test_attendeeMovingEndTimeOnlyIsAScheduleChange`, `test_attendeeMovingStartTimeOnlyIsAScheduleChange` — each side independently.
-- `test_echoedTimesAreNotAScheduleChange` — client resending server's times (the normal accept/tentative flow) must stay Status=1.
-- `test_participationOnlyChangeIsNotAScheduleChange` — BusyStatus/Reminder-only payload must stay Status=1.
-- `test_malformedClientTimeIsAScheduleChange` — unparseable client time keeps the server authoritative.
-- `test_allDayEchoedTimesAreNotAScheduleChange`, `test_allDayMovedTimeIsAScheduleChange` — all-day round-trip (incl. the EAS<16.0 shift branch) has no false positives, real moves detected.
+- `test_uidForUserPrefersUserOwningTheAlias` — exact ticket scenario at the
+  resolution level: shared alias resolves to the owning user.
+- `test_uidForUserFallsBackOnForeignEmail` — foreign address never resolves to
+  the user; equals the plain directory lookup.
+- `test_uidInContextResolvesOwnAliasToActiveUser` /
+  `test_uidInContextIgnoresForeignEmail` — both branches of `uidInContext:`.
+- `test_attendeesWithoutUserDropsAttendeeWithOwnAlias` — the DAV PUT scenario:
+  the organizer-as-attendee alias entry is filtered out, the real guest stays.
+- `test_attendeesWithoutUserKeepsForeignAttendees` — unrelated attendees are
+  kept (no over-filtering).
+- `test_attributesExposeOrganizerUidOfActiveUser` — the API payload exposes
+  `organizer.uid` = the acting user for their own alias.
+- `test_attributesOmitOrganizerUidWithoutOwner` — nil-context/foreign fallback:
+  no `uid` key, previous behavior preserved.
 
-All branches of `hasActiveSyncScheduleChange` (start path, end path, both match/mismatch, nil parse, missing keys, allday-shift path) are exercised.
+Full suite: `Ran 165 tests — FAILED (2 failures)`, the 2 being the known
+host-noise `test_NGInternetSocketAddressFromString` and
+`test_stringWithoutHTMLInjection`. (The test binary also segfaults during the
+final autorelease-pool drain of `main` on this host; that crash reproduces on
+the **untouched baseline** of this worktree and on other worktrees' binaries,
+after the summary is printed — pre-existing host noise, unrelated to this
+change.)
+
+Live repro on the e2e stack was not possible read-only: the stack's LDAP has
+no shared alias between `sogo-tests1/2/3` and adding one would require
+container/config changes (orchestrator-only). The unit tests encode the
+scenario at the exact resolution seam instead.
 
 ## Verification steps for the orchestrator
 
 ```
-# full unit suite (build + run; 157 tests, only the 2 known host-noise failures:
-# test_NGInternetSocketAddressFromString, test_stringWithoutHTMLInjection)
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6156
+# full unit suite (build + run; 165 tests, only the 2 known host-noise failures)
+/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6144
+# expected last lines:
+#   Ran 165 tests
+#   FAILED (2 failures, 0 errors)
+# (exit status 139 of the runner is the pre-existing pool-drain segfault at
+#  process exit — also present on a clean checkout; judge by the summary)
 
-# or, to eyeball the new tests specifically:
+# eyeball the new tests specifically (157 -> 165 tests when the file is added;
+# failures stay at the 2 known ones):
+cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6144/Tests/Unit
 source /home/hadrienblanc/Projets/hadrienblanc/sogo/local/env.sh
-cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c13-6156/Tests/Unit
 export LD_LIBRARY_PATH="../SOPE/NGCards/obj:../SOPE/GDLContentStore/obj:../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
-./obj/sogo-tests -f junit 2>/dev/null | grep -E 'ScheduleChange|MidnightBased|WireFormat'
-# → 10 testcase entries, 0 failures
+./obj/sogo-tests 2>/dev/null | tail -3
 ```
 
-End-to-end (protocol-level) check of the Status=7 wire response requires a WBXML ActiveSync client (Outlook) against a deployed build; since deploys are orchestrator-only, the suggested post-deploy check is the ticket's own repro: accept an external `DisallowNewTimeProposal=1` meeting on an EAS account, move the meeting in Outlook, and confirm the Sync `Responses/Change/Status` is now `7` and Outlook reverts to the organizer's time.
+Post-deploy check on the e2e stack (needs two users sharing an alias in the
+source, e.g. both listing `team@example.org`): CalDAV-PUT a new VEVENT with
+`ORGANIZER:mailto:team@example.org` and `ATTENDEE:mailto:team@example.org`
+(Thunderbird-style self-attendee) into user A's calendar, then verify in the
+web UI that the event's organizer resolves to A and that no copy of the event
+appears in user B's calendar.
 
 ## PR body draft
 
-When an ActiveSync client such as Outlook changes the StartTime/EndTime of a meeting it only attends (external organizer, `MeetingStatus=3`), SOGo's Sync handler intentionally ignores the modification — an attendee cannot reschedule someone else's meeting — but still acknowledged the `<Change>` with item Status 1 (Success). Outlook then kept its local move while every other device (and the web UI) showed the organizer's time, leaving calendars inconsistent; the reporter also notes `DisallowNewTimeProposal` being lost on the requesting device, which is a symptom of the same one-sided divergence.
+When an email alias is published to SOGo from several mailboxes ("visible in
+SOGo"), the reverse resolution from an email address to a user account is
+ambiguous: the authentication sources return the first entry matching the
+address, and the memcached email→user mapping is overwritten by whichever
+account was resolved last. Calendar scheduling and the web UI therefore
+attributed events to an arbitrary account sharing the address: after a DAV
+client created an appointment whose organizer (or self-attendee entry) used
+the alias, SOGo could file attendee copies into another mailbox's calendar,
+run freebusy checks against the wrong user, and expose a wrong
+`organizer.uid` — "the creator of the appointment is not the own user as it
+should be, it could be any user which has the same alias".
 
-**AVANT** (ticket log, step 3): client sends `<StartTime>20251029T090000Z</StartTime>` for a meeting stored at `13:00Z` → response `<Responses><Change><ServerId>501E-…</ServerId><Status>1</Status></Change></Responses>`; the meeting stays at 13:00Z server-side and the requesting Outlook displays 09:00Z.
+**AVANT**: `ORGANIZER;CN=A:mailto:team@example.org` +
+`ATTENDEE:mailto:team@example.org` PUT via CalDAV by `mailbox-one` →
+`[attendee uidInContext:]` resolves the alias to `mailbox-two` (directory/cache
+order) → the alias entry is *not* filtered by `attendeesWithoutUser:`;
+`mailbox-two` is treated as a distinct attendee: conflict check against
+`mailbox-two`'s freebusy, event copy saved into `mailbox-two`'s calendar, and
+the UI's `organizer.uid` points at `mailbox-two` — the creator shown is any of
+the alias holders, varying over time with the cache.
 
-**APRÈS**: the same request is answered with `<Status>7</Status>` (MS-ASCMD "Conflict matching the client and server object"), while the allowed participation-status/reminder part of the change is still applied; the object is `touch`ed so the authoritative copy is re-pushed and the client reverts its local move. Time changes initiated by the organizer, and pure accept/decline/reminder updates from attendees, keep returning Status 1 (covered by unit tests on the new `iCalEvent(ActiveSync)` schedule-change detection, which compares the client values against the exact representation last sent by the server — no timezone or all-day false positives).
+**APRÈS**: identity resolution prefers the user that actually owns the
+address: `uidInContext:`/`uidForUser:` return the acting user's login whenever
+`hasEmail:` matches (aliases included), and `attendeesWithoutUser:` drops
+attendee entries whose address belongs to the owner — consistent with the
+pre-existing email-based `userIsOrganizer:`/`userAsAttendee:` semantics. The
+creator/organizer resolves to the own user deterministically, no spurious
+copies land in other alias holders' calendars, and unambiguous addresses keep
+the exact previous behavior (foreign emails fall back to the unchanged
+directory lookup; covered by unit tests on `iCalPerson` and
+`attendeesWithoutUser:`).

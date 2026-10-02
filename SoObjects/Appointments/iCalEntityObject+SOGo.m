@@ -124,7 +124,7 @@ NSNumber *iCalDistantFutureNumber = nil;
                                              [organizer rfc822Email], @"email",
                                            ([[organizer cnWithoutQuotes] length] ? [organizer cnWithoutQuotes] : [organizer rfc822Email]), @"name",
                                            nil];
-      uid = [organizer uid];
+      uid = [organizer uidForUser: [context activeUser]];
       if ([uid length]) [organizerData setObject: uid forKey: @"uid"];
       sentBy = [organizer sentBy];
       if ([sentBy length]) [organizerData setObject: sentBy forKey: @"sentBy"];
@@ -591,7 +591,8 @@ NSNumber *iCalDistantFutureNumber = nil;
   for (count = 0; count < max; count++)
     {
       currentAttendee = [oldAttendees objectAtIndex: count];
-      if (![[currentAttendee uidInDomain: domain] isEqualToString: userID])
+      if (![user hasEmail: [currentAttendee rfc822Email]]
+	  && ![[currentAttendee uidInDomain: domain] isEqualToString: userID])
 	[newAttendees addObject: currentAttendee];
     }
 
