@@ -18,6 +18,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../SoObjects/Mailer/NSData+Mail.m \
 	\
 	TestVersit.m \
+	TestNGCardsCore.m \
 	TestiCalTimeZonePeriod.m \
 	TestiCalRecurrenceCalculator.m \
 	\
