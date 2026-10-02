@@ -1,149 +1,131 @@
-# Ticket 99997 — sogo-tests segfaults at exit: over-released GSCInlineString
+# Ticket 99996 — sogo-tests: 7 GSCInlineString still over-released during the run
 
-Branch: `fix-99997-mantis` — commit `334378a53`
+Branch: `fix-99996-mantis`
 
-## Root cause (file:line)
+## Verdict: NOT A BUG in the current source — stale-build artifact in the main checkout
 
-`SoObjects/SOGo/SOGoSieveManager.m` — the `scriptError` instance variable was
-assigned **non-owned** strings at every error site (autoreleased
-`[NSString stringWithFormat: ...]` results at former lines 348, 388, 538, 566,
-630, 636 and constant literals at 334, 353, 393, 429, 571, 581), while the
-object unconditionally released it in `dealloc` (line 267) and at the start of
-each script generation (`sieveScriptWithRequirements:delimiter:`, lines
-663-664). The `[scriptError retain]` at former line 683 only compensated when a
-full script generation completed; any other path (direct rule/action
-extraction, as done by `TestSOGoSieveManager`) left the ivar owning nothing.
+The current tree (experimental @ 61e70aefb, including PR #59) has **zero**
+over-releases: a from-scratch build of the unit suite runs 248 tests, `OK`,
+exit code 0, and `NSZombieEnabled=YES` logs **0** `message sent to
+deallocated instance`. The "7 GSCInlineString" observed by the reporter are
+the *pre-#59* SOGoSieveManager `scriptError` over-releases, served by a
+**stale `libSOGo.so`** in the main checkout. A regression test is added so
+that this class of staleness/regression now trips *inside* the suite instead
+of silently at process exit.
 
-Sequence proven under gdb with `NSZombieEnabled=YES`:
+## Root cause (file:line) — of the observed symptom
 
-1. `_extractSieveAction:` sets `scriptError = [NSString stringWithFormat:
-   @"Action with invalid flag argument '%@'", argument]` — autoreleased,
-   count 1, the pool owes one release.
-2. The autoreleased `SOGoSieveManager` and the string sit in the same pool
-   (manager autoreleased first).
-3. At pool drain (`[pool release]` at the end of `main`, sogo-tests.m:128),
-   the manager is released first → `dealloc` → `[scriptError release]` →
-   count 1→0 → the string is freed.
-4. The pool then releases the string again → use-after-free → SIGSEGV in
-   `class_getMethodImplementation` (libobjc) via the NSAutoreleasePool drain.
-   gnustep-base 1.31 represents the small single-byte string as a
-   `GSCInlineString`, hence "over-released GSCInlineString" in the ticket.
-
-The crash also reproduced on a clean `experimental` checkout (coredump of
-10:23:39), so this is a genuine regression in the tree, not host noise.
+- The 7 zombies were dumped under gdb (`GSLogZombie`, breakpoint at
+  libgnustep-base+0x1714e0) by running the **main checkout's** binary:
+  `cd sogo/Tests/Unit && NSZombieEnabled=YES ./obj/sogo-tests` → rc=1, 7x
+  `-[GSCInlineString release]: message sent to deallocated instance`.
+  Their contents are all SOGoSieveManager `scriptError` strings:
+  `Rule based on unknown field 'bogus'`, `Rule has unknown operator 'bogus'`,
+  `Action has unknown method 'bogusmethod'`,
+  `Action with invalid flag argument 'bogus'` (x2), `Bad test: bogus`,
+  `Test 'all' used without any specified rule` — exactly the branches
+  exercised by the 13 tests added in PR #59.
+- Main checkout build state (read-only inspection):
+  `SoObjects/SOGo/obj/SOGo.obj/SOGoSieveManager.m.o` mtime **08:08**,
+  `libSOGo.so.5.12.11` linked **10:23:35**, while PR #59 (the ASSIGN fix,
+  `SoObjects/SOGo/SOGoSieveManager.m`) merged at **10:40-10:41** and the test
+  objects relinked at **10:47**. The orchestrator therefore ran the *new*
+  `TestSOGoSieveManager` tests against the *old* framework: every error
+  branch stored a non-owned string in `scriptError` and the manager `dealloc`
+  over-released it (the exact bug fixed by PR #59, former lines 348/388/538/
+  566/630/636 of `SoObjects/SOGo/SOGoSieveManager.m`).
+- Same staleness explains the reporter's `test_stringWithoutHTMLInjection`
+  failure: `NSString+Utilities.m.o` (08:08) also predates PR #57's
+  `RemoveRegexMatches` (10:15); a fresh build passes that test.
+- Reproduced the symptom end-to-end in this worktree by temporarily
+  restoring the pre-#59 `SOGoSieveManager.m` (from 30653474a) and rebuilding:
+  without zombies → `Segmentation fault (core dumped)` rc=139 (the ticket's
+  crash); with `NSZombieEnabled=YES` → 13 over-release messages, of which
+  **exactly 7** at the final pool drain of `main` (Tests/Unit/sogo-tests.m:128)
+  — the ticket's repro, bit for bit. Restored afterwards; the tree is clean.
 
 ## What changed (before/after)
 
-`SoObjects/SOGo/SOGoSieveManager.m`:
+No production code change (nothing to fix in source).
 
-- **Before**: `scriptError = <literal or autoreleased string>;` at 12 sites —
-  ivar holds a borrowed reference.
-- **After**: `ASSIGN(scriptError, ...);` at every value-assignment site (the
-  macro retains the new value before releasing the old one), using the
-  parenthesized-expression form `ASSIGN(scriptError, ([NSString
-  stringWithFormat: ...]))` where the expression contains commas, matching the
-  existing `SOGoMailFolder.m:380` idiom.
-- **Before**: `[scriptError retain];` at the end of
-  `sieveScriptWithRequirements:delimiter:` (a broken compensation that only
-  worked when a full generation ran to completion).
-- **After**: removed — the ivar now always owns its value; `[scriptError
-  release]; scriptError = nil;` at the start of the method and `[scriptError
-  release]` in `dealloc` are now correctly balanced.
-- `scriptError = nil;` in `init` (nothing to release yet) and the borrowed
-  `lastScriptError` getter are unchanged.
+`Tests/Unit/TestSOGoSieveManager.m` — new test
+`test_scriptErrorOwnershipAcrossAllErrorBranches` (file already registered in
+`Tests/Unit/GNUmakefile`):
 
-AVANT (crash):
-
-```
-$ ./obj/sogo-tests
-...
-Ran 234 tests
-
-OK
-Segmentation fault (core dumped)      # exit 139, coredumpctl shows the
-                                      # crash in the [pool release] of main
-```
-
-APRES (fix):
-
-```
-$ ./obj/sogo-tests
-...
-Ran 247 tests
-
-OK
-$ echo $?
-0                                      # clean exit, no coredump
-```
+- **AVANT**: the PR-#59 tests trigger one error branch each on an
+  *autoreleased* manager; an over-releasing (stale or regressed) libSOGo only
+  trips at the *process-exit* pool drain — silent unless someone runs with
+  `NSZombieEnabled=YES`.
+- **APRES**: the new test drives **all six** direct-extractor error branches
+  inside one dedicated `NSAutoreleasePool`, with a **retained** manager
+  (holding a `stringWithFormat:`-created `scriptError`) released before the
+  pool drains. Against the pre-#59 code the 6 corpses trip **during the
+  suite**, right at this test (verified on the temporary pre-#59 rebuild);
+  against the current code it passes cleanly and asserts `lastScriptError`
+  for each branch.
 
 ## Tests
 
-`Tests/Unit/TestSOGoSieveManager.m` extended (file already registered in
-`Tests/Unit/GNUmakefile`), 13 new test methods covering every `scriptError`
-assignment branch touched by the fix:
-
-- `test_extractSieveAction_unknownMethod`, `..._missingArgument`,
-  `..._missingMethod` — action error branches (former lines 566, 571, 581).
-- `test_extractSieveRule_validRule` — happy path (regression guard).
-- `test_extractSieveRule_withoutField`, `..._unknownField`,
-  `..._headerWithoutCustomHeader`, `..._withoutOperator`,
-  `..._unknownOperator`, `..._withoutValue` — rule error branches
-  (former lines 353, 348, 334, 393, 388, 429).
-- `test_convertScriptToSieve_badTest`, `..._matchWithoutRule` — script
-  conversion error branches (former lines 636, 630).
-- `test_sieveScriptWithRequirements_resetsPreviousError` — sets an error
-  (owned via ASSIGN), runs a full generation and verifies the error is
-  released/reset without side effects (covers the removed-retain path).
+`Tests/Unit/TestSOGoSieveManager.m`:
+`test_scriptErrorOwnershipAcrossAllErrorBranches` — covers the
+ownership/dealloc path of `scriptError` for the six direct extractor error
+branches (unknown field, unknown operator, unknown action method, invalid
+flag argument, bad test, match-without-rule), which is precisely the code the
+ticket's 7 zombies came from.
 
 ## Verification steps for the orchestrator
 
 ```bash
-# 1. build + full unit suite, expect clean exit (was: SIGSEGV after "OK")
+# 0. (context) the reporter's repro on the main checkout — stale libSOGo:
+#    cd ~/Projets/hadrienblanc/sogo/sogo/Tests/Unit
+#    source ~/Projets/hadrienblanc/sogo/local/env.sh
+#    NSZombieEnabled=YES ./obj/sogo-tests   # → rc=1, 7 zombie messages
+#    Fix: force a full rebuild there, e.g. touch SoObjects/SOGo/*.m or
+#    make clean in SoObjects/SOGo before the next run-worktree-tests.sh.
+
+# 1. build + full unit suite on THIS branch — expect 248 tests, OK, rc=0
 /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c34-99997
-#   → "Ran 247 tests" / "OK" / exit code 0
+  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99996
 
-# 2. confirm no over-release remains (zombie mode, expect no report)
+# 2. zero over-releases (zombie mode), expect "0"
 source /home/hadrienblanc/Projets/hadrienblanc/sogo/local/env.sh
-export LD_LIBRARY_PATH="/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c34-99997/SOPE/NGCards/obj:/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c34-99997/SOPE/GDLContentStore/obj:/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c34-99997/SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
-cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c34-99997/Tests/Unit
-NSZombieEnabled=YES ./obj/sogo-tests |& grep -c "message sent to deallocated"
-#   → 0   (before the fix: "*** -[GSCInlineString release]: message sent to
-#          deallocated instance" printed at exit)
+export LD_LIBRARY_PATH="/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99996/SOPE/NGCards/obj:/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99996/SOPE/GDLContentStore/obj:/home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99996/SoObjects/SOGo/SOGo.framework/Versions/Current/sogo:$LD_LIBRARY_PATH"
+cd /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c35-99996/Tests/Unit
+NSZombieEnabled=YES ./obj/sogo-tests 2>&1 | grep -o "message sent to deallocated instance" | wc -l
 
-# 3. no new coredumps
-coredumpctl list --no-pager | tail -3
+# 3. new test is registered and runs
+./obj/sogo-tests -f junit 2>/dev/null | grep -c 'test_scriptErrorOwnershipAcrossAllErrorBranches'
+#   → 1
 ```
 
-No e2e stack interaction was needed (pure in-process memory bug); the shared
-stack was not touched.
+No e2e stack interaction was needed (pure in-process memory behavior); the
+shared stack was not touched.
 
 ## PR body draft
 
-The `sogo-tests` unit runner segfaulted (SIGSEGV) right after printing its
-final report, whenever a test exercised a SOGoSieveManager error branch.
-Every error site assigned a non-owned string to the `scriptError` ivar —
-either an autoreleased `+[NSString stringWithFormat:]` result or a constant
-literal — while `-dealloc` and the next `sieveScriptWithRequirements:
-delimiter:` call unconditionally released it. With the manager and the
-autoreleased error string sitting in the same pool, the pool drain released
-the manager first, whose dealloc freed the error string, and the pool's own
-balancing release then hit freed memory — crashing at process exit in
-`[NSAutoreleasePool drain]` (visible as an "over-released GSCInlineString",
-gnustep-base's representation of small single-byte strings). The bug also
-affected production code paths: any mail-filter save that hit one of these
-error branches left the manager with a dangling `scriptError` ivar and
-over-released the string at dealloc.
+Ticket 99996 reported that after PR #59 the sogo-tests binary still logged 7
+`-[GSCInlineString release]: message sent to deallocated instance` at the
+final autorelease-pool drain (and segfaulted at exit without zombies).
+Investigation shows the current source is clean: a from-scratch build runs
+248 tests with exit code 0 and zero over-releases under `NSZombieEnabled`.
+Dumping the 7 zombie objects under gdb (breakpoint on `GSLogZombie`) shows
+they are all SOGoSieveManager `scriptError` strings from the branches
+exercised by the PR-#59 tests — i.e. the pre-#59 bug. The binary that
+produced the report had been relinked (10:47) against a `libSOGo.so` built
+from 08:08 objects, 30 minutes *before* the PR #59 fix merged (10:40), so the
+new tests ran against the old framework code. Restoring the pre-#59
+SOGoSieveManager.m in a scratch rebuild reproduces the exact symptom
+(rc=139 segfault; 13 zombie messages of which 7 at the final drain), and
+rebuilding the same commit from scratch makes it disappear.
 
-AVANT: `scriptError = [NSString stringWithFormat: @"Action with invalid flag
-argument '%@'", argument];` (borrowed reference stored in the ivar) +
-`[scriptError retain];` bolted on at the end of full generations only —
-sogo-tests exits with `Segmentation fault (core dumped)`.
+AVANT: the scriptError ownership regression (or a stale libSOGo) is invisible
+during the suite — the over-releases only trip at process exit, so a normal
+`OK` run can still end in a segfault with no failing test.
 
-APRES: every assignment uses `ASSIGN(scriptError, ...)` (retain + release-old
-+ assign, the parenthesized form where the expression contains commas,
-matching `SOGoMailFolder.m`), the compensating retain is removed, and the
-ivar's ownership is balanced in all paths. sogo-tests now runs 247 tests
-(13 new ones covering every touched error branch plus a generation-reset
-case) and exits cleanly with code 0; `NSZombieEnabled=YES` reports zero
-over-releases.
+APRES: `test_scriptErrorOwnershipAcrossAllErrorBranches` runs all six direct
+extractor error branches inside a dedicated autorelease pool with retained
+managers, releasing each manager before the pool drains — any unbalanced
+`scriptError` ownership now trips inside the suite (verified against the
+pre-#59 code), and the fix itself stays locked by the existing 13 branch
+tests. No production code changed; the main checkout just needs a clean
+rebuild of `SoObjects/SOGo` to pick up the merged fix.
