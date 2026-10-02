@@ -16,6 +16,13 @@ $(TEST_TOOL)_OBJC_FILES += \
 	SaxXMLReaderFactory+SOGoTests.m \
 	../../SoObjects/Mailer/NSString+Mail.m \
 	../../SoObjects/Mailer/NSData+Mail.m \
+	../../SoObjects/SOGo/NSArray+Utilities.m \
+	../../SoObjects/SOGo/NSDictionary+Utilities.m \
+	../../SoObjects/SOGo/NSNull+Utilities.m \
+	../../SoObjects/SOGo/NSNumber+Utilities.m \
+	../../SoObjects/SOGo/NSObject+Utilities.m \
+	\
+	TestContainerUtilities.m \
 	\
 	TestVersit.m \
 	TestNGCardsCore.m \
