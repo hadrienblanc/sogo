@@ -1,113 +1,153 @@
-# Bug 6133 — Timezone updates not being taken into account
+# Bug 6129 — `NSPropertyList.m: 1009. In parsePlItem Missing semicolon in dictionary` in `sogo-tool update-autoreply` cron
 
-## Root cause
+**Verdict: NOT a SOGo bug.** The message is a *warning* (not an error) emitted by
+**GNUstep-base's** old-style property-list parser when a dictionary's last entry
+omits its terminating `;` right before `}` — i.e. a syntax slip in an
+environment file on the reporter's server (almost certainly
+`/etc/sogo/sogo.conf`). GNUstep tolerates the syntax, parses the file
+successfully, and SOGo keeps working — which is exactly why the cron output
+shows the warning followed by `Enabled auto-reply of user xxx`. The reporter
+never replied to the maintainer's `feedback`; the reporter's fix is one `;` in
+their config (or dropping the now-obsolete cron, as the sieve `date` extension
+made `update-autoreply` unnecessary).
 
-Two layers, one bug:
+## Root cause (file:line)
 
-1. **Primary (already fixed upstream, present in our branch)** — `SOPE/NGCards/iCalDateTime.m:86-98`
-   (`-timeZone`, upstream commit 244d1388, imported here via d902756aa): SOGo trusted the
-   event's inline VTIMEZONE to resolve a TZID. Thunderbird/Evolution ship stale VTIMEZONEs
-   for zones that abolished DST (Brazil 2019, Chile…), so SOGo resolved `America/Sao_Paulo`
-   to -0200 for 2025 dates and stored startdates one hour early. The upstream fix prefers
-   `[iCalTimeZone timeZoneForName:]` (SOGo's own vzic/IANA database shipped under
-   `SOPE/NGCards/TimeZones/`) and only falls back to the inline VTIMEZONE.
+- Emission site: `NSWarnFLog(@"Missing semicolon in dictionary at line %d char %d", ...)`
+  in `parsePlItem()`, `Source/NSPropertyList.m` of **gnustep-base** — line **1009**
+  in base-1_29_0 (Ubuntu 24.04's package; verified against the tag). It fires when a
+  `key = value` pair is followed directly by `}` (no `;`): unless
+  `GSMacOSXCompatible` is set, GNUstep **warns and continues**; the dictionary is
+  returned intact.
+- SOGo call site reached at `sogo-tool` startup:
+  `SoObjects/SOGo/SOGoSystemDefaults.m:98` (`[NSDictionary dictionaryWithContentsOfFile:]`
+  in `_injectConfigurationFromFile`) reading `/etc/sogo/sogo.conf` (and
+  `/etc/sogo/debconf.conf`); `.GNUstepDefaults` is read the same way at startup by
+  `NSUserDefaults`.
+- Why not the per-user profile path (`SoObjects/SOGo/SOGoUserProfile.m:122`,
+  `_convertPListToJSON:`)? That path is only reached after `isJSONString` fails,
+  which first logs SOGo-side errors (`json parser: … attempting once more after
+  unescaping…`, `total failure. Original string is: …` — `NSString+Utilities.m:855/863`).
+  None of those lines appear in the report, while the warning is the **first** line,
+  emitted at process start (16:30:01.776) *before* `SOGoCache` init — matching the
+  config-file read in `SOGoSystemDefaults +initialize`, before any DB/sieve work.
+- The message geometry confirms it: `line 169 char 6722` are the 1-based line index
+  and **absolute** char offset of the offending `}` (`pld->lin + 1`, `pld->pos + 1`)
+  — the closing brace of a dictionary at the end of a ~169-line, ~6.7 KB file: a
+  typical hand-maintained `sogo.conf` (stored profile JSON is a single line, and
+  GNUstep-written `.GNUstepDefaults` always carries semicolons).
 
-2. **Residual (fixed by this branch)** — `SOPE/NGCards/iCalTimeZonePeriod.m:298-304`
-   (`-occurrenceForDate:`): when a period's RRULE carries an `UNTIL` in the past of the
-   reference date, the method returned **nil**, making that period invisible to
-   `iCalTimeZone _occurrenceForPeriodNamed:forDate:` (iCalTimeZone.m:186-218). The final
-   `STANDARD` rule (`UNTIL=20190217`) therefore dropped out of the comparison in
-   `periodForDate:` and the latest `DAYLIGHT` period (2018-11-04, -0200) won for any
-   post-2019 date — the exact 1-hour shift of the ticket. This path is still live whenever
-   the TZID is absent from the NGCards IANA database (custom IDs such as
-   `/mozilla.org/…/America/Sao_Paulo`, `tzone://Microsoft/…`, or deployments without the
-   timezone resources installed).
+### Reproducer (no SOGo code involved)
 
-## What changed
+```bash
+printf '{\n  foo = bar;\n  baz = qux\n}\n' > /tmp/bad.conf
+```
+Reading it with `[NSDictionary dictionaryWithContentsOfFile:]` under the local
+GNUstep 1.31.1 prints:
 
-`SOPE/NGCards/iCalTimeZonePeriod.m` — one branch collapsed:
+```
+File NSPropertyList.m: 1008. In parsePlItem Missing semicolon in dictionary at line 4 char 28
+```
 
-- **Before**: a refDate past the rule's UNTIL got an occurrence only if the
-  refDate-year occurrence preceded the UNTIL (same-year case); otherwise `nil`.
-- **After**: any refDate at/after the UNTIL resolves the period's last occurrence to the
-  UNTIL date itself (RFC 5545: UNTIL is inclusive — the rule's last transition), so the
-  period stays a candidate and `periodForDate:` correctly picks the latest transition
-  at-or-before the date.
+…**and returns a valid dictionary** (`{baz = qux; foo = bar; }`). Same
+message modulo the line offset dictated by the gnustep-base version.
+Under cron, stderr lands in the daily mail even though the run succeeded.
 
-Demonstrated live on the e2e stack (deployed build = upstream fix only), same VTIMEZONE,
-events at 11:00 `America/Sao_Paulo` (= 14:00 UTC):
+### What the reporter should do
 
-- AVANT (custom TZID, fallback path): `FREEBUSY;FBTYPE=BUSY:20261007T130000Z/20261007T140000Z` — one hour early.
-- APRÈS (IANA TZID, reference): `FREEBUSY;FBTYPE=BUSY:20261005T140000Z/20261005T150000Z` — correct.
+Add the missing `;` before the `}` at (or near) line 169 of
+`/etc/sogo/sogo.conf` — look for the end of the last dictionary (e.g. a
+`SOGoUserSources` entry or the top-level dict itself). Alternatively drop the
+cron entirely: with sieve servers supporting the `date` extension, SOGo handles
+vacation activation/expiry itself (see the maintainer's note and the
+installation guide section "Cronjob vacation messages activation and
+expiration").
 
-With this branch, the fallback path yields the same -0300 result as the IANA path
-(locked by unit tests below); no new code paths, no API changes.
+## What changed (before/after)
+
+**No production code change** — the defect is not in SOGo, and SOGo cannot
+suppress or intercept GNUstep's internal `NSWarnFLog`. Making the lenient
+syntax fatal would break working setups, and re-implementing plist linting in
+SOGo would duplicate the parser for no functional gain.
+
+Tests only, adding previously absent coverage for the SOGo-owned machinery on
+this code path (`SOGoUserProfile`'s legacy-value conversion, which is what
+people land on when chasing this error message):
+
+- **Before**: `SOGoUserProfile._convertPListToJSON:` (SoObjects/SOGo/SOGoUserProfile.m:122-150)
+  had zero test coverage: no test for legacy plist values, nor for the
+  unparsable-value fallback to `{}`.
+- **After**: `Tests/Unit/TestSOGoUserProfile.m` (registered in `Tests/Unit/GNUmakefile`)
+  locks:
+  1. `test_convertPListToJSON_legacyPlistValue` — an old-style plist profile
+     converts to JSON and round-trips through `objectFromJSONString`;
+  2. `test_convertPListToJSON_legacyPlistMissingFinalSemicolon` — a plist whose
+     final entries omit their `;` before `}` (the exact shape triggering bug
+     6129's warning) **still converts** — documenting GNUstep's lenient parse;
+     the test's stderr shows the very warning from the ticket
+     (`File NSPropertyList.m: 1008. In parsePlItem Missing semicolon in dictionary…`);
+  3. `test_convertPListToJSON_unparsableValueYieldsEmptyJSON` — a value that is
+     neither JSON nor a plist yields `{}` (error branch).
 
 ## Tests
 
-`Tests/Unit/TestiCalTimeZoneFallback.m` (registered in `Tests/Unit/GNUmakefile`), using the
-ticket's two VTIMEZONEs verbatim (reduced Mozilla history + Evolution `calendar-2.ics`):
+```
+$ local/run-worktree-tests.sh ~/Projets/hadrienblanc/sogo/wt/c16-6129
+...
+Ran 221 tests
+FAILED (2 failures, 0 errors)
+```
 
-- `test_offsetBeyondLastTransition` — 2025 and post-Feb-2019 dates resolve -10800;
-  dates inside the 2018 DST window still resolve -7200; southern winter 2015 -10800;
-  Evolution-style zone: 2025 -10800, DST 2018 -7200.
-- `test_eventStartDateBeyondLastTransition` — DTSTART/DTEND epochs: Mozilla
-  2025-06-24 11:00→`1750773600` (14:00 UTC), Evolution 2025-07-10 10:00→`1752152400`
-  (13:00 UTC); both were one hour early before the fix.
-- `test_offsetWithRecurringRules` — regression guard: Europe/Berlin stays +7200 summer /
-  +3600 winter (rules without UNTIL untouched).
-
-Suite result: 218 tests, 0 new failures (only the two documented host-noise failures
-`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
+The only 2 failures are the documented host-noise failures to ignore on a clean
+tree (`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`).
+The 3 new `TestSOGoUserProfile` tests pass.
 
 ## Verification steps for the orchestrator
 
-Unit (host):
-
-```
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c16-6133
-# expect: Ran 218 tests, only the two known host-noise failures
-```
-
-E2E residual-defect repro on the deployed stack (before this fix is deployed; artifacts
-must be cleaned up afterwards):
-
-```
-# 1. create scratch calendar
-curl -s -u sogo-tests1:sogo -X MKCALENDAR http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6133-tz/
-# 2. PUT an ics with the ticket's VTIMEZONE twice: once TZID=America/Sao_Paulo,
-#    once TZID=/mozilla.org/20070129_1/America_Sao_Paulo, both
-#    DTSTART;TZID=...:20261005T110000 / DTEND ...T120000
-# 3. check the stored busy time:
-curl -s -u sogo-tests1:sogo "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/freebusy.ifb" | grep FREEBUSY
-#    pre-fix deployed build: IANA TZID -> 20261005T140000Z/150000Z (ok)
-#                            mozilla TZID -> 20261005T130000Z/140000Z (one hour early)
-#    after deploying this branch: both -> 140000Z/150000Z
-# 4. cleanup: DELETE each event and the test-6133-tz calendar
-```
-
-The exact scratch ics used are reproducible from the unit-test constants in
-`Tests/Unit/TestiCalTimeZoneFallback.m` (`tzMozilla`/`tzEvolution`).
+1. Full unit suite (expect only the 2 known host-noise failures):
+   ```
+   /home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c16-6129
+   ```
+2. Focus check — the new tests' behaviour is visible in the suite output:
+   - `database value for defaults profile (uid: 'test-6129') is a plist` (cases 1 & 2),
+   - the ticket's warning text `In parsePlItem Missing semicolon in dictionary`
+     printed by case 2, followed by a passing `.`,
+   - `failed to parse property list value … extra data after parsed string`
+     followed by a passing `.` (case 3).
+3. Standalone root-cause demo (independent of the worktree, read-only):
+   ```
+   printf '{\n  foo = bar;\n  baz = qux\n}\n' > /tmp/opencode/test-6129-bad.conf
+   # then read it with NSDictionary dictionaryWithContentsOfFile: under GNUstep
+   # → "File NSPropertyList.m: … Missing semicolon in dictionary" + dict parses fine
+   ```
+   (`test-6129-bad.conf` in `/tmp/opencode` is disposable; nothing was written
+   to the shared e2e stack for this ticket — no stack-side repro was needed.)
 
 ## PR body draft
 
-When Thunderbird or Evolution sends an invitation for a timezone that has since dropped
-DST (e.g. `America/Sao_Paulo`, no DST since 2019), the client still attaches the full
-historical VTIMEZONE whose last DAYLIGHT entry dates from 2018 and whose final STANDARD
-rule carries `UNTIL=20190217`. SOGo's VTIMEZONE evaluator dropped any period whose RRULE
-had already expired, so for post-2019 dates the 2018 DAYLIGHT period (-0200) won over the
-final STANDARD rule and events were stored one hour early: an 11:00 São Paulo meeting
-(16:00 CEST) appeared at 15:00 CEST in the web UI and notifications — exactly bug 6133.
-The already-merged IANA-first lookup (244d1388) masks this for standard TZIDs, but the
-defect remained reachable for custom TZIDs (`/mozilla.org/…`, `tzone://Microsoft/…`)
-verified live on the e2e stack: the same invitation stored at 13:00Z instead of 14:00Z
-when the TZID was not an IANA name.
-
-This PR fixes the evaluator: when a reference date is past a period's RRULE UNTIL, the
-period's last occurrence is now its UNTIL date (inclusive per RFC 5545) instead of nil,
-so `periodForDate:` picks the genuinely last transition at-or-before the date. The change
-is one branch in `iCalTimeZonePeriod occurrenceForDate:`; the only caller is
-`iCalTimeZone _occurrenceForPeriodNamed:forDate:`. Unit tests lock the ticket's exact
-VTIMEZONEs (Mozilla full-history and Evolution `calendar-2.ics`): 2025 dates resolve
--0300 with correct event epochs, the 2018 DST window still resolves -0200, and
-still-DSTing zones (Europe/Berlin) are unchanged.
+> ### Bug 6129 — "NSPropertyList.m: 1009. In parsePlItem Missing semicolon in dictionary" from the update-autoreply cron
+>
+> ** Investigation.** The daily `sogo-tool update-autoreply -p /etc/sogo/sieve.creds`
+> cron mailed `File NSPropertyList.m: 1009. In parsePlItem Missing semicolon in
+> dictionary at line 169 char 6722`, yet the run completed (`Enabled auto-reply
+> of user xxx`). That message is a *warning* from GNUstep-base's old-style
+> property-list parser (`parsePlItem`, gnustep-base 1.29 — line 1009 there):
+> when the last entry of a dictionary omits its `;` right before `}`, GNUstep
+> warns but still parses the file successfully. The position ("line 169 char
+> 6722") is the line and absolute character offset of that `}` — i.e. the end
+> of a dictionary in a ~169-line, ~6.7 KB file, which matches the reporter's
+> hand-maintained `/etc/sogo/sogo.conf`, read by `SOGoSystemDefaults` at every
+> tool startup. It is not SOGo's per-user profile fallback: that path always
+> logs SOGo-side JSON errors first, and none appear in the report; the warning
+> also precedes `SOGoCache` init, pinning it to config loading.
+>
+> **Outcome.** This is a configuration typo, not a SOGo defect — SOGo cannot
+> intercept GNUstep's internal warning, and tightening the syntax would break
+> lenient-but-working setups. The fix for the reporter is the missing `;` near
+> line 169 of `/etc/sogo/sogo.conf`, or retiring the cron now that sieve's
+> `date` extension handles vacation expiry natively. This PR therefore changes
+> no production code; it locks the neighbouring SOGo-owned behaviour that had
+> zero coverage — `SOGoUserProfile`'s conversion of legacy (plist) profile
+> values to JSON, including values parsed leniently despite missing final
+> semicolons (the exact condition behind the ticket's warning), and the
+> unparsable-value fallback to `{}`.
