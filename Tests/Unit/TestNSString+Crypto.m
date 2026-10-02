@@ -25,6 +25,12 @@
 
 #import "SOGoTest.h"
 
+@interface NSString (SOGoAES256GCMTests)
+- (NSString *)extractCryptScheme;
+- (NSDictionary *)encryptAES256GCM:(NSString *)passwordScheme exception:(NSException **)ex;
+- (NSString *)decryptAES256GCM:(NSString *)passwordScheme iv:(NSString *)ivString tag:(NSString *)tagString exception:(NSException **)ex;
+@end
+
 @interface TestNSData_plus_Crypto : SOGoTest
 @end
 
@@ -140,5 +146,369 @@
   test([cleartext isEqualToCrypted:crypted_hash withDefaultScheme: @"ARGON2ID" keyPath: nil]);
 }
 #endif /* HAVE_SODUM */
+
+- (void) test_extractCryptScheme
+{
+  testEquals([@"" extractCryptScheme], @"");
+  testEquals([@"noscheme" extractCryptScheme], @"");
+  testEquals([@"{nolimit" extractCryptScheme], @"");
+  testEquals([@"{SSHA}abc" extractCryptScheme], @"ssha");
+  testEquals([@"{BlF-CrYpT}abc" extractCryptScheme], @"blf-crypt");
+}
+
+- (void) test_splitPasswordWithDefaultScheme
+{
+  NSArray *parts;
+
+  parts = [@"{SSHA}abc" splitPasswordWithDefaultScheme: @"crypt"];
+  test([parts count] == 3);
+  testEquals([parts objectAtIndex: 0], @"ssha");
+  testEquals([parts objectAtIndex: 1], @"abc");
+  testEquals([parts objectAtIndex: 2], [NSNumber numberWithInt: encBase64]);
+
+  parts = [@"abc123" splitPasswordWithDefaultScheme: @"crypt"];
+  test([parts count] == 3);
+  testEquals([parts objectAtIndex: 0], @"crypt");
+  testEquals([parts objectAtIndex: 1], @"abc123");
+  testEquals([parts objectAtIndex: 2], [NSNumber numberWithInt: encPlain]);
+}
+
+- (void) test_getDefaultEncodingForScheme
+{
+  NSArray *result;
+
+  result = [NSString getDefaultEncodingForScheme: @"md4"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encHex]);
+  testEquals([result objectAtIndex: 1], @"md4");
+
+  result = [NSString getDefaultEncodingForScheme: @"MD5"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encHex]);
+  testEquals([result objectAtIndex: 1], @"MD5");
+
+  result = [NSString getDefaultEncodingForScheme: @"plain-md5"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encHex]);
+  testEquals([result objectAtIndex: 1], @"plain-md5");
+
+  result = [NSString getDefaultEncodingForScheme: @"sha"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encHex]);
+  testEquals([result objectAtIndex: 1], @"sha");
+
+  result = [NSString getDefaultEncodingForScheme: @"cram-md5"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encHex]);
+  testEquals([result objectAtIndex: 1], @"cram-md5");
+
+  result = [NSString getDefaultEncodingForScheme: @"smd5"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"smd5");
+
+  result = [NSString getDefaultEncodingForScheme: @"ldap-md5"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"ldap-md5");
+
+  result = [NSString getDefaultEncodingForScheme: @"SSHA"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"SSHA");
+
+  result = [NSString getDefaultEncodingForScheme: @"sha256"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"sha256");
+
+  result = [NSString getDefaultEncodingForScheme: @"ssha256"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"ssha256");
+
+  result = [NSString getDefaultEncodingForScheme: @"sha512"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"sha512");
+
+  result = [NSString getDefaultEncodingForScheme: @"ssha512"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"ssha512");
+
+  result = [NSString getDefaultEncodingForScheme: @"plain"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encPlain]);
+  testEquals([result objectAtIndex: 1], @"plain");
+
+  result = [NSString getDefaultEncodingForScheme: @"ssha.hex"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encHex]);
+  testEquals([result objectAtIndex: 1], @"ssha");
+
+  result = [NSString getDefaultEncodingForScheme: @"SSHA.B64"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"SSHA");
+
+  result = [NSString getDefaultEncodingForScheme: @"ssha.BASE64"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encBase64]);
+  testEquals([result objectAtIndex: 1], @"ssha");
+
+  result = [NSString getDefaultEncodingForScheme: @"ssha.what"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encPlain]);
+  testEquals([result objectAtIndex: 1], @"ssha");
+
+  result = [NSString getDefaultEncodingForScheme: @"a.b.c"];
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: encPlain]);
+  testEquals([result objectAtIndex: 1], @"a.b.c");
+}
+
+- (void) test_isEqualToCryptedWithEncodings
+{
+  test([@"secret" isEqualToCrypted: @"{MD5}5ebe2294ecd0e0f08eab7690d2a6ee69"
+                 withDefaultScheme: @"MD5" keyPath: nil]);
+  test(![@"secret" isEqualToCrypted: @"{MD5}5ebe2294ecd0e0f08eab7690d2a6ee68"
+                  withDefaultScheme: @"MD5" keyPath: nil]);
+  test(![@"secret" isEqualToCrypted: @"{SHA}zzzz"
+                  withDefaultScheme: @"SHA" keyPath: nil]);
+  test(![@"secret" isEqualToCrypted: @"{SSHA}!!!!"
+                  withDefaultScheme: @"SSHA" keyPath: nil]);
+  test([@"secret" isEqualToCrypted: @"{PLAIN}secret"
+                 withDefaultScheme: @"PLAIN" keyPath: nil]);
+  test(![@"secret" isEqualToCrypted: @"{PLAIN}other"
+                  withDefaultScheme: @"PLAIN" keyPath: nil]);
+}
+
+- (void) test_asCryptedPassWithExplicitEncoding
+{
+  NSString *result;
+
+  result = [@"secret" asCryptedPassUsingScheme: @"md5"
+                                     withSalt: [NSData data]
+                                  andEncoding: encHex
+                                      keyPath: nil];
+  testEquals(result, @"5ebe2294ecd0e0f08eab7690d2a6ee69");
+
+  result = [@"secret" asCryptedPassUsingScheme: @"plain"
+                                     withSalt: [NSData data]
+                                  andEncoding: encPlain
+                                      keyPath: nil];
+  testEquals(result, @"secret");
+
+  result = [@"secret" asCryptedPassUsingScheme: @"md5"
+                                     withSalt: [NSData data]
+                                  andEncoding: encBase64
+                                      keyPath: nil];
+  testEquals(result, @"Xr4ilOzQ4PCOq3aQ0qbuaQ==");
+
+  result = [@"secret" asCryptedPassUsingScheme: @"md5" keyPath: nil];
+  testEquals(result, @"5ebe2294ecd0e0f08eab7690d2a6ee69");
+
+  result = [@"secret" asCryptedPassUsingScheme: @"ssha" keyPath: nil];
+  test([result length] == 40);
+
+  result = [@"secret" asCryptedPassUsingScheme: @"nosuchscheme" keyPath: nil];
+  test(result == nil);
+
+  result = [@"secret" asCryptedPassUsingScheme: @"nosuchscheme"
+                                     withSalt: [NSData data]
+                                  andEncoding: encHex
+                                      keyPath: nil];
+  test(result == nil);
+}
+
+- (void) test_asNTHash
+{
+  testEquals([@"SOGo" asNTHash], @"6888E6EB2DE017221D138496A1A503E9");
+  testEquals([@"123456" asNTHash], @"32ED87BDB5FDC5E9CBA88547376818D4");
+}
+
+- (void) test_asLMHash
+{
+  testEquals([@"SOGo" asLMHash], @"3449A6BB6FCDAA83AAD3B435B51404EE");
+}
+
+- (void) test_encodeAES128ECBBase64
+{
+  NSException *ex;
+  NSString *result;
+
+  ex = nil;
+  result = [@"secret stuff" encodeAES128ECBBase64: @"0123456789abcdef"
+                                      encodedURL: NO exception: &ex];
+  testEquals(result, @"r6FEFTwVlIrauKuoq/nOkQ==");
+  test(ex == nil);
+
+  ex = nil;
+  result = [@"secret stuff" encodeAES128ECBBase64: @"0123456789abcdef"
+                                      encodedURL: YES exception: &ex];
+  testEquals(result, @"r6FEFTwVlIrauKuoq_nOkQ--");
+  test(ex == nil);
+
+  ex = nil;
+  result = [@"secret stuff" encodeAES128ECBBase64: @"01234567"
+                                      encodedURL: NO exception: &ex];
+  test(result == nil);
+  testEquals([ex name], @"kAES128ECError");
+  testEquals([ex reason], @"Key must be 128 bits, but key has 64 bits");
+}
+
+- (void) test_decodeAES128ECBBase64
+{
+  NSException *ex;
+  NSString *result;
+
+  ex = nil;
+  result = [@"r6FEFTwVlIrauKuoq/nOkQ==" decodeAES128ECBBase64: @"0123456789abcdef"
+                                      encodedURL: NO exception: &ex];
+  testEquals(result, @"secret stuff");
+  test(ex == nil);
+
+  ex = nil;
+  result = [@"r6FEFTwVlIrauKuoq_nOkQ--" decodeAES128ECBBase64: @"0123456789abcdef"
+                                      encodedURL: YES exception: &ex];
+  testEquals(result, @"secret stuff");
+  test(ex == nil);
+
+  ex = nil;
+  result = [@"r6FEFTwVlIrauKuoq/nOkQ==" decodeAES128ECBBase64: @"01234567"
+                                      encodedURL: NO exception: &ex];
+  test(result == nil);
+  testEquals([ex name], @"kAES128ECError");
+  testEquals([ex reason], @"Key must be 128 bits, but key has 64 bits");
+
+  ex = nil;
+  result = [@"AAAAAAAAAAAAAAAAAAAAAA==" decodeAES128ECBBase64: @"0123456789abcdef"
+                                      encodedURL: NO exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Could not decrypt");
+}
+
+- (void) test_AES128ECBRoundTrip
+{
+  NSString *encoded;
+  NSString *decoded;
+
+  encoded = [@"round trip payload" encodeAES128ECBBase64: @"0123456789abcdef"
+                                             encodedURL: NO exception: NULL];
+  decoded = [encoded decodeAES128ECBBase64: @"0123456789abcdef"
+                                encodedURL: NO exception: NULL];
+  testEquals(decoded, @"round trip payload");
+
+  encoded = [@"round trip payload" encodeAES128ECBBase64: @"0123456789abcdef"
+                                             encodedURL: YES exception: NULL];
+  decoded = [encoded decodeAES128ECBBase64: @"0123456789abcdef"
+                                encodedURL: YES exception: NULL];
+  testEquals(decoded, @"round trip payload");
+
+  decoded = [encoded decodeAES128ECBBase64: @"fedcba9876543210"
+                                encodedURL: YES exception: NULL];
+  test(![decoded isEqualToString: @"round trip payload"]);
+}
+
+- (void) test_encryptAES256GCM
+{
+  NSException *ex;
+  NSDictionary *result;
+  NSString *key = @"0123456789abcdef0123456789abcdef";
+
+  ex = nil;
+  result = [@"secret" encryptAES256GCM: key exception: &ex];
+  test(result != nil);
+  test(ex == nil);
+  test([[result objectForKey: @"cypher"] length] > 0);
+  test([[result objectForKey: @"iv"] length] == 16);
+  test([[[result objectForKey: @"iv"] dataByDecodingBase64] length] == 12);
+  test([[[result objectForKey: @"tag"] dataByDecodingBase64] length] == 16);
+
+  ex = nil;
+  result = [@"secret" encryptAES256GCM: @"shortkey" exception: &ex];
+  test(result == nil);
+  testEquals([ex name], @"kAES256GCMError");
+  testEquals([ex reason], @"Key must be 256 bits");
+}
+
+- (void) test_decryptAES256GCM
+{
+  NSException *ex;
+  NSDictionary *encrypted;
+  NSString *result;
+  NSString *key = @"0123456789abcdef0123456789abcdef";
+
+  encrypted = [@"secret" encryptAES256GCM: key exception: NULL];
+
+  ex = nil;
+  result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: key
+                                                              iv: [encrypted objectForKey: @"iv"]
+                                                             tag: [encrypted objectForKey: @"tag"]
+                                                       exception: &ex];
+  testEquals(result, @"secret");
+  test(ex == nil);
+
+  ex = nil;
+  result = [@"garbage" decryptAES256GCM: key
+                                     iv: [encrypted objectForKey: @"iv"]
+                                    tag: [encrypted objectForKey: @"tag"]
+                              exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Could decrypt but value is null");
+
+  ex = nil;
+  result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: @"shortkey"
+                                                              iv: [encrypted objectForKey: @"iv"]
+                                                             tag: [encrypted objectForKey: @"tag"]
+                                                       exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Key must be 256 bits");
+
+  ex = nil;
+  result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: key
+                                                              iv: @"AAAA"
+                                                             tag: [encrypted objectForKey: @"tag"]
+                                                       exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Key must be 96 bits");
+
+  ex = nil;
+  result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: key
+                                                              iv: [encrypted objectForKey: @"iv"]
+                                                             tag: @"AAAA"
+                                                       exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Tag must be 128 bits");
+}
+
+- (void) test_AES256GCMEmptyRoundTrip
+{
+  NSException *ex;
+  NSDictionary *encrypted;
+  NSString *result;
+  NSString *key = @"0123456789abcdef0123456789abcdef";
+
+  ex = nil;
+  encrypted = [@"" encryptAES256GCM: key exception: &ex];
+  test(encrypted != nil);
+  test(ex == nil);
+
+  ex = nil;
+  result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: key
+                                                              iv: [encrypted objectForKey: @"iv"]
+                                                             tag: [encrypted objectForKey: @"tag"]
+                                                       exception: &ex];
+  test(result == nil);
+  testEquals([ex reason], @"Could decrypt but value is null");
+}
+
+- (void) test_AES256GCMNullRoundTrip
+{
+  NSException *ex;
+  NSDictionary *encrypted;
+  NSString *result;
+  NSString *nulString;
+  unichar nul = 0;
+
+  nulString = [NSString stringWithCharacters: &nul length: 1];
+  test([[nulString dataUsingEncoding: NSUTF8StringEncoding] length] == 1);
+
+  ex = nil;
+  encrypted = [nulString encryptAES256GCM: @"0123456789abcdef0123456789abcdef" exception: &ex];
+  test(encrypted != nil);
+  test(ex == nil);
+
+  ex = nil;
+  result = [[encrypted objectForKey: @"cypher"] decryptAES256GCM: @"0123456789abcdef0123456789abcdef"
+                                                               iv: [encrypted objectForKey: @"iv"]
+                                                              tag: [encrypted objectForKey: @"tag"]
+                                                        exception: &ex];
+  test([result length] == 0);
+  test(ex == nil);
+}
 
 @end
