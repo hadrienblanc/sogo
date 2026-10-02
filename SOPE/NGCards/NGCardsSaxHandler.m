@@ -43,7 +43,7 @@ static NSArray *privilegedTagNames = nil;
 
   if (!privilegedTagNames)
     {
-      privilegedTagNames = [NSArray arrayWithObjects: @"ADR", @"N", @"RRULE", @"ORG", nil];
+      privilegedTagNames = [NSArray arrayWithObjects: @"ADR", @"N", @"RRULE", @"ORG", @"GEO", nil];
       RETAIN(privilegedTagNames);
     }
 
