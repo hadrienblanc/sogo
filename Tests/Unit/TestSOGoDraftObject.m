@@ -17,10 +17,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#import <Foundation/NSData.h>
 #import <Foundation/NSDate.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSUserDefaults.h>
+
+#import <NGMime/NGMimeBodyParser.h>
+#import <NGMime/NGMimeBodyPart.h>
+#import <NGMime/NGMimeHeaderFields.h>
+#import <NGMime/NGMimeMultipartBody.h>
+#import <NGMime/NGMimePartParser.h>
+#import <NGMime/NGMimeType.h>
+#import <NGMail/NGMimeMessageParser.h>
 
 #import <SOGo/SOGoObject.h>
 #import <Mailer/SOGoDraftObject.h>
@@ -30,6 +39,41 @@
 #define DRAFT_CLASS_NAME @"SOGoDraftObject"
 
 static NSString *attachmentContent = @"test-6224 attachment payload\n";
+
+@interface TestRawBodyParser : NGMimeBodyParser
+@end
+
+@implementation TestRawBodyParser
+
+- (id) parseBodyOfPart: (id <NGMimePart>) part
+                  data: (NSData *) data
+              delegate: (id) d
+{
+  return data;
+}
+
+@end
+
+@interface TestRawBodyParserDelegate : NSObject
+@end
+
+@implementation TestRawBodyParserDelegate
+
+- (id <NGMimeBodyParser>) parser: (NGMimePartParser *) parser
+                 bodyParserForPart: (id <NGMimePart>) part
+{
+  static TestRawBodyParser *rawParser = nil;
+
+  if (!rawParser)
+    rawParser = [[TestRawBodyParser alloc] init];
+
+  if ([[[part contentType] type] isEqualToString: @"multipart"])
+    return nil;
+
+  return rawParser;
+}
+
+@end
 
 @interface TestSOGoDraftObjectContainer : NSObject
 {
@@ -281,6 +325,133 @@ LoadDraftClass ()
 
   [draft deleteAttachmentsWithNames: [NSArray array]];
   test ([[draft fetchAttachmentAttrs] count] == 1);
+}
+
+- (NGMimeBodyPart *) _attachmentPartWithFilename: (NSString *) filename
+                                         inParts: (NSArray *) parts
+{
+  NGMimeBodyPart *found;
+  NGMimeContentDispositionHeaderField *disposition;
+  NSEnumerator *e;
+  id part;
+
+  found = nil;
+  e = [parts objectEnumerator];
+  while ((part = [e nextObject]) && !found)
+    {
+      if ([[part body] isKindOfClass: [NGMimeMultipartBody class]])
+        found = [self _attachmentPartWithFilename: filename
+                                          inParts: [[part body] parts]];
+      else
+        {
+          disposition = (NGMimeContentDispositionHeaderField *)
+            [part headerForKey: @"content-disposition"];
+          if ([[disposition filename] isEqualToString: filename])
+            found = part;
+        }
+    }
+
+  return found;
+}
+
+- (NGMimeBodyPart *) _composedAttachmentPartWithFilename: (NSString *) filename
+{
+  TestRawBodyParserDelegate *parserDelegate;
+  NGMimeMessageParser *parser;
+  NGMimeBodyPart *part;
+
+  parserDelegate = [[TestRawBodyParserDelegate alloc] init];
+  parser = [[NGMimeMessageParser alloc] init];
+  [parser setDelegate: parserDelegate];
+  part = [self _attachmentPartWithFilename: filename
+                                    inParts: [[[parser parsePartFromData:
+                                                  [draft mimeMessageForRecipient: nil
+                                                                  extractingImages: NO]] body] parts]];
+  [parser release];
+  [parserDelegate release];
+
+  return part;
+}
+
+- (NSData *) _cp1251SampleData
+{
+  static const unsigned char cp1251Bytes[] = {
+    0xCE, 0xCE, 0xCE, 0x20, 0xC1, 0xF0, 0xF3, 0x0a
+  };
+
+  return [NSData dataWithBytes: cp1251Bytes length: sizeof(cp1251Bytes)];
+}
+
+- (void) test_textAttachmentBytesArePreserved
+{
+  NSMutableDictionary *metadata;
+  NGMimeBodyPart *part;
+  NSData *original;
+  NSString *messageString;
+
+  original = [self _cp1251SampleData];
+  metadata = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                             @"test-6114-report.txt", @"filename",
+                             @"text/plain", @"mimetype",
+                             nil];
+  test ([draft saveAttachment: original withMetadata: metadata] == nil);
+
+  messageString = [[[NSString alloc] initWithData:
+                      [draft mimeMessageForRecipient: nil extractingImages: NO]
+                                      encoding: NSISOLatin1StringEncoding] autorelease];
+  testWithMessage ([messageString rangeOfString: @"Content-Transfer-Encoding: base64"].location != NSNotFound,
+                   @"the attachment part must declare base64 transfer encoding");
+
+  part = [self _composedAttachmentPartWithFilename: @"test-6114-report.txt"];
+  testWithMessage (part != nil, @"the composed message must carry the attachment");
+
+  testWithMessage ([[[part contentType] stringValue] hasPrefix: @"text/plain"],
+                   @"the attachment content type must stay text/plain");
+  testWithMessage ([[[part contentType] valueOfParameter: @"charset"] length] == 0,
+                   @"no charset must be invented for an opaque attachment");
+  testWithMessage ([[part body] isEqualToData: original],
+                   @"a text attachment must be composed byte for byte (bug 6114)");
+}
+
+- (void) test_declaredAttachmentCharsetIsPassedThrough
+{
+  NSMutableDictionary *metadata;
+  NGMimeBodyPart *part;
+  NSData *original;
+
+  original = [self _cp1251SampleData];
+  metadata = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                             @"test-6114-charset.txt", @"filename",
+                             @"text/plain; charset=windows-1251", @"mimetype",
+                             nil];
+  test ([draft saveAttachment: original withMetadata: metadata] == nil);
+
+  part = [self _composedAttachmentPartWithFilename: @"test-6114-charset.txt"];
+  testWithMessage (part != nil, @"the composed message must carry the attachment");
+
+  testWithMessage ([[[part contentType] stringValue] isEqualToString: @"text/plain; charset=windows-1251"],
+                   @"the declared content type must be passed through verbatim");
+  testWithMessage ([[part body] isEqualToData: original],
+                   @"a charset-declared attachment must not be transcoded (bug 6114)");
+}
+
+- (void) test_saveAttachmentWithStringBodyPersistsUTF8Bytes
+{
+  NSString *content;
+  NSMutableDictionary *metadata;
+  NSData *spooled;
+
+  content = @"\u041e\u041e\u041e report\n";
+  metadata = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                             @"test-6114-string.txt", @"filename",
+                             @"text/plain", @"mimetype",
+                             nil];
+  test ([draft saveAttachment: content withMetadata: metadata] == nil);
+
+  spooled = [NSData dataWithContentsOfFile:
+               [draft pathToAttachmentWithName: @"test-6114-string.txt"]];
+  testWithMessage ([spooled isEqualToData: [content dataUsingEncoding: NSUTF8StringEncoding]],
+                   @"a string attachment body must be persisted as UTF-8");
 }
 
 @end
