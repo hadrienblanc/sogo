@@ -18,6 +18,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#import <Foundation/NSAutoreleasePool.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSString.h>
 
@@ -312,6 +313,70 @@
   [manager _convertScriptToSieve: script withReq: req delimiter: @"/"];
   testEquals([manager lastScriptError],
              @"Test 'all' used without any specified rule");
+}
+
+- (void) test_scriptErrorOwnershipAcrossAllErrorBranches
+{
+  NSAutoreleasePool *pool;
+  SOGoSieveManager *manager;
+  NSMutableDictionary *req;
+  NSDictionary *rule, *action, *script;
+
+  pool = [NSAutoreleasePool new];
+  req = [NSMutableDictionary dictionary];
+
+  manager = [[SOGoSieveManager alloc] initForUser: nil];
+  rule = [NSDictionary dictionaryWithObject: @"bogus" forKey: @"field"];
+  test([manager _extractSieveRule: rule] == nil);
+  testEquals([manager lastScriptError], @"Rule based on unknown field 'bogus'");
+  [manager release];
+
+  manager = [[SOGoSieveManager alloc] initForUser: nil];
+  rule = [NSDictionary dictionaryWithObjectsAndKeys:
+                       @"subject", @"field",
+                       @"bogus", @"operator",
+                       nil];
+  test([manager _extractSieveRule: rule] == nil);
+  testEquals([manager lastScriptError], @"Rule has unknown operator 'bogus'");
+  [manager release];
+
+  manager = [[SOGoSieveManager alloc] initForUser: nil];
+  action = [NSDictionary dictionaryWithObjectsAndKeys:
+                       @"bogusmethod", @"method",
+                       @"bogus", @"argument",
+                       nil];
+  test([manager _extractSieveAction: action withReq: req delimiter: @"/"] == nil);
+  testEquals([manager lastScriptError],
+             @"Action has unknown method 'bogusmethod'");
+  [manager release];
+
+  manager = [[SOGoSieveManager alloc] initForUser: nil];
+  action = [NSDictionary dictionaryWithObjectsAndKeys:
+                       @"addflag", @"method",
+                       @"bogus", @"argument",
+                       nil];
+  test([manager _extractSieveAction: action withReq: req delimiter: @"/"] == nil);
+  testEquals([manager lastScriptError],
+             @"Action with invalid flag argument 'bogus'");
+  [manager release];
+
+  manager = [[SOGoSieveManager alloc] initForUser: nil];
+  script = [NSDictionary dictionaryWithObject: @"bogus" forKey: @"match"];
+  [manager _convertScriptToSieve: script withReq: req delimiter: @"/"];
+  testEquals([manager lastScriptError], @"Bad test: bogus");
+  [manager release];
+
+  manager = [[SOGoSieveManager alloc] initForUser: nil];
+  script = [NSDictionary dictionaryWithObjectsAndKeys:
+                       @"all", @"match",
+                       [NSArray array], @"rules",
+                       nil];
+  [manager _convertScriptToSieve: script withReq: req delimiter: @"/"];
+  testEquals([manager lastScriptError],
+             @"Test 'all' used without any specified rule");
+  [manager release];
+
+  [pool release];
 }
 
 - (void) test_sieveScriptWithRequirements_resetsPreviousError
