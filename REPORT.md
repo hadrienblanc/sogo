@@ -1,140 +1,179 @@
-# Bug 6124 — "Issue with Attachment Handling" (fix-6124-mantis)
+# Bug 6114 — Changing encoding of a TXT file (fix report)
 
-## Verdict
-
-Confirmed bug, server-side. When an uploaded attachment makes the draft exceed
-`SOGoMaximumMessageSizeLimit`, the file is persisted to the draft's spool folder
-*before* the draft save is attempted; when that save fails, neither the server
-nor the web client ever deletes it. Every later save/send re-counts this phantom
-file, so the draft stays permanently over the limit ("Message is too big") even
-after the UI has dropped the attachment — matching the reporter's repro exactly.
-The phantom file would even be *sent* with the message on a lucky retry.
+Worktree: `wt/c14-6114` — branch `fix-6114-mantis` — commit `48868446d`
+`fix(mailer): preserve attachment file bytes end to end (bug 6114)`
 
 ## Root cause (file:line)
 
-- `UI/MailerUI/UIxMailEditor.m:589` — `_saveAttachments` writes every uploaded
-  file into the draft spool folder via `saveAttachment:withMetadata:`, then
-  `saveAction` (`UI/MailerUI/UIxMailEditor.m:815`) calls `[co save]`.
-- `SoObjects/Mailer/SOGoDraftObject.m:1622-1627` — `bodyPartsForAllAttachments`
-  sums the sizes of **all files on disk** in the draft folder and returns nil
-  when over the limit; `save` (`SOGoDraftObject.m:599-604`) then answers
-  HTTP 500 `"Message is too big"`.
-- `UI/WebServerResources/js/Mailer/MessageEditorController.js:151-161` —
-  `onErrorItem` only removes the item from the UI queue; no server-side delete
-  is issued (the client cannot even know the stored name, since the server
-  renames on collision, e.g. `file.txt` → `file-1.txt`).
+Uploading a `.txt` (or any `text/*`) attachment destroyed its bytes through a
+lossy UTF-8 → Latin-1 → UTF-8 round trip, in three stacked places:
 
-## What changed
+1. **Upload (the corruption)** — SOPE's multipart request parser decodes every
+   `text/plain` part into an `NSString` before SOGo sees it:
+   `sope-mime/NGMime/NGMimeBodyParser.m:51` (`NGMimeTextBodyParser` — no charset
+   → strict UTF-8 first, then **Latin-1 fallback** which never fails). For a
+   windows-1251 file the UTF-8 decode fails, Latin-1 "succeeds", and the
+   original bytes become irrecoverable codepoints (`0xCE 0xCE 0xCE` "ООО" →
+   `U+00CE U+00CE U+00CE` "ÎÎÎ").
+2. **Spooling** — `UIxMailEditor.m:592` (`_saveAttachments`) passed that
+   NSString to `SOGoDraftObject saveAttachment:withMetadata:`
+   (`SoObjects/Mailer/SOGoDraftObject.m:1258`) which declares `NSData *` but
+   got a string; `[_attach writeToFile:atomically:]` then serialized it as
+   **UTF-8**. The draft spool file now permanently contains
+   `C3 8E C3 8E C3 8E…` (latin1-decoded text re-encoded as UTF-8) — exactly the
+   `problem.txt` mojibake from the ticket, and exactly what the reporter saw as
+   "encoding changed to windows-1252" (mojibake rendered after a latin1→utf8
+   mislabel).
+3. **Composition (fragile, locale-dependent)** —
+   `SoObjects/Mailer/SOGoDraftObject.m:1566-1583`
+   (`bodyPartForAttachmentWithName:`, the `attachAsString` branch carrying the
+   in-code `TODO: is this really necessary?`) re-decoded the spooled file with
+   `[NSString defaultCStringEncoding]` and let NGMime re-encode it with the
+   charset parameter of the stored content-type (or `defaultCStringEncoding`,
+   `NGMimeTextBodyGenerator.m:59-66`). Whenever the decode and re-encode
+   charsets disagree (server locale vs declared charset), the bytes are
+   transcoded a second time.
 
-**Before** (AVANT):
-1. Upload 15 MB → `/save` → file persisted, draft saved to IMAP → OK.
-2. Upload 12 MB → `/save` → file persisted → `[co save]` fails "Message is too
-   big" → UI drops the item → **the 12 MB file stays in the spool folder**.
-3. Upload 1 MB → `/save` → spool holds 15 + 12 + 1 MB → still "Message is too
-   big". Send fails too. Only workaround: discard the whole draft.
+Verified live on the shared stack (pre-fix): a cp1251 `.txt` uploaded to a
+draft and saved produced the part
+`Content-Type: text/plain` + `Content-Transfer-Encoding: quoted-printable` +
+`=C3=8E=C3=8E=C3=8E…` in `viewsource` — byte-for-byte the ticket's
+`problem.txt` mojibake. Reproduced standalone on the host by feeding the same
+multipart request to `NGHttpMessageParser`: the `text/plain` file part body
+arrives as a `GSCBufferString` (`c3 8e c3 8e …`), while an
+`application/octet-stream` part body stays raw `NSData`.
 
-**After** (APRÈS):
-- `UIxMailEditor` tracks the attachment filenames persisted during the current
-  request (`savedAttachments` ivar, filled in `_saveAttachments` only on
-  successful writes).
-- When `saveAction` ends on the error path (size limit, IMAP failure, SOPE
-  upload exception…), it calls the new draft-object primitive
-  `deleteAttachmentsWithNames:` to drop exactly those files, so the server
-  state matches what the UI shows (upload rejected ⇒ attachment not attached).
-- `SOGoDraftObject` gains `- (void) deleteAttachmentsWithNames: (NSArray *)`
-  (a best-effort loop over the existing `deleteAttachmentWithName:`).
-- Net effect: after the oversized upload is rejected, the next `/save` or
-  `/send` is re-evaluated against the real remaining attachments; the draft is
-  usable without rewriting anything.
+The ticket IS a real bug (severity major, always reproducible for non-UTF-8,
+non-latin1 text files). Other mailers don't corrupt because they never decode
+attachment file parts as strings.
 
-Note: the forward/reply flows (`fetchMailForForwarding:`, etc.) are untouched —
-they ignore save errors by design and their drafts were never stuck this way.
+## What changed (before/after)
+
+| Where | Before | After |
+| --- | --- | --- |
+| `UI/WebServerResources/js/Common/angular-file-upload.trump.js` (+ committed min bundle) | mail attachment uploads sent the `File` as-is, so browsers labeled the part `text/plain` and SOPE string-decoded it | for `alias == 'attachments'` the file is wrapped in an `application/octet-stream` `Blob` (bytes opaque to the parser) and the browser-provided type travels in a new `attachmentMimeType` form field; other uploaders (Contacts/Scheduler/Preferences) untouched; XSRF behavior unchanged |
+| `UI/MailerUI/UIxMailEditor.m:533` (`_scanAttachmentFilenamesInRequest`) | sidecar mimetype = the multipart part's content-type (octet-stream under the new protocol) | reads the `attachmentMimeType` field (string or raw-data part) and uses it as the stored mimetype; no field → legacy behavior (part content-type), so old cached JS keeps working exactly as before |
+| `SoObjects/Mailer/SOGoDraftObject.m:1271` (`saveAttachment:withMetadata:`) | an NSString body was silently written as UTF-8 by `writeToFile:` | explicit normalization: NSString body → `dataUsingEncoding:NSUTF8StringEncoding` (byte-identical to the old behavior, but the NSData contract is now enforced); also covers legacy string bodies from the forward/reply paths |
+| `SoObjects/Mailer/SOGoDraftObject.m:1517` (`bodyPartForAttachmentWithName:`) | `text/plain`/`text/html` attachments were decoded with `defaultCStringEncoding` into NSStrings and re-encoded by the generator (charset guessing) | branch removed (TODO answered): every stored attachment is composed from its raw bytes — `message/rfc822` stays 8bit, everything else base64 — byte-for-byte, content-type passed through verbatim, no invented charset |
+
+AVANT (observed on the stack, and matching `problem.txt` from the ticket):
+
+```
+Content-Type: text/plain
+Content-Disposition: attachment; filename="original.txt"
+Content-Transfer-Encoding: quoted-printable
+
+Card;24/02/2025;01;=C3=8E=C3=8E=C3=8E =C3=81=C3=B0=C3=B3=C3=B1=C3=AA=C3=AE…
+```
+
+APRÈS (protocol sends octet-stream + `attachmentMimeType: text/plain`):
+
+```
+Content-Type: text/plain
+Content-Disposition: attachment; filename="original.txt"
+Content-Transfer-Encoding: base64
+
+Q2FyZDsyNC8wMi8yMDI1OzAxO8HOAMHQ860K…
+```
+
+`base64 -d` of the part returns the original windows-1251 bytes; recipients
+(and Notepad with auto-detection) see the correct text, like with other
+clients.
 
 ## Tests
 
-`Tests/Unit/TestSOGoDraftObject.m` (Mailer bundle, no new file — reuses the
-bug-6224 harness):
-
-- `test_oversizedAttachmentRollbackRestoresMessage` — sets
-  `SOGoMaximumMessageSizeLimit` to 1 KB, reproduces the ticket sequence at
-  draft level: message buildable → oversized attachment persisted on disk →
-  message no longer buildable ("too big" state) → rollback via
-  `deleteAttachmentsWithNames:` → message buildable again, still carries the
-  remaining attachment, reverted file does not leak.
-- `test_deleteAttachmentsWithNamesToleratesMissingNames` — deletes several
-  names, skips missing ones, tolerates an empty array.
-
-Full suite: `Ran 190 tests, FAILED (2 failures)` — the two failures are the
-documented host-noise ones (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`). NB: `./obj/sogo-tests -f junit` segfaults
-while *printing* the report; this is pre-existing on `experimental` (verified on
-the main checkout) and unrelated — text mode is what the runner uses.
+- `Tests/Unit/TestSOGoDraftObject.m` (extended, runs in the standard suite):
+  - `test_textAttachmentBytesArePreserved` — cp1251 payload saved as
+    `text/plain`; the composed message declares `base64`, keeps
+    `Content-Type: text/plain` with **no invented charset**, and the parsed
+    part body equals the original bytes exactly.
+  - `test_declaredAttachmentCharsetIsPassedThrough` — a stored
+    `text/plain; charset=windows-1251` sidecar is passed through verbatim with
+    no transcoding of the bytes.
+  - `test_saveAttachmentWithStringBodyPersistsUTF8Bytes` — legacy NSString
+    bodies persist as UTF-8 (locks the normalization branch).
+  - The message is re-parsed with a raw-body parser delegate
+    (`TestRawBodyParser`/`TestRawBodyParserDelegate`) so assertions are on
+    wire-level bytes, not on re-decoded strings.
+- `Tests/spec/MailerAttachmentUploadSpec.js` (new jasmine spec, no stack
+  needed): mailer uploads are wrapped as octet-stream carrying the real type
+  in `attachmentMimeType`, empty browser types default to octet-stream,
+  non-mailer uploaders and the XSRF header are untouched.
+- Full worktree unit suite: `local/run-worktree-tests.sh wt/c14-6114` →
+  **193 tests, 2 failures** — both known host noise
+  (`test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection`). (A pre-existing exit-time segfault after
+  the summary also occurs on the pristine baseline; not related.)
 
 ## Verification steps for the orchestrator
 
-The e2e stack currently has no `SOGoMaximumMessageSizeLimit` and I may not
-change config/restart, so the exact 500 could not be triggered live; endpoints
-below were rehearsed read-only on the shared stack (draft + artifacts cleaned
-up). After deploying this branch, add to `sogo.conf`:
-
-```
-SOGoMaximumMessageSizeLimit = 25;
-```
-
-then (jq available):
+After deploying this branch to the e2e stack (rebuild + volume reset, as
+usual). The new-browser flow can be simulated with curl by sending the part as
+`application/octet-stream` plus the `attachmentMimeType` field (exactly what
+the patched JS now sends):
 
 ```bash
-B=http://127.0.0.1:50001
-C=/tmp/opencode/cj-6124.txt
-curl -s -c $C -X POST $B/SOGo/connect -H 'Content-Type: application/json' \
-     -d '{"userName":"sogo-tests1","password":"sogo"}'
-# create draft
-DRAFT=$(curl -s -b $C -H 'Accept: application/json' \
-     $B/SOGo/so/sogo-tests1/Mail/0/compose | jq -r .draftId)
-U=$B/SOGo/so/sogo-tests1/Mail/0/folderDrafts/$DRAFT
-head -c 15000000 /dev/zero > /tmp/opencode/test-6124-a.bin   # 15 MB
-head -c 12000000 /dev/zero > /tmp/opencode/test-6124-b.bin   # 12 MB
-head -c 1000000  /dev/zero > /tmp/opencode/test-6124-c.bin   # 1 MB
-# 1. 15 MB upload must succeed
-curl -s -b $C -X POST -H 'Accept: application/json' \
-     -F 'attachments=@/tmp/opencode/test-6124-a.bin' $U/save | jq .uid
-# 2. 12 MB upload must fail with "Message is too big"
-curl -s -b $C -X POST -H 'Accept: application/json' \
-     -F 'attachments=@/tmp/opencode/test-6124-b.bin' $U/save | jq .message
-# 3. AFTER the fix: 1 MB upload must now SUCCEED (was failing before the fix)
-curl -s -b $C -X POST -H 'Accept: application/json' \
-     -F 'attachments=@/tmp/opencode/test-6124-c.bin' $U/save | jq .uid
-# 4. cleanup
-curl -s -b $C -X POST -H 'Accept: application/json' $U/delete -o /dev/null -w '%{http_code}\n'
-rm -f /tmp/opencode/test-6124-*.bin $C
+# 0) auth
+cd /tmp && curl -s -c /tmp/cj -X POST -H 'Content-Type: application/json' \
+  -d '{"userName":"sogo-tests1","password":"sogo"}' http://127.0.0.1:50001/SOGo/connect
+
+# 1) new draft handle
+DRAFT=$(curl -s -b /tmp/cj http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/compose)
+# -> {"mailboxPath":"Drafts","draftId":"newDraft…","accountId":"0"}
+
+# 2) cp1251 sample file
+python3 -c "open('/tmp/test-6114.txt','wb').write('Card;ООО Бруско\nEND;18\n'.encode('cp1251'))"
+
+# 3) upload simulating the patched uploader (octet-stream part + real type field)
+UID=$(curl -s -b /tmp/cj -X POST \
+  "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderDrafts/newDraft1790914683-1/save" \
+  -F 'attachmentMimeType=text/plain' \
+  -F "attachments=@/tmp/test-6114.txt;type=application/octet-stream;filename=test-6114.txt" \
+  | sed -n 's/.*"uid":"\([0-9]*\)".*/\1/p')
+
+# 4) save draft content, then inspect the composed message source
+curl -s -b /tmp/cj -X POST \
+  "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderDrafts/$UID/save" \
+  -H 'Content-Type: application/json' \
+  -d '{"to":["sogo-tests1@example.org"],"from":"Dude <sogo-tests1@example.org>","subject":"test-6114","text":"hello","isHTML":0}'
+curl -s -b /tmp/cj "http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderDrafts/$UID/viewsource"
 ```
 
-Step 3 succeeding (HTTP 200 + uid, `lastAttachmentAttrs` present) is the
-regression proof; on the unfixed code it returns
-`{"message": "Message is too big"}`. The same invariant holds for
-`.../send` after a rejected upload.
+Expected in the source: `Content-Type: text/plain`,
+`Content-Transfer-Encoding: base64`, and
+`grep -A2 filename=\"test-6114.txt\" | tail -1 | base64 -d` on the part body
+returns the original cp1251 bytes (`Card;ООО Бруско` when decoded as cp1251).
+Pre-fix, the same flow with a `text/plain` part produced the
+`=C3=8E…` quoted-printable mojibake (captured during reproduction).
+
+Legacy compatibility (old cached JS): repeat step 3 without the
+`attachmentMimeType` field and with `type=text/plain` on the part — the
+attachment is still accepted and composed (old string behavior preserved).
+
+Cleanup afterwards: `curl -s -b /tmp/cj -X POST .../folderDrafts/$UID/delete`
+(test-6114-* artifacts only).
 
 ## PR body draft
 
-Bug 6124 (major, Web Mail): with `SOGoMaximumMessageSizeLimit` set, an upload
-that pushes the draft over the limit is persisted to the draft spool folder
-before the draft save is attempted; when that save fails with "Message is too
-big", the file is never removed — not by the server, and not by the web client,
-which only drops the item from its upload queue. From then on every save/send
-re-counts the phantom file, so the draft stays over the limit forever: adding a
-tiny attachment still errors, and the only escape is discarding the whole draft.
-The phantom file would even be included in the message if a later send
-succeeded by other means.
+Uploading a text file (e.g. a windows-1251 report `.txt`) as a mail
+attachment re-encoded it as UTF-8 mojibake ("ООО Бруско" became "ÎÎÎ
+Áðóñêî"), and the received/saved copy was unreadable. Other mail clients were
+not affected. Root cause: SOPE's multipart request parser decodes `text/plain`
+parts into strings (UTF-8-then-Latin-1 guess); SOGo then spooled that string
+as UTF-8 (`UIxMailEditor` → `saveAttachment:withMetadata:`) and re-decoded it
+at composition time with the server's locale charset
+(`bodyPartForAttachmentWithName:` `attachAsString` branch — lossy on every
+ hop where the charsets disagree).
 
-AVANT — compose with a 25 MB limit, attach 15 MB (OK), then 12 MB: upload
-rejected "Message is too big", attachment disappears from the editor; attach a
-1 MB file: still "Message is too big"; sending impossible; draft must be
-discarded and rewritten.
-
-APRÈS — same scenario: the 12 MB upload is still rejected (the limit is the
-limit), but the file is now rolled back from the spool when the save fails, so
-the server state matches the editor; attaching the 1 MB file succeeds and the
-message can be sent without rewriting anything. The rollback is wired on the
-whole save-error path, so any failed save (IMAP hiccup included) no longer
-leaves ghost attachments behind. Covered by new unit tests in
-`Tests/Unit/TestSOGoDraftObject.m` reproducing the exact ticket sequence.
+The uploader now sends mail attachment bytes as an opaque
+`application/octet-stream` part (real type in a new `attachmentMimeType`
+field, honored by `UIxMailEditor`), `saveAttachment:` normalizes legacy
+string bodies to UTF-8 explicitly, and the compose path no longer decodes
+stored attachments as strings at all: every attachment is emitted from its raw
+bytes (base64, or 8bit for `message/rfc822`) with its declared content-type
+passed through verbatim. Non-UTF-8 text files now survive byte for byte, and
+recipients' charset auto-detection behaves like in other clients. The wire
+format change is additive: old cached front-ends keep working through the
+previous path. Covered by three new unit tests in `TestSOGoDraftObject.m`
+(byte-exact composition, charset passthrough, string-body normalization) and
+a new jasmine spec for the uploader decorator.
