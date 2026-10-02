@@ -28,6 +28,7 @@
 + (NSString *) generateMessageID: (NSString *) mailOrDomain;
 - (NSString *) htmlToText;
 - (NSString *) htmlByExtractingImages: (NSMutableArray *) theImages;
+- (BOOL) isFullHTMLDocument;
 - (NSString *) stringByConvertingCRLNToHTML;
 - (int) indexOf: (unichar) _c
       fromIndex: (int) start;

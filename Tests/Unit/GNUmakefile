@@ -37,6 +37,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSData+Crypto.m \
 	TestNSData+Mail.m \
 	TestNSString+Crypto.m \
+	TestNSString+Mail.m \
 	TestNSString+URLEscaping.m \
 	TestNSString+Utilities.m \
 	TestNSString+CKEditorUserAgentOverride.m \
