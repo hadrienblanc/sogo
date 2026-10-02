@@ -21,6 +21,7 @@
 
 #import "SOGoTest.h"
 #import <Mailer/NSString+Mail.h>
+#import <NGMime/NGMimeBodyPart.h>
 
 @interface TestNSString_plus_Mail : SOGoTest
 @end
@@ -99,6 +100,25 @@
   test ([result rangeOfString: @"src=\"cid:"].length > 0);
   test ([result rangeOfString: @"data:image/png"].length == 0);
   test ([result rangeOfString: @">b</p>"].length > 0);
+}
+
+- (void) test_htmlByExtractingImagesExtractsSVGDataURLOfTicket6152
+{
+  NSMutableArray *images;
+  NSString *result;
+
+  images = [NSMutableArray array];
+  result = [@"<p>Test signature</p>"
+            @"<p><img src=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo=\""
+            @" width=\"391\" height=\"232\"></p>"
+              htmlByExtractingImages: images];
+
+  testWithMessage ([images count] == 1, @"the SVG data URI image should be extracted");
+  testEquals ([[[images objectAtIndex: 0] contentType] stringValue], @"image/svg+xml");
+  test ([result rangeOfString: @"src=\"cid:"].length > 0);
+  test ([result rangeOfString: @"type=\"image/svg+xml\""].length > 0);
+  test ([result rangeOfString: @"data:image/svg+xml"].length == 0);
+  test ([result rangeOfString: @"width=\"391\" height=\"232\""].length > 0);
 }
 
 @end
