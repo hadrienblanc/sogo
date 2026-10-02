@@ -27,6 +27,10 @@
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSException.h>
 
+#import <sys/types.h>
+#import <sys/wait.h>
+#import <unistd.h>
+
 #import <SOGo/RTFHandler.h>
 
 
@@ -301,6 +305,143 @@
 
   [self checkHTMLConversionOfRTFFile: file
                  againstExpectedHTML: expected];
+}
+
+- (NSString *) htmlFromRTFString: (NSString *) rtf
+{
+  return [self rtf2html: [rtf dataUsingEncoding: NSUTF8StringEncoding]];
+}
+
+- (void) test_rtf2html_with_nil_data
+{
+  test([self rtf2html: nil] == nil);
+}
+
+- (void) test_parse_returns_nil_for_non_rtf_data
+{
+  RTFHandler *handler;
+  NSData *data;
+
+  data = [@"this is definitely not rtf data" dataUsingEncoding: NSUTF8StringEncoding];
+  handler = [[RTFHandler alloc] initWithData: data];
+  test([handler parse] == nil);
+}
+
+- (void) test_unicode_escapes
+{
+  NSString *rtf;
+  NSString *expected;
+
+  rtf = @"{\\rtf1{\\uc1\\u233 ?\\u345 ?\\u-10122 ?}}";
+  expected = [NSString stringWithFormat: @"<html><meta charset='utf-8'><body>é?ř?%C?</body></html>", (unichar) 42889];
+  testEquals([self htmlFromRTFString: rtf], expected);
+}
+
+- (void) test_control_words_without_argument
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1{\\u z}{\\f z}{\\cf z}{\\ansicpg z}}"],
+             @"<html><meta charset='utf-8'><body>zzzz</body></html>");
+}
+
+- (void) test_formatting_toggles
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1{\\b B\\i I\\ul U\\ulnone V\\strike S\\strike0 T}{\\b0 x}{\\i0 y}{\\strike K}}"],
+             @"<html><meta charset='utf-8'><body><b>B<i>I<u>U</u>V<strike>S</strike>T</b></i></b>x</i>y<strike>K</strike></body></html>");
+}
+
+- (void) test_formatting_words_after_all_groups_closed
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1 x}\\b0\\i0\\ul0\\strike0\\f0\\cf1\\ulnone\\ansicpg1252"],
+             @"<html><meta charset='utf-8'><body>x</body></html>");
+}
+
+- (void) test_softline_and_tab
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1 a\\softline b\\tab c}"],
+             @"<html><meta charset='utf-8'><body>a<br>b&nbsp;&nbsp;c</body></html>");
+}
+
+- (void) test_color_table
+{
+  NSString *rtf;
+  NSString *expected;
+
+  rtf = @"{\\rtf1{\\colortbl;\\red255\\green0\\blue0;\\red0\\green128\\blue0;\n}{\\cf1 A}{\\cf2 B}{\\cf1 C\\cf2 D}}";
+  expected = @"<html><meta charset='utf-8'><body>"
+             @"<font color=\"#ff0000\">A</font>"
+             @"<font color=\"#000000\">B</font>"
+             @"<font color=\"#ff0000\">C</font>"
+             @"<font color=\"#000000\">D</font>"
+             @"</body></html>";
+  testEquals([self htmlFromRTFString: rtf], expected);
+}
+
+- (void) test_cf_without_color_table
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1{\\cf5 X}}"],
+             @"<html><meta charset='utf-8'><body>X</body></html>");
+}
+
+- (void) test_font_table_families
+{
+  NSString *rtf, *longName, *expected;
+
+  longName = [@"" stringByPaddingToLength: 120 withString: @"A" startingAtIndex: 0];
+  rtf = [NSString stringWithFormat: @"{\\rtf1{\\fonttbl{\\f1\\fmodern Courier1;}{\\f2\\fdecor Decor;}{\\f3\\fscript Script;}{\\f4\\ftech Tech;}{\\f5\\fswiss %@;}{\\f6\\fcharset1 System;}{\\f7\\fswiss\\fcharset Symbol;}{\\f8\\fmodern\\fprq Forty;}{\\f9\\fswiss Hel\\~lo9;}{\\f\\fnil NoIndex;}}{\\f1 A{\\f2 B}{\\f3 C}{\\f4 D}{\\f5 E}{\\f6 F}{\\f1 G\\f2 H}}", longName];
+  expected = [NSString stringWithFormat: @"<html><meta charset='utf-8'><body><font face=\"Courier1\">A<font face=\"Decor\">B</font><font face=\"Script\">C</font><font face=\"Tech\">D</font><font face=\"%@\">E</font><font face=\"System\">F</font><font face=\"Courier1\">G</font><font face=\"Decor\">H</font></font></body></html>",
+                       [longName substringToIndex: 100]];
+  testEquals([self htmlFromRTFString: rtf], expected);
+}
+
+- (void) test_font_table_without_delimiter
+{
+  const char bytes[] = "{\\rtf1{\\fonttbl{\\f0\\fswiss Helvetica\0AAAA}}";
+  NSData *data;
+
+  data = [NSData dataWithBytes: bytes length: sizeof(bytes) - 1];
+  testEquals([self rtf2html: data],
+             @"<html><meta charset='utf-8'><body></body></html>");
+}
+
+- (void) test_hex_escape_and_text_after_group_closed
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1 a}\\'e9b"],
+             @"<html><meta charset='utf-8'><body>aéb</body></html>");
+}
+
+- (void) test_unbalanced_braces_and_null_byte
+{
+  const char bytes[] = "{\\rtf1 a\0b}}c";
+  NSData *data;
+
+  data = [NSData dataWithBytes: bytes length: sizeof(bytes) - 1];
+  testEquals([self rtf2html: data],
+             @"<html><meta charset='utf-8'><body>abc</body></html>");
+}
+
+- (void) test_binary_blob_in_picture
+{
+  testEquals([self htmlFromRTFString: @"{\\rtf1{\\*\\pict{\\bin3 X}Y}}"],
+             @"<html><meta charset='utf-8'><body></body></html>");
+}
+
+- (void) test_dealloc_releases_state
+{
+  RTFHandler *handler;
+  pid_t pid;
+  int status;
+
+  handler = [[RTFHandler alloc] initWithData: [@"{\\rtf1 x}" dataUsingEncoding: NSUTF8StringEncoding]];
+  test([handler parse] != nil);
+  pid = fork();
+  if (pid == 0)
+    {
+      [handler release];
+      _exit(0);
+    }
+  test(waitpid(pid, &status, 0) == pid);
+  test(WIFEXITED(status));
+  test(WEXITSTATUS(status) == 0);
 }
 
 @end

@@ -34,7 +34,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+URLEscaping.m \
 	TestNSString+Utilities.m \
 	TestNSString+Mail.m \
-	TestNSStringMailHelpers.m \
+ 	TestNSStringMailHelpers.m \
+ 	TestNSCalendarDateSOGo.m \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
 	TestNSURL+misc.m \
