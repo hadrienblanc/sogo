@@ -46,6 +46,8 @@
 @interface iCalEntityObject (SOGoTestsDeclaration)
 - (NSArray *) attendeesWithoutUser: (SOGoUser *) user;
 - (NSDictionary *) attributesInContext: (WOContext *) context;
+- (BOOL) userIsAttendee: (SOGoUser *) user;
+- (iCalPerson *) userAsAttendee: (SOGoUser *) user;
 @end
 
 @interface SOGoUser6144Stub : SOGoUser
@@ -107,6 +109,16 @@ LoadAppointmentsBundle ()
   [context setActiveUser: [self _user]];
 
   return context;
+}
+
+- (iCalEvent *) _eventWithContent: (NSString *) content
+{
+  iCalCalendar *calendar;
+
+  calendar = [iCalCalendar parseSingleFromSource: content];
+  testWithMessage (calendar != nil, @"could not parse iCalendar content");
+
+  return [[calendar events] objectAtIndex: 0];
 }
 
 - (iCalEvent *) _eventWithOrganizer: (NSString *) organizer
@@ -314,6 +326,79 @@ LoadAppointmentsBundle ()
                    @"the organizer must be exposed without a context");
   if (organizer)
     test ([organizer objectForKey: @"uid"] == nil);
+}
+
+- (void) test_attendeeWithoutRoleAndPartStatStaysInvitable
+{
+  iCalEvent *event;
+  iCalPerson *attendee;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6132-invitation\r\n"
+                     @"SUMMARY:test 6132\r\n"
+                     @"DTSTART:20261015T100000Z\r\n"
+                     @"DTEND:20261015T110000Z\r\n"
+                     @"ORGANIZER;CN=Jean Dupont:mailto:jean@external.example\r\n"
+                     @"ATTENDEE;CN=Jean Dupont;RSVP=TRUE:mailto:mailbox-one@example.org\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  testWithMessage ([event userIsAttendee: [self _user]],
+                   @"an attendee without ROLE and PARTSTAT must still be "
+                   @"recognised as an attendee of the invitation");
+  attendee = [event userAsAttendee: [self _user]];
+  testWithMessage (attendee != nil,
+                   @"the attendee without ROLE and PARTSTAT must be found");
+  if (attendee)
+    {
+      testEquals ([attendee roleWithDefault], @"REQ-PARTICIPANT");
+      testEquals ([attendee partStatWithDefault], @"NEEDS-ACTION");
+      testWithMessage ([[event participants] containsObject: attendee],
+                       @"an absent ROLE is not NON-PARTICIPANT and must not "
+                       @"exclude the attendee from the participants");
+    }
+}
+
+- (void) test_explicitRoleAndPartStatAreKeptVerbatim
+{
+  iCalEvent *event;
+  iCalPerson *attendee;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6132-explicit\r\n"
+                     @"SUMMARY:test 6132\r\n"
+                     @"DTSTART:20261015T100000Z\r\n"
+                     @"DTEND:20261015T110000Z\r\n"
+                     @"ORGANIZER;CN=Jean Dupont:mailto:jean@external.example\r\n"
+                     @"ATTENDEE;CN=Jean Dupont;ROLE=OPT-PARTICIPANT;PARTSTAT=TENTATIVE;RSVP=TRUE:mailto:mailbox-one@example.org\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  attendee = [event userAsAttendee: [self _user]];
+  testWithMessage (attendee != nil, @"the explicit attendee must be found");
+  if (attendee)
+    {
+      testEquals ([attendee roleWithDefault], @"OPT-PARTICIPANT");
+      testEquals ([attendee partStatWithDefault], @"TENTATIVE");
+    }
 }
 
 @end

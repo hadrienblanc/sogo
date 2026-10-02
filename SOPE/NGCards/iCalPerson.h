@@ -64,6 +64,7 @@ typedef enum {
 
 - (void)setRole:(NSString *)_s;
 - (NSString *)role;
+- (NSString *)roleWithDefault;
 
 - (void)setPartStat:(NSString *)_s;
 - (NSString *)partStat;
