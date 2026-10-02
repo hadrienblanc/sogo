@@ -1,142 +1,93 @@
-# Bug 5908 — "Error in apache log (alias directive will never match...)"
+# Cycle 33 clean-code pass
 
-**Verdict: NOT an SOGo bug.** The two `Alias` directives shipped in
-`Apache/SOGo.conf` do not overlap each other; the AH00671 warnings reported
-occur only when the SOGo configuration file is parsed a second time by Apache
-(e.g. included twice), which happens on the reporter's system, not in the
-shipped file. No production change was made; the analysis is locked by unit
-tests.
+Scope: `fork/experimental~11..fork/experimental` (PRs #46–#56: bugs 6153,
+6152, 6142, 6133, 6129, 5911, 5910, 5909, 5908, plus the cycle-15/16
+reports). The cycle is overwhelmingly additive tests plus four small
+production changes (`iCalToDo+ActiveSync.m`, `iCalTimeZonePeriod.m`,
+`SOGoMailFolder.m`, `NSString+ActiveSync.{h,m}` +
+`SOGoActiveSyncDispatcher+Sync.m`). One worktree commit:
+`03c6c1d63 style: align cycle diff with GNUstep conventions`.
 
-## Root cause (file:line)
+## Changed (3 files, 8 insertions, 9 deletions)
 
-- `Apache/SOGo.conf:1-4` ships:
-  - `Alias /SOGo.woa/WebServerResources/ /usr/lib/GNUstep/SOGo/WebServerResources/`
-  - `Alias /SOGo/WebServerResources/ /usr/lib/GNUstep/SOGo/WebServerResources/`
-- Apache ≥ 2.4.56 emits `AH00671` in `add_alias_internal()`
-  (`modules/mappers/mod_alias.c`, overlap-check loop) when the new alias's
-  fake path is matched by an **earlier** alias through `alias_matches()`
-  (`mod_alias.c`, `alias_matches()` — segment-based prefix matching).
-- `alias_matches("/SOGo/WebServerResources/", "/SOGo.woa/WebServerResources/")`
-  returns 0 and the converse also returns 0: `/SOGo.woa` and `/SOGo` are
-  distinct path segments, so the two shipped directives cannot shadow each
-  other. A single clean inclusion of `Apache/SOGo.conf` emits no AH00671.
-- The reporter gets warnings on **both** line 1 and line 2 simultaneously. A
-  pre-existing `Alias /SOGo` would only explain the line 2 warning
-  (`alias_matches("/SOGo.woa/...", "/SOGo") == 0`). The only configuration
-  that reproduces the exact reported symptom is **SOGo.conf being included
-  twice** in the Apache parse order (openSUSE classic: `conf.d/*.conf` glob
-  plus `APACHE_CONF_INCLUDE_FILES`, or a leftover copy in another included
-  file). On the second parse, each directive duplicates an earlier one,
-  mod_alias keeps the first match (`try_alias_list()` scans in declaration
-  order), and Apache logs the warnings "at line 1" / "at line 2".
-- Christian Mack's comment (~0017642) is confirmed, with one nuance: Apache
-  is not "wrong" — its heuristic correctly detects duplicate directives
-  somewhere earlier in the *reporter's* parse order; the shipped file itself
-  is internally consistent.
-- Deleting the two lines, as the reporter asked, would break static
-  resources (JS/CSS/images) under one or both URL prefixes — both forms are
-  live URL spaces of SOGo's Web UI.
+### 1. `ActiveSync/SOGoActiveSyncDispatcher+Sync.m` — continuation indent
 
-Empirical proof (verbatim C port of mod_alias 2.4.x `alias_matches()` +
-overlap check, `/tmp/opencode/alias5908.c` during the session):
+The bug-5909 call site wrapped its log argument at only +2 columns under the
+statement, making the continuation read like a sibling statement inside the
+`else if` block. Every wrapped `logWithFormat:`/message-send precedent in
+the tree indents continuations well past the statement (e.g.
+`SoObjects/Appointments/SOGoAppointmentFolders.m:533`,
+`SoObjects/Mailer/SOGoMailObject.m:1324`).
 
-```
-== shipped Apache/SOGo.conf (clean single include) ==
-  [1] /SOGo.woa/WebServerResources/            -> ok
-  [2] /SOGo/WebServerResources/                -> ok
-== SOGo.conf included TWICE ==
-  [1] /SOGo.woa/WebServerResources/            -> ok
-  [2] /SOGo/WebServerResources/                -> ok
-  [3] /SOGo.woa/WebServerResources/            -> AH00671 overlap warning
-  [4] /SOGo/WebServerResources/                -> AH00671 overlap warning
-== earlier 'Alias /SOGo' hypothesis ==
-  [2] /SOGo.woa/WebServerResources/            -> ok
-  [3] /SOGo/WebServerResources/                -> AH00671 overlap warning
-```
+Before:
 
-## What changed (before/after)
+    [self logWithFormat: @"%@",
+      [NSString activeSyncCacheCleanupLogMessageForDevice: [context objectForKey: @"DeviceId"]
+      ...
 
-- Before: no test coverage of the shipped Apache aliases; nothing prevents a
-  future edit from introducing an actual self-overlapping/duplicated `Alias`
-  in `Apache/SOGo.conf`.
-- After (test-only, no runtime/production change):
-  - `Tests/Unit/TestApacheAliasDirectives.m` — ports mod_alias's
-    `alias_matches()` semantics and, reading the real `../../Apache/SOGo.conf`
-    (backslash continuations handled):
-    - both WebServerResources prefixes are aliased to the same directory;
-    - a single clean inclusion produces zero overlaps (no AH00671);
-    - including the file twice flags exactly the two duplicate directives —
-      reproducing bug 5908's log;
-    - segment-boundary semantics (`/SOGo.woa/...` is not under `/SOGo`).
-  - `Tests/Unit/GNUmakefile` — registers the new test file.
-- Recommended admin guidance for the reporter (not a code change): include
-  SOGo.conf exactly once (on openSUSE, check `APACHE_CONF_INCLUDE_FILES` in
-  `/etc/sysconfig/apache2` vs the `conf.d/*.conf` glob); the warnings then
-  disappear. The two `Alias` lines must be kept.
+After (+4 on the whole argument, selector colons kept aligned):
 
-## Tests
+    [self logWithFormat: @"%@",
+          [NSString activeSyncCacheCleanupLogMessageForDevice: [context objectForKey: @"DeviceId"]
+          ...
 
-- `local/run-worktree-tests.sh wt/c33-5908`:
-  `Ran 234 tests` (229 baseline + 5 new), `FAILED (2 failures, 0 errors)` —
-  the 2 failures are the documented host-noise
-  (`test_NGInternetSocketAddressFromString`,
-  `test_stringWithoutHTMLInjection`).
-- New tests (all passing):
-  - `test_shippedConfExposesBothWebServerResourcesPrefixes`
-  - `test_shippedConfDoesNotTriggerApacheOverlapWarning`
-  - `test_confIncludedTwiceReproducesBug5908Warnings`
-  - `test_aliasMatchesComparesWholePathSegmentsOnly`
-  - `test_sogoWebServerResourcesAliasesDoNotOverlapEachOther`
-- Note: the test binary segfaults **after** printing its final report on this
-  host; verified pre-existing (true baseline without my change: 229 tests,
-  same exit 139) and unrelated to this ticket.
+### 2. `SoObjects/Mailer/SOGoMailFolder.m` — detached nil assignment
 
-## Verification steps for the orchestrator
+The bug-6153 rewrite declared `NSException *error;` and then assigned
+`error = nil;` two lines later, adding a no-op statement between declaration
+and use. The file already uses inline initialization (`SOGoMailFolder.m:1292`
+`NSException *error = nil;`). Merged into one line; behavior identical.
 
-```
-# 1. unit suite (234 tests, only the 2 known host-noise failures)
-rm -f wt/c33-5908/Tests/Unit/obj/sogo-tests   # avoid gnustep-make stale-link trap
-local/run-worktree-tests.sh wt/c33-5908 | tail -5
+### 3. `Tests/Unit/TestiCalToDo+ActiveSync.m` — in-file consistency
 
-# 2. inspect the change
-git -C wt/c33-5908 show --stat HEAD
+- line 113 used `testWithMessage(!...)` while the four other calls in the
+  same file use `testWithMessage (...)` — normalized (message continuation
+  re-aligned);
+- `_context` had a stray double space: `setObject: @"16.1"  forKey:` → single.
 
-# 3. optional read-only sanity: SOGo itself is served fine behind such a config
-curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:50001/SOGo/
-```
+## Reviewed and deliberately left alone
 
-(No `test-5908-*` artifacts were created on the shared stack; only read-only
-GETs were performed. Static-file probes on the dev stack 404 because the
-`sogo-static-files` volume isn't populated — orchestrator-managed, out of
-scope here.)
+- **`NSString+ActiveSync` log-message helper (5909)**: an NSString-category
+  class method is an unusual home for a dispatcher log string, but it is what
+  makes the exact message lockable by `TestNSString+ActiveSync.m`; the
+  declarations are colon-aligned and the tests are fine. Redesigning it now
+  would churn a merged, tested fix for zero behavior gain.
+- **`SOPE/NGCards/iCalTimeZonePeriod.m` (6133)**: the fix *removed* a
+  duplicated `_occurrenceForDate:byRRule:` computation (the one real perf
+  smell of the cycle); the resulting `else` chain has no dead code.
+- **`Tests/Unit/GNUmakefile`**: the added `-I../../` looks broad but is
+  required — `UI/MailPartViewers/UIxMailRenderingContext.m`, newly compiled
+  into the tool, imports `<SoObjects/Mailer/SOGoMailAccount.h>`, which only
+  resolves from the repo root. Test-file additions are grouped consistently
+  with the surrounding list; the odd comment at lines 80–81 predates the
+  cycle (`d902756aa`) and stays out of scope.
+- **`TestApacheAliasDirectives.m`**: `ApacheAliasMatches()` mirrors Apache's
+  `alias_matches()` verbatim, including its `aliasp[-1]` idiom — intentional
+  fidelity for locking AH00671 semantics, not local dead code. The O(n²)
+  overlap scan runs on ~2 aliases. Parsing/tokenizing helpers are single-use
+  and clear.
+- **Fixtures**: no duplication worth factoring. The three 6152 tests cover
+  distinct layers (body-part classification, HTML extraction, viewer
+  selection) with minimal distinct payloads; the JS spec necessarily carries
+  its own RFC 2822 message. The three VTIMEZONE calendars in
+  `TestiCalTimeZoneFallback.m` exercise different rule shapes (RDATE-only,
+  expired RRULE, open-ended RRULE). `TestNSString+ActiveSync.m`'s two tests
+  share shape but differ in data — clearer than a parameterized helper of
+  equal length.
+- **Test macro spacing** (`test (...)` vs `test(...)`) varies across the
+  pre-existing suite; every new file is internally consistent except the one
+  line fixed above. Not worth cross-file normalization.
+- **No comments were added**; the existing `/* bug NNNN: ... */` test
+  comments came with the merged fixes and carry bug context.
 
-## PR body draft
+## Verification
 
-Depuis Apache 2.4.56, mod_alias émet l'avertissement AH00671 ("The Alias
-directive ... will probably never match because it overlaps an earlier
-Alias") dès qu'une directive Alias est masquée par une directive équivalante
-déclarée plus tôt dans l'ordre d'analyse. Le fichier `Apache/SOGo.conf` livré
-avec SOGo déclare deux Alias — `/SOGo.woa/WebServerResources/` et
-`/SOGo/WebServerResources/` — qui servent le même répertoire sous deux
-espaces d'URL utilisés par l'interface. L'analyse des sémantiques de
-mod_alias (`alias_matches()`, comparaison par segments de chemin complet)
-montre que ces deux directives ne se recouvrent pas et qu'une inclusion
-unique du fichier ne produit aucun avertissement.
+`local/run-worktree-tests.sh wt/c33-clean` → **234 tests, 2 failures** —
+exactly the two known host-noise failures
+(`test_NGInternetSocketAddressFromString`, `test_stringWithoutHTMLInjection`),
+i.e. no worse than baseline. (Fresh worktree needed the usual
+`./configure --enable-debug --disable-strip` first; `config.make` is
+untracked and not committed.)
 
-AVANT (bug 5908, config où SOGo.conf est inclus deux fois) :
-
-```
-AH00671: The Alias directive in /etc/apache2/conf.d/SOGo.conf at line 1 will probably never match because it overlaps an earlier Alias.
-AH00671: The Alias directive in /etc/apache2/conf.d/SOGo.conf at line 2 will probably never match because it overlaps an earlier Alias.
-```
-
-APRÈS (include unique de SOGo.conf, aucune modification de configuration
-SOGo requise) : plus aucun AH00671 au démarrage d'Apache, les ressources
-statiques restent servies sous les deux préfixes. Ce changement n'ajoute
-aucun code de production : il verrouille par des tests unitaires
-(`Tests/Unit/TestApacheAliasDirectives.m`, portage fidèle des sémantiques de
-mod_alias) le fait que le fichier livré ne se recouvre pas lui-même et
-qu'une double inclusion — et elle seule — reproduit les avertissements
-signalés. Les deux lignes Alias doivent être conservées ; la correction côté
-administrateur consiste à n'inclure SOGo.conf qu'une seule fois (sur
-openSUSE, vérifier `APACHE_CONF_INCLUDE_FILES` face au glob `conf.d/*.conf`).
+Nothing else in the cycle diff met the bar for touching; the smallest safe
+change here was almost no change.
