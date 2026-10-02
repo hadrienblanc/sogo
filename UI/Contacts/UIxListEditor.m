@@ -252,10 +252,10 @@
               emails = [[currentReference objectForKey: @"c_mail"] componentsSeparatedByString: @","];
               cardReference = [NGVCardReference elementWithTag: @"card"];
               [cardReference setFn: [currentReference objectForKey: @"c_cn"]];
-                          if (![memberEmail length] && [emails count])
-                            memberEmail = [emails objectAtIndex: 0];
-                          if ([memberEmail length])
-                            [cardReference setEmail: memberEmail];
+              if (![memberEmail length] && [emails count])
+                memberEmail = [emails objectAtIndex: 0];
+              if ([memberEmail length])
+                [cardReference setEmail: memberEmail];
               [cardReference setReference: uid];
 
               [list addCardReference: cardReference];

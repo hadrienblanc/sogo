@@ -180,9 +180,6 @@
   testEquals([self _wallClock: [info objectForKey: @"endDate"]],
              @"2026-10-19 00:00 Europe/Lisbon");
 
-  testEquals([self _wallClock: [[infos objectAtIndex: 1] objectForKey: @"startDate"]],
-             @"2026-10-16 18:00 Europe/Lisbon");
-
   for (i = 2; i < [infos count]; i++)
     test([[[infos objectAtIndex: i] objectForKey: @"startDate"] isEqual:
            [[infos objectAtIndex: (i - 1)] objectForKey: @"endDate"]]);

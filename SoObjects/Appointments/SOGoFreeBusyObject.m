@@ -347,7 +347,7 @@
                                                  dayEndHour: [ud dayEndHour]
                                              ownerTimeZone: [ud timeZone]
                                                viewTimeZone: [[[context activeUser] userDefaults] timeZone]]];
-  
+
   return infos;
 }
 
