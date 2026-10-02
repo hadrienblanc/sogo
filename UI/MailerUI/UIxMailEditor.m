@@ -553,11 +553,11 @@ static NSArray *infoKeys = nil;
         {
           body = [part body];
           if ([body isKindOfClass: [NSString class]])
-            ASSIGNCOPY(declaredMimeType, body)
+            ASSIGNCOPY(declaredMimeType, body);
           else if ([body isKindOfClass: [NSData class]])
             ASSIGNCOPY(declaredMimeType,
                        [[[NSString alloc] initWithData: body
-                                               encoding: NSUTF8StringEncoding] autorelease])
+                                               encoding: NSUTF8StringEncoding] autorelease]);
         }
       else if ([[header name] hasPrefix: @"attachments"])
         {

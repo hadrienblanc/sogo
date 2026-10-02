@@ -72,6 +72,7 @@
 - (NSNumber *) shouldAskReceipt;
 - (NSString *) formattedDate;
 - (NSString *) _matchingIdentityEMailOrDefault: (BOOL) useDefault;
+- (BOOL) _senderIsInAddressBook;
 
 @end
 
@@ -271,6 +272,38 @@ static NSString *mailETag = nil;
   return viewer;
 }
 
+- (BOOL) _senderIsInAddressBook
+{
+  SOGoContactFolders *contactFolders;
+  NSArray *contacts;
+  NSString *from, *mail;
+  BOOL known;
+  NSUInteger count, max;
+
+  known = NO;
+  from = [[[[self clientObject] fromEnvelopeAddresses] lastObject] baseEMail];
+
+  if ([from length])
+    {
+      contactFolders = [[[context activeUser] homeFolderInContext: context]
+                                  lookupName: @"Contacts"
+                                   inContext: context
+                                     acquire: NO];
+      contacts = [contactFolders allContactsFromFilter: from
+                                          excludeGroups: YES
+                                           excludeLists: YES];
+      max = [contacts count];
+      for (count = 0; !known && count < max; count++)
+        {
+          mail = [[contacts objectAtIndex: count] objectForKey: @"c_mail"];
+          known = ([mail length]
+                   && [mail caseInsensitiveCompare: from] == NSOrderedSame);
+        }
+    }
+
+  return known;
+}
+
 /* actions */
 
 - (id <WOActionResults>) defaultAction
@@ -374,6 +407,10 @@ static NSString *mailETag = nil;
     [data setObject: addresses forKey: @"bcc"];
   if ((addresses = [addressFormatter dictionariesForArray: [co replyToEnvelopeAddresses]]))
     [data setObject: addresses forKey: @"reply-to"];
+
+  if ([[ud mailDisplayRemoteInlineImages] isEqualToString: @"known"])
+    [data setObject: [NSNumber numberWithBool: [self _senderIsInAddressBook]]
+             forKey: @"senderInAddressBook"];
 
   if ([ud mailAutoMarkAsReadDelay] == 0)
     // Mark message as read

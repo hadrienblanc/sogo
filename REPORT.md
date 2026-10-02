@@ -1,146 +1,179 @@
-# Ticket 6211 — HTML sanitization corrupts JSON in preferences
+# Ticket 6170 — Allow to display remote images from known senders
 
-## Root cause
+## Nature of the ticket
 
-Two defects were reported:
+This is a **feature request** (status `acknowledged`, SOGo 6 backlog), not a bug
+in existing behavior — nothing crashes and nothing is wrong today. The gap is in
+the remote-inline-images policy of the web mail: the user preference
+`SOGoMailDisplayRemoteInlineImages` only supports `never` / `always`
+(UI/PreferencesUI/UIxPreferences.m:749-752), with no notion of "trusted sender"
+and no exception for the Junk folder.
 
-1. **JSON corruption (fixed upstream before this branch).** Commit
-   `67ce01ec2` ("fix(mail): sanitise mail with ics") replaced the per-handler
-   regexes in `stringWithoutHTMLInjection`
-   (SoObjects/SOGo/NSString+Utilities.m:1161) with
-   `(on\w+)\s*=\s*(["'][^"']*["']|[^\s>]+)` → `on***=""`. Lacking a `\b`
-   anchor, `(on\w+)` matched **inside** attribute names — in `content=`, the
-   substring `ontent=` matched — and the template swallowed the attribute
-   value *including its backslash-escaped quotes*. Applied to the raw JSON
-   body in `saveAction` (UIxPreferences.m:1752-1754), this destroyed the JSON
-   escaping (`\"content-type\"` → `con***="" charset`), so
-   `objectFromJSONString` failed. This was fixed on `experimental` by
-   `c45233c11` (the "next nightly" fix noted in the ticket) and refined by
-   `10dc17334` (current `\bon(click|error|focus|load|mouseover|animationstart)[...]*=`
-   → `data-blocked=`). I verified with a standalone probe against this
-   worktree's framework that the ticket's exact payload now passes through the
-   sanitizer **unchanged and still parses**: the regex regression is gone.
+How the current machinery works (relevant for review):
 
-2. **Silent data loss on unparseable JSON (still live — fixed here).** When
-   `objectFromJSONString` failed, `o` was `nil`, both `if ((v = [o objectForKey:...]))`
-   blocks in `saveAction` (UIxPreferences.m:1757, 1997) were skipped, and the
-   method fell through to `results = [self responseWithStatus: 200]`
-   (UIxPreferences.m:2011): an empty **HTTP 200** with the user's changes
-   silently discarded and no error surfaced — exactly what the ticket reports.
+- The HTML sanitizer renames every non-`cid:`, non-`data:` image source to
+  `unsafe-src` (UI/MailPartViewers/UIxHTMLMailContentHandler.m:476-499), so
+  remote images never load by themselves.
+- The Angular client decides whether to rewrite `unsafe-*` back to real
+  attributes: either the preference is `always`
+  (UI/WebServerResources/js/Mailer/Message.service.js:69-71) or the user
+  clicked "Load Images" ($loadUnsafeContent, Message.service.js:426).
 
 ## What changed
 
-`UI/PreferencesUI/UIxPreferences.m` — `saveAction`:
+**1. New preference value `known` ("From known senders")**
 
-```objc
-/* before */
-o = [requestStr objectFromJSONString];
-results = nil;
-/* ...both branches silently skipped when o == nil... */
-if (!results)
-  results = (id <WOActionResults>) [self responseWithStatus: 200];
+- `UI/PreferencesUI/UIxPreferences.m:751` — the options list becomes
+  `never, known, always`.
+- `UI/PreferencesUI/English.lproj/Localizable.strings` — new label
+  `displayremoteinlineimages_known` = "From known senders" (other languages
+  fall back to English until translated).
 
-/* after */
-o = [requestStr objectFromJSONString];
-if (!o)
-  return [self responseWithStatus: 400
-           andJSONRepresentation: [NSDictionary dictionaryWithObjectsAndKeys: @"Invalid JSON payload", @"message", nil]];
-```
+**2. Server reports whether the sender is in the address book**
 
-- **AVANT**: `POST /SOGo/so/user/Preferences/save` with a body the sanitizer
-  (or anything else) makes unparsable → `200` empty body, save silently
-  dropped, UI shows "Preferences saved".
-- **APRÈS**: same request → `400` + `{"message":"Invalid JSON payload"}`; the
-  AngularJS client's `$save().catch()` suppresses the success toast, so the
-  user is no longer told the save succeeded. (Verified in
-  `PreferencesController.js:476-490`: non-2xx rejects the promise and skips
-  the "Preferences saved" toast; 485 already handled the same way.)
+`UI/MailerUI/UIxMailView.m`:
 
-The apidoc block of the endpoint gains the `@apiError (Error 400)` entry.
+- New private method `_senderIsInAddressBook` (UIxMailView.m:275): takes the
+  envelope From, queries the user's contact folders with
+  `allContactsFromFilter:` and requires an **exact, case-insensitive match** on
+  `c_mail`. The exact check matters: `allContactsFromFilter:` is the
+  autocomplete fuzzy search (`*filter*` on names and emails), so using it
+  verbatim would let a sender like `<6170-known@sogo.local>` impersonate the
+  card `test-6170-known@sogo.local` (substring match) and silently auto-load
+  its tracking pixels. A missing From header yields `NO` (nil-guard on
+  `[from length]`).
+- In `-view:` (UIxMailView.m:411-413), when — and only when — the preference
+  is `known`, the view JSON gains `senderInAddressBook: true|false`. The
+  lookup is gated on the preference so `never`/`always` users pay no extra
+  address-book query on message views.
 
-No change to `NSString+Utilities.m`: the regex regression was already fixed
-upstream; this branch locks it with tests instead.
+**3. Client policy: junk exception + known senders**
+
+`UI/WebServerResources/js/Mailer/Message.service.js` (+ regenerated bundle
+`Mailer.services.js`, surgically edited like previous commits did — grunt is
+not runnable here; the `.map` is left stale as in d984e4a4b):
+
+- The factory now keeps the raw preference string instead of a boolean
+  `always` flag (Message.service.js:69-70).
+- `$content()` (Message.service.js:426-431) rewrites `unsafe-*` only when:
+
+  ```
+  $loadUnsafeContent                                    (explicit "Load Images" click)
+  || (mailbox.type != 'junk'                            (Junk: automatic modes ignored)
+      && (pref == 'always'
+          || (pref == 'known' && senderInAddressBook)))
+  ```
+
+  This implements both requirements of the ticket: in the Junk folder the
+  `always` and `known` settings are ignored (a message in Junk is untrusted,
+  possibly spoofed), but the "This message contains external images" banner
+  stays available (`$hasUnsafeContent` is untouched) so the user can still
+  load images for a specific message — exactly the behavior the reporter
+  clarified in note ~0018397.
+
+**Before/after (AVANT/APRÈS)**
+
+- AVANT — preference *Always display remote inline images*, message in Junk:
+  tracking pixels load automatically when the message is opened.
+- APRÈS — same situation: images stay blocked, banner + "Load Images" click
+  still work for that message.
+- AVANT — preference *Never*: images blocked for everyone, including senders
+  already in your address book; per-message clicks needed.
+- APRÈS — new option *From known senders*: images load automatically only for
+  senders whose card exists (exact email match), still never in Junk.
+
+**4. Out-of-scope fix required to build**
+
+Commit 906d3030c `fix(mailer): restore MailerUI compilation broken by 48868446d`
+adds the two missing semicolons after `ASSIGNCOPY` in
+`UI/MailerUI/UIxMailEditor.m:556,560` — `experimental` currently fails to
+compile the MailerUI bundle, which blocked verifying this change. Separate
+commit, no behavior change.
 
 ## Tests
 
-- `Tests/Unit/TestNSString+Utilities.m` — new
-  `test_stringWithoutHTMLInjectionOnJSONPayloads` (no GNUmakefile change
-  needed, file already registered):
-  - the ticket's exact payload (`meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\"`
-    inside a JSON string) survives sanitization byte-identical **and** still
-    parses via `objectFromJSONString`;
-  - a real event handler inside a JSON string value is still neutralized
-    (`onerror=` → `data-blocked=`) while the JSON stays parsable.
-- `Tests/spec/HTTPPreferencesSpec.js` — two new e2e cases:
-  - round-trip of a preference holding the ticket's escaped-quote HTML
-    through `Preferences/save` + `jsonDefaults` (reuses the spec's
-    `_setTextPref` helper — same raw-JSON escaping path as a signature,
-    without polluting `SOGoMailIdentities` for other specs);
-  - malformed JSON body → expects `400` (covers the new error branch; would
-    fail with `200` before the fix).
+- `Tests/spec/MailerRemoteImagesPolicySpec.js` (new, pure JS, no stack): loads
+  the real `Message.service.js` with stubbed angular/lodash/DOM (same pattern
+  as SchedulerComponentControllerSpec.js / MailerIdentitySignatureSpec.js) and
+  locks all 8 branches of the client policy: always+inbox, always+junk,
+  known+known-sender, known+unknown-sender, known+junk, never, explicit click
+  in junk, missing preference. Verified green locally:
+  `node /tmp/opencode/t6170/harness.mjs` → ALL PASS.
+- `Tests/spec/MailerRemoteImagesSpec.js` (new, e2e): covers **100% of the new
+  server branches** — pref=known + exact card → `senderInAddressBook: true`
+  (and body still sanitized to `unsafe-src`), substring spoofer → `false`,
+  message without From → `false`, pref≠known → key absent. Cleans up its
+  mailbox/card/preference (`test-6170-*`).
+- No new `Tests/Unit` file: every line of new Objective-C code lives behind a
+  live `WOContext` (active user, IMAP object, address books), which the unit
+  harness cannot instantiate; per AGENTS.md the e2e spec is the right vehicle
+  ("e2e spec in Tests/spec when a stack is needed").
+- Worktree unit suite: `local/run-worktree-tests.sh wt/c15-6170` → 194 tests,
+  only the two known host-noise failures (`test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection`).
+- Full `make` of the worktree passes (after the MailerUI compile fix).
 
 ## Verification steps for the orchestrator
 
-Unit (host-noise: `test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection` are known failures on this machine; the
-`sogo-tests` binary also segfaults at exit on this host — output is complete
-before the crash, ignore the 139 exit code):
+The e2e stack was **down** while this agent ran (ports 1430/4191/2500 up, but
+nothing listening on 50001; restarts are orchestrator-only), so the two specs
+above must be run on the rebuilt stack:
 
 ```
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c15-6211
-# expected: "Ran 194 tests / FAILED (2 failures, 0 errors)" — only the 2 known ones
-```
-
-Manual build check of the touched UI bundle (needs `UI/SOGoUI` built once in
-the worktree):
-
-```
-(cd UI/SOGoUI && make -s) && (cd UI/PreferencesUI && make -s)
-```
-
-e2e (stack must be up; jasmine filter matches full spec title):
-
-```
-# inside the sogo_dev container:
 cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js
-npx jasmine --config=spec/support/jasmine.json --filter="preferences"
-# restore lib/config.js afterwards
+npx jasmine --config=spec/support/jasmine.json --filter "remote inline images"
+npx jasmine --config=spec/support/jasmine.json --filter "Message remote inline images policy"
+sed -i 's/port: "50000"/port: "50001"/' lib/config.js
 ```
 
-Direct HTTP check of the new branch once the stack runs this build:
+(`--filter` matches full spec titles: "Mail remote inline images from known
+senders (bug 6170)" and "Message remote inline images policy (bug 6170)".)
+
+Manual curl check once the stack runs this build, as sogo-tests1 (password
+`sogo`):
 
 ```
-curl -s -c /tmp/cj -X POST http://127.0.0.1:50001/SOGo/connect \
-     -H 'Content-Type: application/json' \
-     -d '{"userName":"sogo-tests1","password":"sogo"}'
-curl -s -b /tmp/cj -o /dev/null -w '%{http_code}\n' \
-     -X POST http://127.0.0.1:50001/SOGo/so/sogo-tests1/Preferences/save \
-     -H 'Content-Type: application/json' \
-     -d '{ "defaults": { "signature": "con***='
-# expected: 400   (was: 200)
+# 1. create a card for the sender
+curl -u sogo-tests1:sogo -X PUT -H 'Content-Type: text/vcard' \
+  --data-binary $'BEGIN:VCARD\r\nVERSION:3.0\r\nUID:t6170\r\nFN:Known\r\nEMAIL:test-6170-known@sogo.local\r\nEND:VCARD\r\n' \
+  http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Contacts/personal/test-6170-card.vcf
+# 2. set the preference to "known" (via the web UI Preferences > Mail > General,
+#    or POST /SOGo/so/sogo-tests1/Preferences/save with the defaults JSON)
+# 3. send/put an HTML message with <img src="http://.../px.png"> from
+#    test-6170-known@sogo.local, open it in the web mail: images load.
+# 4. same message moved to Junk (mark as junk): images blocked, "Load Images"
+#    banner present and functional.
+# 5. raw view JSON: curl -b <cookie> \
+#    http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/folderINBOX/<uid>/view \
+#    → contains "senderInAddressBook":1 while the preference is "known".
 ```
 
 ## PR body draft
 
-Since 5.12.8, saving preferences with an HTML signature containing attributes
-such as `content` silently discarded the user's changes: the XSS-sanitizer
-regex introduced by 67ce01ec (`(on\w+)\s*=...` → `on***=""`) matched *inside*
-attribute names (`content=` → `ontent=`) and swallowed the attribute value
-together with its escaped quotes, so the raw JSON body POSTed to
-`Preferences/save` no longer parsed. `objectFromJSONString` then returned nil
-and `saveAction` fell through to an empty HTTP 200 — no error, no save, while
-the UI still displayed "Preferences saved". The regex itself was already
-corrected on experimental (word-boundary anchored, explicit handler list,
-value-preserving `data-blocked=` template); this PR locks that behavior with
-unit tests and fixes the remaining error-handling gap.
+**feat(mail): display remote images from known senders, never automatically in
+Junk (bug 6170)**
 
-`saveAction` now returns `400 {"message":"Invalid JSON payload"}` when the
-request body cannot be parsed, instead of a silent 200. The web client
-already treats non-2xx saves as failures (no success toast, promise
-rejection — same path as the existing 485 TOTP error), so users get honest
-feedback instead of silently losing their changes. New unit tests pin the
-sanitizer↔JSON contract (ticket payload survives byte-identical and
-parsable; real `on...=` handlers inside JSON values are still neutralized
-without breaking the JSON), and two e2e cases cover the HTTP round-trip and
-the new 400 branch.
+SOGo's remote-inline-images policy only knew two extremes: `never` (click
+"Load Images" on every message) and `always` (every message, including Junk,
+leaks your IP to any tracking pixel on open). This adds the middle ground
+requested in bug 6170: a new preference **"From known senders"** that loads
+remote images only when the envelope sender has a card in one of your address
+books, and it makes the Junk folder exempt from the automatic modes — `always`
+and `known` are ignored there because a message sitting in Junk is by
+definition untrusted (possibly spoofed, per the reporter's clarification).
+The "This message contains external images" banner and the per-message "Load
+Images" click remain available everywhere, including Junk.
+
+AVANT: with "Always", opening a spam message instantly fetched all its remote
+images; with "Never", your own contacts' legitimate signatures and logos were
+blocked until you clicked. APRÈS: with "From known senders", mail from senders
+in your address book renders fully on open (exact, case-insensitive email
+match — the autocomplete fuzzy search alone would let `<ple@sogo.local>`
+impersonate `<example@sogo.local>`), unknown senders and everything in Junk
+stay blocked, and one click still loads images for any given message.
+Server-side the HTML sanitizer is unchanged (`unsafe-src` is still emitted);
+only the message-view JSON gains a `senderInAddressBook` flag when the
+preference is set to `known`, so other configurations pay no extra
+address-book lookup. Covered by a pure-JS unit spec on the client policy and
+an e2e spec on the server flag (exact match, substring spoof, missing From,
+preference gating).
