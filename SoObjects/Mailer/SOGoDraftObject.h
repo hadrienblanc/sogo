@@ -119,6 +119,7 @@
 - (NSException *) saveAttachment: (NSData *) _attach
 		    withMetadata: (NSMutableDictionary *) metadata;
 - (NSException *) deleteAttachmentWithName: (NSString *) _name;
+- (void) deleteAttachmentsWithNames: (NSArray *) theNames;
 
 /* NGMime representations */
 

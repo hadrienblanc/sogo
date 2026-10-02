@@ -20,6 +20,7 @@
 #import <Foundation/NSDate.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSString.h>
+#import <Foundation/NSUserDefaults.h>
 
 #import <SOGo/SOGoObject.h>
 #import <Mailer/SOGoDraftObject.h>
@@ -154,6 +155,7 @@ LoadDraftClass ()
 
 - (void) tearDown
 {
+  [[NSUserDefaults standardUserDefaults] removeObjectForKey: @"SOGoMaximumMessageSizeLimit"];
   [[NSFileManager defaultManager] removeFileAtPath: spoolPath handler: nil];
   [draftFolderPath release];
   [draft release];
@@ -207,6 +209,78 @@ LoadDraftClass ()
   test ([draft delete] == nil);
   testWithMessage (![fm fileExistsAtPath: draftFolderPath],
                    @"delete must remove the draft folder");
+}
+
+- (NSException *) _saveAttachmentNamed: (NSString *) filename
+                                 size: (unsigned) size
+{
+  NSString *payload;
+  NSMutableDictionary *metadata;
+
+  payload = [@"" stringByPaddingToLength: size
+                               withString: @"0"
+                         startingAtIndex: 0];
+  metadata = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                             filename, @"filename",
+                             @"application/octet-stream", @"mimetype",
+                             nil];
+
+  return [draft saveAttachment: [payload dataUsingEncoding: NSUTF8StringEncoding]
+                  withMetadata: metadata];
+}
+
+- (void) test_oversizedAttachmentRollbackRestoresMessage
+{
+  NSData *message;
+  NSString *messageString;
+  NSException *error;
+
+  [[NSUserDefaults standardUserDefaults] setObject: @"1"
+                                            forKey: @"SOGoMaximumMessageSizeLimit"];
+
+  test ([draft mimeMessageForRecipient: nil extractingImages: NO] != nil);
+
+  error = [self _saveAttachmentNamed: @"test-6124-oversized.bin" size: 2000];
+  test (error == nil);
+
+  testWithMessage ([draft mimeMessageForRecipient: nil extractingImages: NO] == nil,
+                   @"a draft over the size limit must not generate a message (bug 6124)");
+
+  [draft deleteAttachmentsWithNames:
+    [NSArray arrayWithObject: @"test-6124-oversized.bin"]];
+
+  message = [draft mimeMessageForRecipient: nil extractingImages: NO];
+  testWithMessage (message != nil,
+                   @"removing the oversized attachment must restore the message (bug 6124)");
+  messageString = [[[NSString alloc] initWithData: message
+                                          encoding: NSUTF8StringEncoding] autorelease];
+  testWithMessage ([messageString rangeOfString: @"test-6224-attachment.txt"].location != NSNotFound,
+                   @"the remaining attachment must be kept after the rollback");
+  testWithMessage ([messageString rangeOfString: @"test-6124-oversized.bin"].location == NSNotFound,
+                   @"the reverted attachment must not leak in the message");
+}
+
+- (void) test_deleteAttachmentsWithNamesToleratesMissingNames
+{
+  NSException *error;
+
+  error = [self _saveAttachmentNamed: @"test-6124-first.bin" size: 10];
+  test (error == nil);
+  error = [self _saveAttachmentNamed: @"test-6124-second.bin" size: 10];
+  test (error == nil);
+  test ([[draft fetchAttachmentAttrs] count] == 3);
+
+  [draft deleteAttachmentsWithNames:
+    [NSArray arrayWithObjects: @"test-6124-first.bin",
+                              @"test-6124-missing.bin",
+                              @"test-6124-second.bin",
+                              nil]];
+
+  testWithMessage ([[draft fetchAttachmentAttrs] count] == 1,
+                   @"existing attachments must be deleted and missing ones skipped");
+
+  [draft deleteAttachmentsWithNames: [NSArray array]];
+  test ([[draft fetchAttachmentAttrs] count] == 1);
 }
 
 @end
