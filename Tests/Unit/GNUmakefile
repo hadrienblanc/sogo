@@ -19,6 +19,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalTimeZonePeriod.m \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
+	TestiCalEvent+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
 	TestNSCalendarDateClamping.m \
