@@ -1182,9 +1182,9 @@
 {
   id o;
 
-  [self errorWithFormat: @"%@: unable to store flags %@: %@",
-                     action, flags, [result objectForKey: @"reason"]];
   o = [result objectForKey: @"reason"];
+  [self errorWithFormat: @"%@: unable to store flags %@: %@",
+                     action, flags, o];
   if (!o)
     o = [NSNull null];
 

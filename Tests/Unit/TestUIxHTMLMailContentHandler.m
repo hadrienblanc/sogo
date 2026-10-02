@@ -30,6 +30,9 @@
 
 - (void) feedStyle: (NSString *) css;
 - (void) feedBodyCharacters: (NSString *) text;
+- (void) feedBodyElement: (NSString *) name
+              attributes: (SaxAttributes *) attributes
+                  rawTag: (NSString *) rawTag;
 
 @end
 

@@ -92,10 +92,11 @@ LoadAppointmentsBundle ()
   NSUInteger i;
   BOOL organizerAmongAttendees;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   data = [[self _invitedEvent] attributesInContext: nil];
 
@@ -135,10 +136,11 @@ LoadAppointmentsBundle ()
   iCalEvent *event;
   NSDictionary *data, *organizer;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithContent:
                       @"BEGIN:VCALENDAR\r\n"
@@ -169,10 +171,11 @@ LoadAppointmentsBundle ()
   iCalEvent *event;
   NSDictionary *data;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithContent:
                       @"BEGIN:VCALENDAR\r\n"

@@ -30,7 +30,6 @@
 - (void) setUp
 {
   [SOGoTest loadSOGoBundle: @"Contacts" markerClass: @"SOGoDraftObject"];
-  [SOGoTest loadSOGoBundle: @"Appointments" markerClass: @"SOGoDraftObject"];
   [SOGoTest loadSOGoBundle: @"Mailer" markerClass: @"SOGoDraftObject"];
   testWithMessage ([NSData instancesRespondToSelector: @selector (sanitizedContentUsingVoidTags:)],
                    @"NSData+Mail category unavailable (Mailer.SOGo bundle missing)");

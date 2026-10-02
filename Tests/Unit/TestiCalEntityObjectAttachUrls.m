@@ -77,10 +77,11 @@ LoadAppointmentsBundle ()
   NSArray *attachUrls;
   NSDictionary *entry;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
   attachUrls = [event attachUrlsForEditor];
@@ -104,10 +105,11 @@ LoadAppointmentsBundle ()
   iCalEvent *event;
   NSArray *attachUrls;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithContent:
                      @"BEGIN:VCALENDAR\r\n"
@@ -133,10 +135,11 @@ LoadAppointmentsBundle ()
 {
   iCalEvent *event;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
 
@@ -156,10 +159,11 @@ LoadAppointmentsBundle ()
 {
   iCalEvent *event;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
 
@@ -184,10 +188,11 @@ LoadAppointmentsBundle ()
 {
   iCalEvent *event;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
 
@@ -215,10 +220,11 @@ LoadAppointmentsBundle ()
 {
   iCalEvent *event;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
 
@@ -238,10 +244,11 @@ LoadAppointmentsBundle ()
 {
   iCalEvent *event;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
 
@@ -269,10 +276,11 @@ LoadAppointmentsBundle ()
 {
   iCalEvent *event;
 
-  testWithMessage (LoadAppointmentsBundle (),
-                   @"Appointments.SOGo bundle unavailable");
   if (!LoadAppointmentsBundle ())
-    return;
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
 
   event = [self _eventWithAttachAndUrl];
 
