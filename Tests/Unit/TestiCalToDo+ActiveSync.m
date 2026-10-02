@@ -61,7 +61,7 @@
   WOContext *context;
 
   context = [WOContext contextWithRequest: nil];
-  [context setObject: @"16.1"  forKey: @"ASProtocolVersion"];
+  [context setObject: @"16.1" forKey: @"ASProtocolVersion"];
 
   return context;
 }
@@ -110,8 +110,8 @@
                       inContext: [self _context]];
 
   testEquals ([completed flattenedValuesForKey: @""], @"20240104T103500Z");
-  testWithMessage(![completed isAllDay],
-                  @"a rewrite must drop the VALUE=DATE parameter");
+  testWithMessage (![completed isAllDay],
+                   @"a rewrite must drop the VALUE=DATE parameter");
 }
 
 - (void) test_uncompletedTaskDropsCompletedAndStatus

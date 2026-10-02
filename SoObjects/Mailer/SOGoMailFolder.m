@@ -1046,11 +1046,10 @@ static NSInteger _compareFetchResultsByUID (id entry1, id entry2, NSDictionary *
 - (NSException *) postData: (NSData *) _data
 		     flags: (id) _flags
 {
-  NSException *error;
+  NSException *error = nil;
 
   // We check for the existence of the IMAP folder (likely to be the
   // Sent mailbox) prior to appending messages to it.
-  error = nil;
   if (![self exists])
     {
       error = [[self imap4Connection] createMailbox: [[self imap4Connection] imap4FolderNameForURL: [self imap4URL]]
