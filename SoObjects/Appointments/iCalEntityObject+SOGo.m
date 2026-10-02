@@ -759,7 +759,8 @@ NSNumber *iCalDistantFutureNumber = nil;
 
   int email_alarm_number;
 
-  if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms])
+  if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms]
+      && theContainer)
     {
       af = [[GCSFolderManager defaultFolderManager] alarmsFolder];
       path = [theContainer ocsPath];
