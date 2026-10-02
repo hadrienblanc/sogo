@@ -1,164 +1,140 @@
-# Bug 6131 — Email-alarm bookkeeping fired on every calendar view for orphaned RECURRENCE-ID events
+# Bug 6124 — "Issue with Attachment Handling" (fix-6124-mantis)
+
+## Verdict
+
+Confirmed bug, server-side. When an uploaded attachment makes the draft exceed
+`SOGoMaximumMessageSizeLimit`, the file is persisted to the draft's spool folder
+*before* the draft save is attempted; when that save fails, neither the server
+nor the web client ever deletes it. Every later save/send re-counts this phantom
+file, so the draft stays permanently over the limit ("Message is too big") even
+after the UI has dropped the attachment — matching the reporter's repro exactly.
+The phantom file would even be *sent* with the message on a lucky retry.
 
 ## Root cause (file:line)
 
-`-[iCalEntityObject(SOGoExtensions) updateNextAlarmDateInRow:forContainer:nameInContainer:]`
-in `SoObjects/Appointments/iCalEntityObject+SOGo.m:762`.
+- `UI/MailerUI/UIxMailEditor.m:589` — `_saveAttachments` writes every uploaded
+  file into the draft spool folder via `saveAttachment:withMetadata:`, then
+  `saveAction` (`UI/MailerUI/UIxMailEditor.m:815`) calls `[co save]`.
+- `SoObjects/Mailer/SOGoDraftObject.m:1622-1627` — `bodyPartsForAllAttachments`
+  sums the sizes of **all files on disk** in the draft folder and returns nil
+  when over the limit; `save` (`SOGoDraftObject.m:599-604`) then answers
+  HTTP 500 `"Message is too big"`.
+- `UI/WebServerResources/js/Mailer/MessageEditorController.js:151-161` —
+  `onErrorItem` only removes the item from the UI queue; no server-side delete
+  is issued (the client cannot even know the stored name, since the server
+  renames on collision, e.g. `file.txt` → `file-1.txt`).
 
-When an event carries a `RECURRENCE-ID` but no parent recurring event (no
-`RRULE`/`RDATE` anywhere in the .ics — the exact fixture attached to the
-ticket):
+## What changed
 
-- `isRecurrent` is NO (it only checks `hasRecurrenceRules || hasRecurrenceDates`,
-  `SOPE/NGCards/iCalRepeatableEntityObject.m:406`), so the **non-recurring**
-  branch of `updateNextAlarmDateInRow` runs, yet the event is stored with
-  `c_iscycle = 1` (`iCalEvent+SOGo.m:134` also checks `recurrenceId`) and
-  `c_cycleinfo = NULL`.
-- On every calendar view, `-[SOGoAppointmentFolder flattenCycleRecord:...]`
-  hits the "vcalendar that contains ONLY one or more vevent with
-  recurrence-id" path (`SOGoAppointmentFolder.m:1270-1282`) and calls
-  `quickRecordsFromContent:container:nil nameInContainer:<c_name>`; the
-  exception path `_appendCycleException` (`SOGoAppointmentFolder.m:1148,1160`)
-  likewise passes `container:nil nameInContainer:nil`. The container is
-  deliberately nil to avoid re-entrancy on the DB channel.
-- `updateNextAlarmDateInRow` nevertheless acquired the email-alarms folder
-  (`af`) whenever `SOGoEnableEMailAlarms = YES`, found the `ACTION:EMAIL`
-  alarm, computed a `nextAlarmDate` in the past (`TRIGGER:-P1W` on a
-  2025-06-28 event), set `nextAlarmDate = nil` and `email_alarm_number = 0`,
-  then hit the "Delete old email alarms" branch
-  (`iCalEntityObject+SOGo.m:938-940`): a call to
-  `-[GCSAlarmsFolder deleteRecordForEntryWithCName:inCalendarAtPath:]` with a
-  **nil** path (and a nil or non-nil name depending on the call site).
-- `EOSQLQualifier` renders nil varargs as the string `NULL`
-  (`SOPE/GDLAccess/EOQualifierScanner.m:108` → `[NSNull null]` → `"NULL"`),
-  producing the observed, once-per-event-per-viewquery SQL:
+**Before** (AVANT):
+1. Upload 15 MB → `/save` → file persisted, draft saved to IMAP → OK.
+2. Upload 12 MB → `/save` → file persisted → `[co save]` fails "Message is too
+   big" → UI drops the item → **the 12 MB file stays in the spool folder**.
+3. Upload 1 MB → `/save` → spool holds 15 + 12 + 1 MB → still "Message is too
+   big". Send fails too. Only workaround: discard the whole draft.
 
-```
-DELETE FROM sogo_alarms_folder WHERE c_path='NULL' AND c_name='NULL';
-DELETE FROM sogo_alarms_folder WHERE c_path='NULL' AND c_name='4C39-627DFA80-15-2FEA38C0.ics';
-```
+**After** (APRÈS):
+- `UIxMailEditor` tracks the attachment filenames persisted during the current
+  request (`savedAttachments` ivar, filled in `_saveAttachments` only on
+  successful writes).
+- When `saveAction` ends on the error path (size limit, IMAP failure, SOPE
+  upload exception…), it calls the new draft-object primitive
+  `deleteAttachmentsWithNames:` to drop exactly those files, so the server
+  state matches what the UI shows (upload rejected ⇒ attachment not attached).
+- `SOGoDraftObject` gains `- (void) deleteAttachmentsWithNames: (NSArray *)`
+  (a best-effort loop over the existing `deleteAttachmentWithName:`).
+- Net effect: after the oversized upload is rejected, the next `/save` or
+  `/send` is re-evaluated against the real remaining attachments; the draft is
+  usable without rewriting anything.
 
-The recurring-event branch of the same method already guarded itself with
-`if (theContainer)` ("reentrant" check, `iCalEntityObject+SOGo.m:838`); the
-non-recurring EMAIL branch and the trailing delete had no such guard. The same
-unguarded path could also `SELECT`/`INSERT` garbage rows (`c_path='NULL'`)
-for future-dated email alarms on every view.
-
-This is a genuine bug (not a data-only issue): importing the ticket's .ics into
-a stock SOGo with email alarms enabled triggers the malformed SQL on every
-calendar fetch.
-
-## What changed (before/after)
-
-One condition, one file (`SoObjects/Appointments/iCalEntityObject+SOGo.m:762`):
-
-```diff
--  if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms])
-+  if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms]
-+      && theContainer)
-```
-
-- BEFORE: with `SOGoEnableEMailAlarms = YES`, view/flatten calls (container
-  deliberately nil) still opened the alarms folder and issued
-  `DELETE ... WHERE c_path='NULL' AND c_name='NULL'` (or with the .ics name)
-  once per problematic event per fetch — a month view listing N such events
-  issued N useless DELETEs (reported ~2 s vs 0.2 s).
-- AFTER: the alarms-folder handle is only acquired when a real container is
-  present (i.e. on the save path, `GCSFolder.m:1049`, and in the ealarms
-  notifier, `Tools/SOGoEAlarmsNotifier.m:289`). With `af = nil`, the EMAIL
-  branch at line 800 is skipped, `email_alarm_number` stays -1 and the delete
-  at line 938 can no longer fire — flatten/view never touches
-  `sogo_alarms_folder` again. Legitimate save-path behaviour (single
-  `writeRecord`/`deleteRecord` with real `c_path`/`c_name`) is unchanged, as
-  is the `SOGoEnableEMailAlarms = NO` behaviour.
+Note: the forward/reply flows (`fetchMailForForwarding:`, etc.) are untouched —
+they ignore save errors by design and their drafts were never stuck this way.
 
 ## Tests
 
-New `Tests/Unit/TestiCalEntityObjectEmailAlarms.m` (registered in
-`Tests/Unit/GNUmakefile`). It overrides the three `GCSAlarmsFolder` record
-methods with a recording category (no DB) and uses a minimal fake container
-exposing `ocsPath`:
+`Tests/Unit/TestSOGoDraftObject.m` (Mailer bundle, no new file — reuses the
+bug-6224 harness):
 
-- `test_emailAlarmsFolderUntouchedWithoutContainer` — ticket fixture
-  (orphaned `RECURRENCE-ID` + past `ACTION:EMAIL` alarm), container nil,
-  name nil → zero alarms-folder calls, `c_nextalarm` reset to 0.
-- `test_emailAlarmsFolderUntouchedWithoutContainerAndWithName` — same but
-  name set (the `flattenCycleRecord` variant that produced
-  `c_path='NULL' AND c_name='4C39-....ics'`) → zero calls.
-- `test_expiredEmailAlarmDeletedWithContainer` — real container + name →
-  exactly one `delete` with the container coordinates (save path preserved).
-- `test_emailAlarmsFolderUntouchedWhenDisabled` — alarms disabled → zero
-  calls.
+- `test_oversizedAttachmentRollbackRestoresMessage` — sets
+  `SOGoMaximumMessageSizeLimit` to 1 KB, reproduces the ticket sequence at
+  draft level: message buildable → oversized attachment persisted on disk →
+  message no longer buildable ("too big" state) → rollback via
+  `deleteAttachmentsWithNames:` → message buildable again, still carries the
+  remaining attachment, reverted file does not leak.
+- `test_deleteAttachmentsWithNamesToleratesMissingNames` — deletes several
+  names, skips missing ones, tolerates an empty array.
 
-Red/green proof: with the one-line fix reverted, the two first tests fail with
-`got: ({op = delete; })` / `got: ({cname = "test-6131-orphan.ics"; op = delete; })`
-— i.e. the exact malformed DELETEs of the ticket. With the fix, 188 tests ran
-with only the two known host-noise failures (`test_NGInternetSocketAddressFromString`,
-`test_stringWithoutHTMLInjection`).
+Full suite: `Ran 190 tests, FAILED (2 failures)` — the two failures are the
+documented host-noise ones (`test_NGInternetSocketAddressFromString`,
+`test_stringWithoutHTMLInjection`). NB: `./obj/sogo-tests -f junit` segfaults
+while *printing* the report; this is pre-existing on `experimental` (verified on
+the main checkout) and unrelated — text mode is what the runner uses.
 
 ## Verification steps for the orchestrator
 
-```bash
-# unit suite (build + run) — expect only the 2 known host failures
-/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh \
-  /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c14-6131
+The e2e stack currently has no `SOGoMaximumMessageSizeLimit` and I may not
+change config/restart, so the exact 500 could not be triggered live; endpoints
+below were rehearsed read-only on the shared stack (draft + artifacts cleaned
+up). After deploying this branch, add to `sogo.conf`:
 
-# optional e2e sanity on the shared stack (alarms disabled there; exercises
-# import + flatten + view of the orphaned occurrence — artifacts cleaned up)
-cp <ticket ics> /tmp/opencode/test-6131-pb-sogo.ics
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests1:sogo -X MKCOL \
-  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6131-cal/"            # 201
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests1:sogo -X PUT \
-  -H "Content-Type: text/calendar; charset=utf-8" \
-  --data-binary @/tmp/opencode/test-6131-pb-sogo.ics \
-  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6131-cal/test-6131-orphan.ics"  # 201
-curl -s -o /dev/null -w "%{http_code}\n" -X REPORT -H "Depth: 1" \
-  -H "Content-Type: application/xml" -u sogo-tests1:sogo \
-  --data '<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:getetag/></D:prop><C:filter><C:comp-filter name="VCALENDAR"><C:comp-filter name="VEVENT"><C:time-range start="20250601T000000Z" end="20250731T000000Z"/></C:comp-filter></C:comp-filter></C:filter></C:calendar-query>' \
-  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6131-cal/"            # 207
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests1:sogo -X DELETE \
-  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6131-cal/test-6131-orphan.ics"  # 204
-curl -s -o /dev/null -w "%{http_code}\n" -u sogo-tests1:sogo -X DELETE \
-  "http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Calendar/test-6131-cal/"            # 204
+```
+SOGoMaximumMessageSizeLimit = 25;
 ```
 
-(Reproducing the DELETEs live requires a stack with `SOGoEnableEMailAlarms=YES`
-+ `OCSEMailAlarmsFolderURL` and SQL logging; the shared e2e stack has email
-alarms off, hence the deterministic unit red/green as the proof.)
+then (jq available):
+
+```bash
+B=http://127.0.0.1:50001
+C=/tmp/opencode/cj-6124.txt
+curl -s -c $C -X POST $B/SOGo/connect -H 'Content-Type: application/json' \
+     -d '{"userName":"sogo-tests1","password":"sogo"}'
+# create draft
+DRAFT=$(curl -s -b $C -H 'Accept: application/json' \
+     $B/SOGo/so/sogo-tests1/Mail/0/compose | jq -r .draftId)
+U=$B/SOGo/so/sogo-tests1/Mail/0/folderDrafts/$DRAFT
+head -c 15000000 /dev/zero > /tmp/opencode/test-6124-a.bin   # 15 MB
+head -c 12000000 /dev/zero > /tmp/opencode/test-6124-b.bin   # 12 MB
+head -c 1000000  /dev/zero > /tmp/opencode/test-6124-c.bin   # 1 MB
+# 1. 15 MB upload must succeed
+curl -s -b $C -X POST -H 'Accept: application/json' \
+     -F 'attachments=@/tmp/opencode/test-6124-a.bin' $U/save | jq .uid
+# 2. 12 MB upload must fail with "Message is too big"
+curl -s -b $C -X POST -H 'Accept: application/json' \
+     -F 'attachments=@/tmp/opencode/test-6124-b.bin' $U/save | jq .message
+# 3. AFTER the fix: 1 MB upload must now SUCCEED (was failing before the fix)
+curl -s -b $C -X POST -H 'Accept: application/json' \
+     -F 'attachments=@/tmp/opencode/test-6124-c.bin' $U/save | jq .uid
+# 4. cleanup
+curl -s -b $C -X POST -H 'Accept: application/json' $U/delete -o /dev/null -w '%{http_code}\n'
+rm -f /tmp/opencode/test-6124-*.bin $C
+```
+
+Step 3 succeeding (HTTP 200 + uid, `lastAttachmentAttrs` present) is the
+regression proof; on the unfixed code it returns
+`{"message": "Message is too big"}`. The same invariant holds for
+`.../send` after a rejected upload.
 
 ## PR body draft
 
-With `SOGoEnableEMailAlarms = YES`, calendars containing an orphaned
-recurrence exception (a VEVENT with `RECURRENCE-ID` but no parent recurring
-event — see the .ics attached to bug 6131) triggered one malformed SQL
-statement per event on **every view/fetch**:
+Bug 6124 (major, Web Mail): with `SOGoMaximumMessageSizeLimit` set, an upload
+that pushes the draft over the limit is persisted to the draft spool folder
+before the draft save is attempted; when that save fails with "Message is too
+big", the file is never removed — not by the server, and not by the web client,
+which only drops the item from its upload queue. From then on every save/send
+re-counts the phantom file, so the draft stays over the limit forever: adding a
+tiny attachment still errors, and the only escape is discarding the whole draft.
+The phantom file would even be included in the message if a later send
+succeeded by other means.
 
-AVANT (per problematic event, each time the calendar is displayed):
+AVANT — compose with a 25 MB limit, attach 15 MB (OK), then 12 MB: upload
+rejected "Message is too big", attachment disappears from the editor; attach a
+1 MB file: still "Message is too big"; sending impossible; draft must be
+discarded and rewritten.
 
-```
-DELETE FROM sogo_alarms_folder WHERE c_path='NULL' AND c_name='NULL';
-DELETE FROM sogo_alarms_folder WHERE c_path='NULL' AND c_name='4C39-627DFA80-15-2FEA38C0.ics';
-```
-
-Such events are stored with `c_iscycle=1` but no `c_cycleinfo`, so
-`flattenCycleRecord` rebuilds their quick record on each fetch while
-deliberately passing a nil container (re-entrancy guard). The email-alarm
-bookkeeping in `updateNextAlarmDateInRow:forContainer:nameInContainer:`
-ignored that nil container: it still opened the alarms folder, classified the
-past `ACTION:EMAIL` alarm as expired, and issued the trailing
-"delete old email alarms" call with nil `c_path`/`c_name`, which
-`EOSQLQualifier` renders as the literal string `'NULL'`. Users reported month
-views taking ~2 s instead of 0.2 s, and future-dated alarms could equally
-`SELECT`/`INSERT` `c_path='NULL'` garbage rows on every view.
-
-APRÈS, the alarms-folder handle is only acquired when a real container is
-provided — i.e. on the save path and in the ealarms notifier — so viewing a
-calendar never writes to or deletes from `sogo_alarms_folder` again, while
-saving an event with an expired email alarm still cleans its record exactly
-once with the correct `c_path`/`c_name`. The fix is a single `&& theContainer`
-guard on the handle acquisition; behaviour with `SOGoEnableEMailAlarms = NO`
-is unchanged. New unit tests (`Tests/Unit/TestiCalEntityObjectEmailAlarms.m`,
-no DB required) lock both directions: zero alarms-folder calls when flattening
-with a nil container (both `c_name` variants of the ticket), and the preserved
-single delete on the save path — they fail on the pre-fix code with the exact
-malformed calls of the ticket.
+APRÈS — same scenario: the 12 MB upload is still rejected (the limit is the
+limit), but the file is now rolled back from the spool when the save fails, so
+the server state matches the editor; attaching the 1 MB file succeeds and the
+message can be sent without rewriting anything. The rollback is wired on the
+whole save-error path, so any failed save (IMAP hiccup included) no longer
+leaves ghost attachments behind. Covered by new unit tests in
+`Tests/Unit/TestSOGoDraftObject.m` reproducing the exact ticket sequence.
