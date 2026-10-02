@@ -66,10 +66,8 @@
     } else {
       Message.$tags = {};
     }
-    if (Preferences.defaults.SOGoMailDisplayRemoteInlineImages &&
-      Preferences.defaults.SOGoMailDisplayRemoteInlineImages == 'always') {
-      Message.$displayRemoteInlineImages = true;
-    }
+    Message.$displayRemoteInlineImages
+      = Preferences.defaults.SOGoMailDisplayRemoteInlineImages || 'never';
 
     return Message; // return constructor
   }];
@@ -425,7 +423,11 @@
           }
           if (part.type == 'UIxMailPartHTMLViewer') {
             part.html = true;
-            if (_this.$loadUnsafeContent || Message.$displayRemoteInlineImages) {
+            if (_this.$loadUnsafeContent
+              || ((_this.$mailbox || { type: '' }).type != 'junk'
+                  && (Message.$displayRemoteInlineImages == 'always'
+                      || (Message.$displayRemoteInlineImages == 'known'
+                          && _this.senderInAddressBook)))) {
               if (angular.isUndefined(part.unsafeContent)) {
                 part.unsafeContent = document.createElement('div');
                 part.unsafeContent.innerHTML = part.safeContent;

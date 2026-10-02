@@ -748,7 +748,7 @@ static NSArray *reminderValues = nil;
 //
 - (NSArray *) displayRemoteInlineImages
 {
-  return [NSArray arrayWithObjects: @"never", @"always", nil];
+  return [NSArray arrayWithObjects: @"never", @"known", @"always", nil];
 }
 
 //
