@@ -54,6 +54,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNGInternetSocketAddress.m \
 	TestNGVList.m \
 	TestSOGoDraftObject.m \
+	TestSOGoDraftsFolder.m \
 	TestSOGoMailFolder.m \
 	TestSOGoMailForward.m \
 	TestSOGoSieveManager.m \

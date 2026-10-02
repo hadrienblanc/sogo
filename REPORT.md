@@ -1,157 +1,137 @@
-# Fix for Mantis #6240 — non-root inline text/html part in multipart/related rendered as message body
+# Fix for Mantis #6239 — attachments swapped when two users send concurrently from the same mailbox
 
-Branch: `fix-6240-mantis` (worktree `wt/c36-6240`)
+Branch: `fix-6239-mantis` (worktree `wt/c36-6239`)
 
 ## Root cause (file:line)
 
-- `UI/MailPartViewers/UIxMailRenderingContext.m:193-197` — `viewerForBodyInfo:` maps
-  `multipart/related` to the **mixed** viewer, which is the correct generic renderer for
-  multipart containers, but it carries no notion of the RFC 2387 root object.
-- `UI/MailPartViewers/UIxMailPartMixedViewer.m:101` (`-renderedPart`) — the mixed viewer
-  rendered **every** child part sequentially as visible content. For a non-root
-  `text/html` child with `Content-Disposition: inline` (or with no disposition at all —
-  inline is the RFC 2183 default), `viewerForBodyInfo:` selects the **HTML viewer**
-  (`UIxMailRenderingContext.m:207-215`: a text part is only demoted to the link viewer
-  when its disposition is explicitly `attachment`), so the related resource was appended
-  to the visible message body. The AngularJS frontend (`Message.service.js`, `_visit`)
-  renders every leaf of the mixed content array, which made the resource (and any CSS it
-  carries: `position`, `z-index`, large backgrounds) visible below the real body.
+- `SoObjects/Mailer/SOGoDraftsFolder.m:28-51` (pre-fix) — `generateNameForNewDraft`
+  built the draft name `newDraft<unixtime>-<n>` from **file-static, process-local**
+  state (`lastNew` / `newCount`), with a non-atomic read-modify-write.
+- sogod runs **preforked** (`-WOWorkersCount N`; verified on the e2e stack:
+  1 parent + N children) and each worker also dispatches connections on
+  separate threads (SOPE `WOHttpAdaptor` `detachNewThreadSelector` when
+  `maxThreadCount > 1`). Two compose requests for the same account that land on
+  two different workers within the same wall-clock second therefore both mint
+  `newDraft<ts>-1`. The reporter's access log proves exactly this: **both**
+  browsers POST their send to the same path
+  `POST /SOGo/so/info@abc.aa/Mail/0/folderDrafts/newDraft1787734448-1/send`
+  (Chrome/152 at 11:54:41 and Chrome/151 at 11:54:44).
+- Consequence — the two compose sessions share **one** draft object:
+  - `SoObjects/Mailer/SOGoDraftObject.m:175-184` — the draft's attachment
+    spool dir is `<userSpool>/<nameInContainer>`; with identical names both
+    users' uploads land in the same directory (`saveAttachment:withMetadata:`,
+    SOGoDraftObject.m:1258).
+  - `fetchAttachmentAttrs` / `mimeMessageForRecipient:` compose the outgoing
+    message from **every file in that directory** (SOGoDraftObject.m:1224), so
+    each send picks up the other session's attachment (swap/mix depending on
+    upload/autosave interleaving), and each autosave/send marks the previous
+    shared IMAP draft copy deleted (SOGoDraftObject.m:620-621, 2388-2389).
+- The name is only consumed as an opaque id (`lookupName:` checks
+  `hasPrefix:@"newDraft"`, the Angular frontend round-trips `draftId`
+  verbatim in every draft URL: `Message.service.js:159-161`), so embedding the
+  pid in the name is safe.
 
-Per RFC 2387, only the root object of `multipart/related` (the part designated by the
-`start` parameter, defaulting to the first part) is the message body; non-root parts are
-resources referenced by Content-ID.
+This is a genuine server-side bug (random reproducibility = requires the same
+second + distinct workers, as in the ticket).
 
 ## What changed (before/after)
 
-**Before** (view JSON of the ticket reproducer, `multipart/related` root =
-`multipart/alternative` + non-root inline `text/html`):
+`SoObjects/Mailer/SOGoDraftsFolder.m` — `generateNameForNewDraft`:
 
-```json
-{ "type": "UIxMailPartMixedViewer", "contentType": "multipart/related",
-  "content": [
-    { "type": "UIxMailPartAlternativeViewer", "...": "text/plain + text/html (real body)" },
-    { "type": "UIxMailPartHTMLViewer", "contentType": "text/html",
-      "content": "<div style=\"position:fixed;z-index:9999...\">RELATED RESOURCE..." }
-  ] }
+```objc
+/* BEFORE */
+currentTime = [[NSDate date] timeIntervalSince1970];
+if (currentTime == lastNew) newCount++;
+else { lastNew = currentTime; newCount = 1; }
+newName = [NSString stringWithFormat: @"newDraft%u-%u", currentTime, newCount];
+
+/* AFTER */
+[nameLock lock];
+if (currentTime == lastNew) newCount++;
+else { lastNew = currentTime; newCount = 1; }
+newName = [NSString stringWithFormat: @"newDraft%u-%u-%u",
+                    currentTime, (unsigned int) getpid (), newCount];
+[nameLock unlock];
 ```
-→ the second HTML viewer is appended to the visible body (bug, reproduced live on the
-e2e stack before fixing).
 
-**After**:
+- the counter update **and** the name formatting are serialized by a new
+  static `NSLock` (created in `+initialize`, same pattern as
+  `SOGoDraftObject.m:113`) — fixes the in-worker thread race;
+- the name now embeds the worker's `getpid()` — fixes the cross-worker
+  collision, which is what the ticket log shows.
 
-```json
-{ "type": "UIxMailPartMixedViewer", "contentType": "multipart/related",
-  "content": [
-    { "type": "UIxMailPartAlternativeViewer", "...": "text/plain + text/html (real body)" },
-    { "type": "UIxMailPartLinkViewer", "contentType": "text/html",
-      "shouldDisplayAttachment": 1 }
-  ] }
-```
-→ only the root object is rendered as body; the related text resource is downloadable
-from the attachment strip, exactly like the already-correct `disposition: attachment`
-case of the ticket's Test B. Images and non-text parts inside `multipart/related` keep
-their previous rendering (CID images are still resolved through `attachmentIds`).
-
-Minimal implementation:
-
-1. `UIxMailPartMixedViewer.m:121-125` — when the container's subtype is `related`,
-   resolve the root part index once; `UIxMailPartMixedViewer.m:139-142` — non-root
-   children are rendered through the new `viewerForNonRootRelatedBodyInfo:` instead of
-   `viewerForBodyInfo:`.
-2. `UIxMailRenderingContext.m:298-309` — `viewerForNonRootRelatedBodyInfo:` demotes
-   `text/plain`/`text/html` resources to the link (attachment) viewer; everything else
-   falls through to the regular selection, so image/attachment handling is unchanged.
-3. `UIxMailRenderingContext.m:312-335` — `rootPartIndexOfRelatedBodyInfo:` implements
-   the RFC 2387 root resolution: the child whose `bodyId` matches the `start`
-   `parameterList` entry (bracket-normalized), falling back to the first part (also when
-   `start` is absent, unmatched, or the info has no `parts` — S/MIME decoded path).
+Supporting changes:
+- `SoObjects/Mailer/SOGoDraftsFolder.h` — declare `generateNameForNewDraft`.
+- `Tests/Unit/TestSOGoDraftsFolder.m` (new) + registration in
+  `Tests/Unit/GNUmakefile`.
 
 ## Tests
 
-- Unit (`Tests/Unit/TestUIxMailRenderingContext.m`, already registered in
-  `Tests/Unit/GNUmakefile`), 9 new tests:
-  - root resolution: no `start` → first part; `start` matching a Content-ID (with and
-    without angle brackets); unknown `start` → fallback to first part; empty related.
-  - viewer selection: non-root `text/html` and `text/plain` of a related container →
-    link viewer (ticket case); non-root non-text parts (image/png, multipart/alternative)
-    keep their viewer; root text parts keep html/text viewers (guards against
-    over-demotion).
-- E2e (`Tests/spec/MailerRelatedInlinePartsSpec.js`, jasmine, auto-discovered):
-  PUTs 4 messages via WebDAV (ticket Test A structure, Test B structure, classic
-  related html-root + cid image, related with `start` parameter) and asserts on the
-  `/view` JSON that exactly one HTML viewer (the root) is rendered as body and that
-  related text resources render as link-viewer attachments. Its assertion logic was
-  validated against the live stack before the fix (fails on old code: 2 HTML viewers)
-  and against the post-fix JSON shape. The spec itself must run after the orchestrator
-  deploys this branch (standard `npx jasmine` inside `sogo_dev`).
+`Tests/Unit/TestSOGoDraftsFolder.m` — 4 tests:
 
-Full unit suite: **Ran 266 tests — OK** (only the known host-noise memcached/regex
-warnings; no new failures).
+1. `test_generateNameForNewDraftFormat` — locks the naming contract:
+   `newDraft` prefix, 3 numeric components, pid component equal to `getpid()`,
+   distinct names with the counter incrementing within one second.
+2. `test_generateNameForNewDraftResetsCounterOnNewSecond` — covers the
+   second-rollover branch (counter resets to 1).
+3. `test_generateNameForNewDraftIsThreadSafe` — 4 threads generating 100
+   concurrent names in one worker; all must be distinct (this is the test that
+   caught the first version of the fix formatting the name outside the lock).
+4. `test_generateNameForNewDraftIsUniqueAcrossProcesses` — **the 6239
+   reproducer**: forks two children (simulating two preforked sogod workers)
+   that each generate a name in the same second and report it over a pipe;
+   asserts both epochs align and the two names differ.
+
+Red/green validation: with the pre-fix `SOGoDraftsFolder.m` restored, tests
+1, 3 and 4 FAIL (plus the rollover test errors); with the fix, the whole
+suite passes (`Ran 270 tests — OK`), verified over 5 consecutive runs.
 
 ## Verification steps for the orchestrator
 
-After deploying this branch to the e2e stack:
-
-1. Jasmine (inside `sogo_dev`):
-   ```
-   cd /workspace/Tests && sed -i 's/port: "50001"/port: "50000"/' lib/config.js && \
-     npx jasmine --config=spec/support/jasmine.json --filter="Mail multipart/related rendering (bug 6240)"; \
-     sed -i 's/port: "50000"/port: "50001"/' lib/config.js
-   ```
-   → 4 specs, 0 failures.
-2. Curl A/B against the stack (reproduces the ticket's structure). Prepare
-   `repro.eml` = the `relatedWithInlineResource` message embedded in
-   `Tests/spec/MailerRelatedInlinePartsSpec.js`, then:
-   ```
-   COOKIE=$(curl -si -X POST http://127.0.0.1:50001/SOGo/connect -H 'Content-Type: application/json' \
-             -d '{"userName":"sogo-tests1","password":"sogo"}' | grep -i '^set-cookie: 0xHIGHFLYxSOGo' | \
-             sed 's/^[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
-   curl -s -o /dev/null -u sogo-tests1:sogo -X MKCOL http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Mail/0/test-6240-v
-   curl -s -o /dev/null -u sogo-tests1:sogo -X PUT -H 'Content-Type: message/rfc822' \
-        --data-binary @repro.eml \
-        http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Mail/0/foldertest-6240-v/repro.eml
-   curl -s -H "Cookie: $COOKIE" \
-        http://127.0.0.1:50001/SOGo/so/sogo-tests1/Mail/0/foldertest-6240-v/1/view | \
-     python3 -c '
-   import json, sys
-   flat = []
-   def walk(part):
-       if isinstance(part.get("content"), list):
-           for child in part["content"]:
-               walk(child)
-       else:
-           flat.append(part)
-   walk(json.load(sys.stdin)["parts"])
-   for p in flat:
-       if p.get("contentType") in ("text/html", "multipart/related"):
-           print(p.get("contentType"), "->", p.get("type"))
-   '
-   curl -s -o /dev/null -u sogo-tests1:sogo -X DELETE http://127.0.0.1:50001/SOGo/dav/sogo-tests1/Mail/0/foldertest-6240-v
-   ```
-   Expected after the fix — exactly one HTML viewer, the related resource demoted to a
-   link viewer:
-   ```
-   text/html -> UIxMailPartHTMLViewer
-   text/html -> UIxMailPartLinkViewer
-   ```
-   Before the fix, both lines were `UIxMailPartHTMLViewer` (verified live during this
-   session; the related resource carried `position:fixed;z-index:9999` into the body).
-3. Unit suite: `local/run-worktree-tests.sh <worktree>` → 266 tests, OK.
+- Unit suite (host): 
+  `/home/hadrienblanc/Projets/hadrienblanc/sogo/local/run-worktree-tests.sh /home/hadrienblanc/Projets/hadrienblanc/sogo/wt/c36-6239`
+  → expect `Ran 270 tests / OK` (known host noise: `test_NGInternetSocketAddressFromString`,
+  `test_stringWithoutHTMLInjection` may fail — did not in my runs).
+- After the stack is rebuilt/deployed from this branch (orchestrator-only),
+  the live repro of the AVANT behavior (fails on old build, passes on new):
+  1. log in via the web UI in two different browsers as the **same user**
+     (e2e: `sogo-tests1` / `sogo`);
+  2. open a compose window in both within the same second (e.g. two
+     `GET /SOGo/so/sogo-tests1/Mail/0/compose` fired concurrently — the e2e
+     httpd is at `http://127.0.0.1:50001`; UI actions need the session cookie
+     from `POST /SOGo/connect`, basic auth only works for DAV);
+  3. check the returned `draftId` in each response: identical on the old build
+     (both `newDraft<ts>-1`), distinct (`newDraft<ts>-<pid>-N`) on the new one;
+  4. attach different files in each window and send both: on the old build the
+     messages cross-pollinate attachments; on the new build each message
+     carries only its own file.
+  Note: on the currently running (stale, cycle-35) container the UI session
+  cookie 403s for JSON actions — verify on the freshly rebuilt stack.
 
 ## PR body draft
 
-**AVANT** — SOGo rendait chaque partie d'un `multipart/related` comme contenu visible :
-un `text/html` non racine avec `Content-Disposition: inline` (ou sans disposition) était
-affiché sous le corps réel du message. Les CSS qu'il transporte (`position: fixed`,
-`z-index`, arrière-plans) pouvaient recouvrir ou casser complètement l'affichage, alors
-que Thunderbird n'affiche que l'objet racine (RFC 2387). Le contournement client était
-impossible : la partie était injectée côté serveur dans le JSON de la vue.
+When two users compose and send emails at the same time from the same
+mailbox, the attachments of one message end up attached to the other
+message. The cause is on the server: new draft names
+(`newDraft<unixtime>-<counter>`) were generated from process-local statics,
+while sogod runs preforked workers (and threaded request dispatch). Two
+compose sessions landing on two workers within the same second received the
+**same** draft name — the reporter's log shows both browsers sending via
+`.../folderDrafts/newDraft1787734448-1/send` — and therefore shared a single
+draft: one spool directory for attachments, one IMAP draft object, so every
+send composed its message from both users' files.
 
-**APRES** — Seul l'objet racine du `multipart/related` (paramètre `start`, sinon la
-première partie) est rendu comme corps du message ; les ressources `text/plain` /
-`text/html` non racines passent par le visualiseur de pièces jointes (téléchargeables,
-comme pour le cas `disposition: attachment` déjà correct), et le comportement des
-images CID et des autres types est inchangé. Le tout est couvert par 9 tests unitaires
-sur la sélection du visualiseur et la résolution de la racine, plus une spec e2e qui
-verrouille les quatre structures (ressource inline, ressource attachment, racine HTML +
-image CID, paramètre `start`).
+AVANT: `newDraft1787734448-1` (worker A) == `newDraft1787734448-1`
+(worker B) → shared spool → File A attached to recipient B's mail and
+vice-versa (bug 6239).
+APRES: `newDraft1787734448-4180-1` (worker A, pid 4180) vs
+`newDraft1787734448-4183-1` (worker B, pid 4183) → distinct draft objects,
+each message carries only its own attachments.
+
+The generator now serializes its counter behind a lock (also fixing the
+in-worker thread race, where the name was formatted outside the critical
+section) and embeds the worker pid in the name, which keeps the
+`newDraft<epoch>` prefix contract used everywhere (`lookupName:` prefix
+match, opaque `draftId` on the Angular side). Covered by 4 new unit tests in
+`Tests/Unit/TestSOGoDraftsFolder.m`, including a fork-based reproducer that
+fails on the previous implementation.
