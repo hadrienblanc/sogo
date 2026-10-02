@@ -170,6 +170,9 @@
   /* first check attributes directly bound to the application */
   obj = [super lookupName: objectName inContext: lookupContext acquire: NO];
 
+  if (!obj && [objectName length] == 0)
+    obj = [NSException exceptionWithHTTPStatus: 404];
+
   if (!obj)
     {
       ldifEntry = [childRecords objectForKey: objectName];

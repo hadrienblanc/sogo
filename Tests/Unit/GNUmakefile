@@ -47,6 +47,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoSieveManager.m \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \
+	TestSOGoContactSourceFolder.m \
 	TestSOGoCacheACLs.m \
 	TestUIxHTMLMailContentHandler.m \
 	TestWORequest+SOGo.m \
