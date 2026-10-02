@@ -98,6 +98,79 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 
 
+- (NSString *) activeSyncStartTimeInContext: (WOContext *) context
+{
+  NSCalendarDate *date;
+  NSTimeZone *userTimeZone;
+
+  date = [self startDate];
+  if (!date)
+    return nil;
+
+  if ([self isAllDay] && ![(iCalDateTime *)[self firstChildWithTag: @"dtstart"] timeZone]
+      && [[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0)
+    {
+      userTimeZone = [[[context activeUser] userDefaults] timeZone];
+      date = [date dateByAddingYears: 0 months: 0 days: 0
+                              hours: 0 minutes: 0
+                            seconds: ([userTimeZone secondsFromGMTForDate: date]) * -1];
+    }
+
+  return [date activeSyncRepresentationWithoutSeparatorsInContext: context];
+}
+
+- (NSString *) activeSyncEndTimeInContext: (WOContext *) context
+{
+  NSCalendarDate *date;
+  NSTimeZone *userTimeZone;
+
+  date = [self endDate];
+  if (!date)
+    return nil;
+
+  if ([self isAllDay] && ![(iCalDateTime *)[self firstChildWithTag: @"dtstart"] timeZone]
+      && [[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0)
+    {
+      userTimeZone = [[[context activeUser] userDefaults] timeZone];
+      date = [date dateByAddingYears: 0 months: 0 days: 0
+                              hours: 0 minutes: 0
+                            seconds: ([userTimeZone secondsFromGMTForDate: date]) * -1];
+    }
+
+  return [date activeSyncRepresentationWithoutSeparatorsInContext: context];
+}
+
+- (BOOL) hasActiveSyncScheduleChange: (NSDictionary *) theValues
+                           inContext: (WOContext *) context
+{
+  NSString *current, *requested;
+  NSCalendarDate *currentDate, *requestedDate;
+
+  if ((requested = [theValues objectForKey: @"StartTime"]))
+    {
+      current = [self activeSyncStartTimeInContext: context];
+      currentDate = [current calendarDate];
+      requestedDate = [requested calendarDate];
+
+      if (!currentDate || !requestedDate
+          || [requestedDate compare: currentDate] != NSOrderedSame)
+        return YES;
+    }
+
+  if ((requested = [theValues objectForKey: @"EndTime"]))
+    {
+      current = [self activeSyncEndTimeInContext: context];
+      currentDate = [current calendarDate];
+      requestedDate = [requested calendarDate];
+
+      if (!currentDate || !requestedDate
+          || [requestedDate compare: currentDate] != NSOrderedSame)
+        return YES;
+    }
+
+  return NO;
+}
+
 - (NSString *) activeSyncRepresentationInContext: (WOContext *) context
 {
   NSMutableString *s;
@@ -126,30 +199,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   tz = [(iCalDateTime *)[self firstChildWithTag: @"dtstart"] timeZone];
 
   // StartTime -- http://msdn.microsoft.com/en-us/library/ee157132(v=exchg.80).aspx
-  if ([self startDate])
-    {
-      if ([self isAllDay] && !tz && [[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0)
-        [s appendFormat: @"<StartTime xmlns=\"Calendar:\">%@</StartTime>",
-           [[[self startDate] dateByAddingYears: 0 months: 0 days: 0
-                                          hours: 0 minutes: 0
-                                        seconds: ([userTimeZone secondsFromGMTForDate: [self startDate]])*-1]
-             activeSyncRepresentationWithoutSeparatorsInContext: context]];
-      else
-        [s appendFormat: @"<StartTime xmlns=\"Calendar:\">%@</StartTime>", [[self startDate] activeSyncRepresentationWithoutSeparatorsInContext: context]];
-    }
+  if ((o = [self activeSyncStartTimeInContext: context]))
+    [s appendFormat: @"<StartTime xmlns=\"Calendar:\">%@</StartTime>", o];
 
   // EndTime -- http://msdn.microsoft.com/en-us/library/ee157945(v=exchg.80).aspx
-  if ([self endDate])
-    {
-      if ([self isAllDay] && !tz && [[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0)
-        [s appendFormat: @"<EndTime xmlns=\"Calendar:\">%@</EndTime>",
-           [[[self endDate] dateByAddingYears: 0 months: 0 days: 0
-                                        hours: 0 minutes: 0
-                                      seconds: ([userTimeZone secondsFromGMTForDate: [self endDate]])*-1]
-             activeSyncRepresentationWithoutSeparatorsInContext: context]];
-      else
-        [s appendFormat: @"<EndTime xmlns=\"Calendar:\">%@</EndTime>", [[self endDate] activeSyncRepresentationWithoutSeparatorsInContext: context]];
-    }
+  if ((o = [self activeSyncEndTimeInContext: context]))
+    [s appendFormat: @"<EndTime xmlns=\"Calendar:\">%@</EndTime>", o];
 
   if (!tz)
     tz = [iCalTimeZone timeZoneForName: [userTimeZone name]];
