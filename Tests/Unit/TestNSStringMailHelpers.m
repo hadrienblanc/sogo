@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+#import <NGMime/NGMimeBodyPart.h>
+
 #import "Mailer/NSString+Mail.h"
 
 #import "SOGoTest.h"
@@ -72,6 +74,147 @@
   testEquals([@"message/rfc822" asPreferredFilenameUsingPath: @"7"], @"email_7.eml");
   testEquals([@"text/plain" asPreferredFilenameUsingPath: @"7"], nil);
   testEquals([@"image/png" asPreferredFilenameUsingPath: nil], @"unknown_1");
+}
+
+- (void) test_htmlToText_plainContent
+{
+  testEquals([@"plain text only" htmlToText], @"plain text only");
+  testEquals([@"<div>   </div>" htmlToText], @"   ");
+  testEquals([@"<html><body>a&amp;b&lt;c</body></html>" htmlToText], @"a&b<c");
+  testEquals([@"<html><body>go http://example.com now</body></html>" htmlToText],
+             @"go http://example.com now");
+}
+
+- (void) test_htmlToText_specialTreatmentTags
+{
+  testEquals([@"<p>a</p>b<br />c<hr />d" htmlToText],
+             @"\nab\nc______________________________________________________________________________\nd");
+  testEquals([@"<ul><li>one</li><li>two</li>" htmlToText], @"\n * one * two");
+  testEquals([@"<ul><li>a<ul><li>b</ul></li></ul>" htmlToText], @"\n * a\n * b");
+  testEquals([@"<dl><dt>term</dt><dd>def</dd></dl>" htmlToText], @"term  def");
+  testEquals([@"<table><tr><td>c1</td><th>h</th></tr></table>" htmlToText], @"c1h");
+  testEquals([@"<html><head><li>inhead</li></head><body>x</body></html>" htmlToText],
+             @" * inheadx");
+}
+
+- (void) test_htmlToText_ignoredContent
+{
+  testEquals([@"<html><body>before<script>var x = 1;</script>middle<style>p{}</style>after</body></html>" htmlToText],
+             @"beforemiddleafter");
+  testEquals([@"<html><body>a<!-- some comment -->b</body></html>" htmlToText], @"ab");
+  testEquals([@"<html><body>a<?php echo 1; ?>b</body></html>" htmlToText], @"ab");
+  testEquals([@"<!DOCTYPE html><html><body><p>x</p></body></html>" htmlToText], @"\nx");
+  testEquals([@"<html><body><![CDATA[some cdata]]></body></html>" htmlToText], @"");
+}
+
+- (void) test_htmlByExtractingImages_textOnly
+{
+  NSMutableArray *images;
+
+  images = [NSMutableArray array];
+  testEquals([@"<p>a &lt; b &amp; c</p><img src=\"https://x/y.png\" /><br />tail" htmlByExtractingImages: images],
+             @"<html><body><p>a &lt; b &amp; c</p><img src=\"https://x/y.png\"/><br/>tail</body></html>");
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 0]);
+
+  images = [NSMutableArray array];
+  testEquals([@"before<img src=\"dat\" />after" htmlByExtractingImages: images],
+             @"<html><body>before<img src=\"dat\"/>after</body></html>");
+
+  images = [NSMutableArray array];
+  testEquals([@"x<br></br><img></img>y" htmlByExtractingImages: images],
+             @"<html><body>x<br/><img/>y</body></html>");
+
+  images = [NSMutableArray array];
+  testEquals([@"<div title=\"he said \\\"hi\\\" \\\">x</div><span>after</span>" htmlByExtractingImages: images],
+             @"<html><body><div title=\"he said \\\\\" hi\\\"=\"\" \\\"=\"\">x</div><span>after</span></body></html>");
+}
+
+- (void) test_htmlByExtractingImages_dataUris
+{
+  NSMutableArray *images;
+  NGMimeBodyPart *part;
+  NSString *result;
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:image/png;base64,iVBORw0KGgo=\" alt=\"pic\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testWithMessage([result hasPrefix: @"<html><body><img src=\"cid:"], result);
+  testWithMessage([result rangeOfString: @"\" type=\"image/png\" alt=\"pic\"/>"].location != NSNotFound, result);
+  part = [images objectAtIndex: 0];
+  testWithMessage([[part headerForKey: @"content-type"] hasPrefix: @"image/png; name=\""],
+                  [part headerForKey: @"content-type"]);
+  testWithMessage([[part headerForKey: @"content-disposition"] hasPrefix: @"inline; filename=\""],
+                  [part headerForKey: @"content-disposition"]);
+  testEquals([part headerForKey: @"content-transfer-encoding"], @"base64");
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"DATA:image/png;BASE64,iVBORw0KGgo=\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testWithMessage([result rangeOfString: @"\" type=\"image/png\"/>"].location != NSNotFound, result);
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:image/gif;charset=UTF-8;base64,R0lGODlh\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"base64");
+  testWithMessage([[[images objectAtIndex: 0] headerForKey: @"content-type"] hasPrefix: @"image/gif; name=\""],
+                  [[images objectAtIndex: 0] headerForKey: @"content-type"]);
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:image/gif;quoted-printable,R0lGOD===\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"quoted-printable");
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:;base64,iVBORw0KGgo=\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testWithMessage([result rangeOfString: @"\" type=\"(null)\"/>"].location != NSNotFound, result);
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"base64");
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:img/x,,DATA\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"mg/x");
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-length"], [NSNumber numberWithInt: 5]);
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:img/j;,D\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"base64");
+  testWithMessage([result rangeOfString: @"\" type=\"img/j\"/>"].location != NSNotFound, result);
+
+  images = [NSMutableArray array];
+  result = [@"<img src=\"data:image/png;base64,SHORT\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testWithMessage([result rangeOfString: @"\" type=\"image/png\"/>"].location != NSNotFound, result);
+}
+
+- (void) test_htmlByExtractingImages_foldedBase64
+{
+  NSMutableArray *images;
+
+  images = [NSMutableArray array];
+  [@"<img src=\"data:image/png;base64,AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ==\" />" htmlByExtractingImages: images];
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
+  testEquals([[images objectAtIndex: 0] headerForKey: @"content-length"], [NSNumber numberWithInt: 117]);
+}
+
+- (void) test_decodedHeader_brokenInput
+{
+  testEquals([@"café" decodedHeader], @"café");
+  testEquals([[@"" dataUsingEncoding: NSASCIIStringEncoding] decodedHeader], @"");
+  testEquals([@"=?utf-8?q?" decodedHeader], @"=?utf-8?q?");
+}
+
+- (void) test_stringByConvertingCRLNToHTML_longInput
+{
+  NSMutableString *input;
+  int i;
+
+  input = [NSMutableString string];
+  for (i = 0; i < 2000; i++)
+    [input appendString: @"ab\n"];
+  testEquals([NSNumber numberWithInt: [[input stringByConvertingCRLNToHTML] length]],
+             [NSNumber numberWithInt: (2000 * 8)]);
 }
 
 @end

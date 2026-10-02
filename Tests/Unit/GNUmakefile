@@ -35,6 +35,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Utilities.m \
 	TestNSString+Mail.m \
 	TestNSStringMailHelpers.m \
+	TestNSDataMail.m \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
 	TestNSURL+misc.m \

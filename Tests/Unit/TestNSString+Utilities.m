@@ -26,6 +26,7 @@
 
 #import <SOGo/NSString+Utilities.h>
 #import <Foundation/NSNull.h>
+#import <Foundation/NSException.h>
 #import "SOGoTest.h"
 
 @interface TestNSString_plus_Utilities : SOGoTest
@@ -142,6 +143,228 @@
 - (void) test_stringRemoveHTMLTagsExceptAnchorTags
 {
    testEquals([[NSString stringWithString:@"<div>Test<img src=\"foo\" />bar <a href=\"https://www.sogo.nu\" target=\"_blank\">link</a> <strong>foobar</strong></div>"] removeHTMLTagsExceptAnchorTags], @"Testbar <a href=\"https://www.sogo.nu\" target=\"_blank\">link</a> foobar");
+}
+
+- (void) test_stringByDetectingURLs
+{
+  testEquals([@"see http://example.com/x now" stringByDetectingURLs],
+             @"see <a rel=\"noopener\" href=\"http://example.com/x\">http://example.com/x</a> now");
+  testEquals([@"see http://example.com/x." stringByDetectingURLs],
+             @"see <a rel=\"noopener\" href=\"http://example.com/x\">http://example.com/x</a>.");
+  testEquals([@"(http://example.com/x)" stringByDetectingURLs],
+             @"(<a rel=\"noopener\" href=\"http://example.com/x\">http://example.com/x</a>)");
+  testEquals([@"&lt;https://example.com/x&gt;" stringByDetectingURLs],
+             @"&lt;<a rel=\"noopener\" href=\"https://example.com/x\">https://example.com/x</a>&gt;");
+  testEquals([@"See &lt;http://a.de&gt; end" stringByDetectingURLs],
+             @"See &lt;<a rel=\"noopener\" href=\"http://a.de\">http://a.de</a>&gt; end");
+  testEquals([@"http://a.b/x;y?z=1&2" stringByDetectingURLs],
+             @"<a rel=\"noopener\" href=\"http://a.b/x;y?z=1&2\">http://a.b/x;y?z=1&2</a>");
+  testEquals([@"http://a.b/x (http://c.d/y)" stringByDetectingURLs],
+             @"<a rel=\"noopener\" href=\"http://a.b/x\">http://a.b/x</a> (<a rel=\"noopener\" href=\"http://c.d/y\">http://c.d/y</a>)");
+  testEquals([@"no urls here" stringByDetectingURLs], @"no urls here");
+}
+
+- (void) test_stringByDetectingURLs_emailAddresses
+{
+  testEquals([@"mail a@b.co now" stringByDetectingURLs],
+             @"mail <a rel=\"noopener\" href=\"mailto:a@b.co\">a@b.co</a> now");
+  testEquals([@"(a@b.co)" stringByDetectingURLs],
+             @"(<a rel=\"noopener\" href=\"mailto:a@b.co\">a@b.co</a>)");
+  testEquals([@"john.doe+tag@example.co.uk," stringByDetectingURLs],
+             @"<a rel=\"noopener\" href=\"mailto:john.doe+tag@example.co.uk\">john.doe+tag@example.co.uk</a>,");
+  testEquals([@"mailto:a@b.co" stringByDetectingURLs],
+             @"mailto:<a rel=\"noopener\" href=\"mailto:a@b.co\">a@b.co</a>");
+  testEquals([@"http://user@host/x" stringByDetectingURLs],
+             @"<a rel=\"noopener\" href=\"http://user@host/x\">http://user@host/x</a>");
+  testEquals([@" @example.com" stringByDetectingURLs], @" @example.com");
+  testEquals([@"to:@example.com" stringByDetectingURLs], @"to:@example.com");
+  testEquals([@"1://x" stringByDetectingURLs],
+             @"1<a rel=\"noopener\" href=\"://x\">://x</a>");
+}
+
+- (void) test_asSafeJSString
+{
+  testEquals([@"plain" asSafeJSString], @"plain");
+  testEquals([@"café" asSafeJSString], @"café");
+  testEquals([@"a\"b\\c" asSafeJSString], @"a\\\"b\\\\c");
+  testEquals([@"\t\n\r" asSafeJSString], @"\\t\\n\\r");
+  testEquals([@"\b\f" asSafeJSString], @"\\b\\f");
+  testEquals([@"a\033b" asSafeJSString], @"a\\u001bb");
+  testEquals([@"a\"b" doubleQuotedString], @"\"a\\\"b\"");
+}
+
+- (void) test_safeString
+{
+  testEquals([@"a\033b" safeString], @"ab");
+  testEquals([@"a\u0301b" safeString], @"ab");
+  testEquals([@"\u2603" safeString], @"\u2603");
+  testEquals([@"😀x" safeString], @"😀x");
+  testEquals([@"" safeString], @"");
+}
+
+- (void) test_safeStringByEscapingXMLString
+{
+  testEquals([@"" safeStringByEscapingXMLString], @"");
+  testEquals([@"plain" safeStringByEscapingXMLString], @"plain");
+  testEquals([@"a&b\"c<d>e" safeStringByEscapingXMLString], @"a&amp;b&quot;c&lt;d&gt;e");
+  testEquals([@"a\rb" safeStringByEscapingXMLString], @"a\rb");
+  testEquals([@"a\rb" safeStringByEscapingXMLString: YES], @"a&#13;b");
+  testEquals([@"😀" safeStringByEscapingXMLString], @"&#128512;");
+  testEquals([@"a\033b" safeStringByEscapingXMLString], @"ab");
+}
+
+- (void) test_jsonRepresentation
+{
+  testEquals([@"a\"b\033c" jsonRepresentation], @"\"a\\\"bc\"");
+}
+
+- (void) test_isJSONString
+{
+  failIf(![@"{\"a\":1}" isJSONString]);
+  failIf([@"{invalid" isJSONString]);
+  failIf(![@"null" isJSONString]);
+}
+
+- (void) test_objectFromJSONString_brokenInput
+{
+  testEquals([@"[1," objectFromJSONString], nil);
+  testEquals([@"{invalid" objectFromJSONString], nil);
+  testEquals([@"\"a\\\\\"b\"" objectFromJSONString], nil);
+}
+
+- (void) test_asSafeSQLString
+{
+  testEquals([@"it's a \\ test" asSafeSQLString], @"it\\'s a \\\\ test");
+  testEquals([@"a%b" asSafeSQLLikeString], @"a\\%b");
+  testEquals([@"plain" asSafeSQLLikeString], @"plain");
+}
+
+- (void) test_stringByReplacingPrefix
+{
+  testEquals([@"oldX" stringByReplacingPrefix: @"old" withPrefix: @"new"], @"newX");
+  testEquals([@"a" stringByReplacingPrefix: @"a" withPrefix: @"b"], @"b");
+  NS_DURING
+    {
+      [@"abc" stringByReplacingPrefix: @"z" withPrefix: @"y"];
+    }
+  NS_HANDLER
+    {
+    }
+  NS_ENDHANDLER;
+}
+
+- (void) test_asCSSIdentifier
+{
+  testEquals([@"a_b.c#d@e*f:g;h,i j'k\"l(m)n[o]p{q}r&s+t$u" asCSSIdentifier],
+             @"a_U_b_D_c_H_d_A_e_S_f_C_g_SC_h_CO_i_SP_j_SQ_k_DQ_l_LP_m_RP_n_LS_o_RS_p_LC_q_RC_r_AM_s_P_t_DS_u");
+  testEquals([@"1abc" asCSSIdentifier], @"_1abc");
+  testEquals([@"7" asCSSIdentifier], @"_7");
+  testEquals([@"" asCSSIdentifier], @"");
+  testEquals([@"plain" asCSSIdentifier], @"plain");
+  testEquals([@"😀_SP_x" asCSSIdentifier], @"😀_U_SP_U_x");
+  testEquals([@"x😀y" asCSSIdentifier], @"x😀y");
+}
+
+- (void) test_fromCSSIdentifier
+{
+  testEquals([@"_U_" fromCSSIdentifier], @"_");
+  testEquals([@"_SC_" fromCSSIdentifier], @";");
+  testEquals([@"_1a" fromCSSIdentifier], @"1a");
+  testEquals([@"_U" fromCSSIdentifier], @"_U");
+  testEquals([@"a_U_b" fromCSSIdentifier], @"a_b");
+  testEquals([@"a_SC_b" fromCSSIdentifier], @"a;b");
+  testEquals([@"a__b" fromCSSIdentifier], @"a__b");
+  testEquals([@"a_b" fromCSSIdentifier], @"a_b");
+  testEquals([@"_U__SC_" fromCSSIdentifier], @"_;");
+  testEquals([@"_U__U_" fromCSSIdentifier], @"__");
+  testEquals([@"_SC__SC_" fromCSSIdentifier], @";;");
+  testEquals([@"_D__SP__SQ__DQ__LP__RP__LS__RS__LC__RC__AM__P__DS_" fromCSSIdentifier],
+             @". '\"()[]{}&+$");
+  testEquals([@"_H__A__S__C__CO_" fromCSSIdentifier], @"#@*:,");
+  testEquals([@"x_U_y" fromCSSIdentifier], @"x_y");
+  testEquals([@"héé" fromCSSIdentifier], @"héé");
+  testEquals([@".foo" fromCSSIdentifier], @".foo");
+  testEquals([@".x" fromCSSIdentifier], @".x");
+  testEquals([@"😀_SP_x" fromCSSIdentifier], @"😀 x");
+}
+
+- (void) test_mailDomain
+{
+  testEquals([@"user@example.org" mailDomain], @"example.org");
+  testEquals([@"example.com" mailDomain], nil);
+  testEquals([@"a@b@c" mailDomain], nil);
+}
+
+- (void) test_pureEMailAddress
+{
+  testEquals([@"a@b.c" pureEMailAddress], @"a@b.c");
+  testEquals([@"Name <a@b.c>" pureEMailAddress], @"a@b.c");
+  testEquals([@"Name <a@b.c" pureEMailAddress], @"a@b.c");
+  testEquals([@"<a@b.c> <d@e.f>" pureEMailAddress], @"a@b.c");
+}
+
+- (void) test_asQPSubjectString
+{
+  testEquals([@"hello" asQPSubjectString: @"utf-8"], @"hello");
+  testEquals([@"café" asQPSubjectString: @"utf-8"], @"=?utf-8?q?caf=C3=A9?=");
+}
+
+- (void) test_caseInsensitiveMatches
+{
+  failIf(![@"Hello" caseInsensitiveMatches: @"hel*"]);
+  failIf([@"Hello" caseInsensitiveMatches: @"wor*"]);
+}
+
+- (void) test_componentsFromMultilineDN
+{
+  NSArray *expected;
+
+  expected = [NSArray arrayWithObjects:
+                         [NSArray arrayWithObjects: @"CN", @"Joe Doe", nil],
+                         [NSArray arrayWithObjects: @"O", @"Inverse", nil],
+                         nil];
+  testEquals([@"CN=Joe Doe\nO=Inverse\n" componentsFromMultilineDN], expected);
+  expected = [NSArray arrayWithObjects:
+                         [NSArray arrayWithObjects: @"CN", @"Joe Doe", nil],
+                         [NSArray arrayWithObjects: @"X", @"y", nil],
+                         [NSArray arrayWithObjects: @"O", @"Inverse", nil],
+                         nil];
+  testEquals([@"CN=Joe Doe + X=y\nO=Inverse\n" componentsFromMultilineDN], expected);
+  testEquals([@"not a dn" componentsFromMultilineDN], [NSArray array]);
+}
+
+- (void) test_timeValue
+{
+  testEquals([NSNumber numberWithInt: [@"Hello World" timeValue]], [NSNumber numberWithInt: 0]);
+  testEquals([NSNumber numberWithInt: [@"42" timeValue]], [NSNumber numberWithInt: 42]);
+  testEquals([NSNumber numberWithInt: [@"" timeValue]], [NSNumber numberWithInt: -1]);
+  testEquals([NSNumber numberWithInt: [@"10:30" timeValue]], [NSNumber numberWithInt: 10]);
+}
+
+- (void) test_hostlessURL
+{
+  testEquals([@"/a/b/c" hostlessURL], @"/a/b/c");
+  testEquals([@"http://host/path/x?q=1" hostlessURL], @"/path/x?q=1");
+  testEquals([@"http://host" hostlessURL], @"");
+}
+
+- (void) test_urlWithoutParameters
+{
+  testEquals([@"http://a.b/c?a=b" urlWithoutParameters], @"http://a.b/c");
+  testEquals([@"http://a.b/c" urlWithoutParameters], @"http://a.b/c");
+  testEquals([@"http://a.b/c?a=b?c=d" urlWithoutParameters], @"http://a.b/c?a=b");
+}
+
+- (void) test_composeURLWithAction
+{
+  testEquals([@"http://a.b/c" composeURLWithAction: @"save"
+                                        parameters: [NSDictionary dictionaryWithObject: @"1" forKey: @"x"]
+                                           andHash: YES],
+             @"http://a.b/c/save?x=1#");
+  testEquals([@"http://a.b/c?z=9" composeURLWithAction: @"view" parameters: nil andHash: NO],
+             @"http://a.b/c/view");
+  testEquals([@"http://a.b/" composeURLWithAction: @"save" parameters: nil andHash: NO],
+             @"http://a.b/save");
 }
 
 @end
