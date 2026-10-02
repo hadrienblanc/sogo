@@ -16,6 +16,10 @@ $(TEST_TOOL)_OBJC_FILES += \
 	SaxXMLReaderFactory+SOGoTests.m \
 	../../SoObjects/Mailer/NSString+Mail.m \
 	../../SoObjects/Mailer/NSData+Mail.m \
+	../../SoObjects/Contacts/NGVCard+SOGo.m \
+	../../SoObjects/Contacts/NSDictionary+LDIF.m \
+	../../SoObjects/Contacts/NSString+LDIF.m \
+	../../SoObjects/SOGo/SOGoDateFormatter.m \
 	\
 	TestVersit.m \
 	TestiCalTimeZonePeriod.m \
@@ -37,6 +41,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSStringMailHelpers.m \
 	TestNSDataMail.m \
  	TestNSCalendarDateSOGo.m \
+	TestContactsLDIF.m \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
 	TestNSURL+misc.m \
@@ -52,7 +57,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 TEST_TOOL_NAME = $(TEST_TOOL)
 
 $(TEST_TOOL)_CPPFLAGS += \
-	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../OpenChange $(shell xml2-config --cflags)
+	-Wall -D_GNU_SOURCE -I../../SOPE/ -I../../SoObjects/ -I../../SoObjects/Contacts -I../../UI/ -I../../OpenChange $(shell xml2-config --cflags)
 
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
