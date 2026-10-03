@@ -124,7 +124,6 @@ describe('Mailer MessageController popup flags sync', function() {
         $messageController: messageCtrl
       }
     }
-    window.opener['$messageController'] = messageCtrl
     window.messageCtrl = messageCtrl
     return window
   }
