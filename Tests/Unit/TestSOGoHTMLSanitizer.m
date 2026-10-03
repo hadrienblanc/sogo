@@ -29,6 +29,7 @@
 
 #import <SOGo/SOGoHTMLSanitizer.h>
 #import <SOGo/NSString+Utilities.h>
+#import "Mailer/NSData+Mail.h"
 
 @interface TestSOGoHTMLSanitizer : SOGoTest
 @end
@@ -259,6 +260,45 @@
   testWithMessage ([result rangeOfString: @"unsafe-src"].location != NSNotFound, error);
   error = [NSString stringWithFormat: @"base64 src neutralized: %@", result];
   testWithMessage ([result rangeOfString: @"data:image/png"].location != NSNotFound, error);
+}
+
+- (void) test_attachmentPipelineKeepsBase64Images
+{
+  SOGoHTMLSanitizer *handler;
+  id <NSObject, SaxXMLReader> parser;
+  NSData *blob, *preparsed;
+  NSString *html, *result, *error;
+
+  html = @"<!DOCTYPE html>"
+         @"<html><head><meta charset=\"utf-8\"></head><body>"
+         @"<img src=\"data:image/png;base64,iVBORw0KGgo=\" alt=\"a\"/>"
+         @"<img SRC=\"data:image/png;base64,iVBORw0KGgo=\" alt=\"b\"/>"
+         @"<img src=\"https://example.com/remote.png\" alt=\"c\"/>"
+         @"</body></html>";
+
+  blob = [html dataUsingEncoding: NSUTF8StringEncoding];
+  preparsed = [blob sanitizedContentUsingVoidTags: [SOGoHTMLSanitizer voidTags]];
+
+  handler = [[SOGoHTMLSanitizer new] autorelease];
+  [handler setContentEncoding: XML_CHAR_ENCODING_UTF8];
+
+  parser = [[SaxXMLReaderFactory standardXMLReaderFactory]
+             createXMLReaderForMimeType: @"text/html"];
+  [parser setContentHandler: handler];
+  [parser parseFromSource: preparsed];
+
+  result = [[[handler result] copy] autorelease];
+
+  error = [NSString stringWithFormat: @"base64 src dropped: %@", result];
+  testWithMessage ([result rangeOfString:
+                      @"src=\"data:image/png;base64,iVBORw0KGgo=\" alt=\"a\""].location
+                     != NSNotFound, error);
+  testWithMessage ([result rangeOfString:
+                      @"src=\"data:image/png;base64,iVBORw0KGgo=\" alt=\"b\""].location
+                     != NSNotFound, error);
+  error = [NSString stringWithFormat: @"remote src not neutralized: %@", result];
+  testWithMessage ([result rangeOfString: @"unsafe-src=\"https://example.com/remote.png\""].location
+                     != NSNotFound, error);
 }
 
 - (void) test_cidReferencesAreResolved
