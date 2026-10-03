@@ -1074,7 +1074,7 @@
                   [data setObject: newSyncToken
                            forKey: @"syncToken"];
                   response = [self responseWithStatus: 200
-                              andJSONRepresentation: data];
+                                   andJSONRepresentation: data];
                 }
             }
 
