@@ -92,6 +92,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxMailRenderingContext.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
+	TestSOGoDraftObjectQuoteSpecials.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \

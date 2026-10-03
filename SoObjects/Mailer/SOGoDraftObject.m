@@ -30,6 +30,7 @@
 
 #import <Foundation/NSURL.h>
 #import <Foundation/NSValue.h>
+#import <Foundation/NSCharacterSet.h>
 
 #import <NGObjWeb/NSException+HTTP.h>
 #import <NGObjWeb/SoObject+SoDAV.h>
@@ -1761,52 +1762,131 @@ static NSString    *userAgent      = nil;
   return NO;
 }
 
-- (NSString *) _quoteSpecials: (NSString *) address
+- (BOOL) _needsQuotingForPhrase: (NSString *) phrase
 {
-  NSString *result, *part, *s2;
+  unichar c;
   int i, len;
 
-  // We want to correctly send mails to recipients such as :
-  // foo.bar
-  // foo (bar) <foo@zot.com>
-  // bar, foo <foo@zot.com>
-  if ([address indexOf: '('] >= 0 || [address indexOf: ')'] >= 0
-      || [address indexOf: '<'] >= 0 || [address indexOf: '>'] >= 0
-      || [address indexOf: '@'] >= 0 || [address indexOf: ','] >= 0
-      || [address indexOf: ';'] >= 0 || [address indexOf: ':'] >= 0
-      || [address indexOf: '\\'] >= 0 || [address indexOf: '"'] >= 0
-      || [address indexOf: '.'] >= 0
-      || [address indexOf: '['] >= 0 || [address indexOf: ']'] >= 0)
+  len = [phrase length];
+  for (i = 0; i < len; i++)
     {
-      // We search for the first instance of < from the end
-      // and we quote what was before if we need to
-      len = [address length];
-      i = -1;
-      while (len--)
-        if ([address characterAtIndex: len] == '<')
-          {
-            i = len;
-            break;
-          }
-
-      if (i > 0)
-        {
-          part = [address substringToIndex: i - 1];
-          s2 = [[part stringByReplacingString: @"\\" withString: @"\\\\"]
-                     stringByReplacingString: @"\"" withString: @"\\\""];
-          result = [NSString stringWithFormat: @"\"%@\" %@", s2, [address substringFromIndex: i]];
-        }
-      else
-        {
-          s2 = [[address stringByReplacingString: @"\\" withString: @"\\\\"]
-                     stringByReplacingString: @"\"" withString: @"\\\""];
-          result = [NSString stringWithFormat: @"\"%@\"", s2];
-        }
+      c = [phrase characterAtIndex: i];
+      if (c == ',' || c == ';' || c == ':' || c == '@' || c == '.'
+          || c == '<' || c == '>' || c == '[' || c == ']'
+          || c == '(' || c == ')' || c == '\\' || c == '"')
+        return YES;
     }
-  else
-    result = address;
 
-  return result;
+  return NO;
+}
+
+- (BOOL) _alreadyProperlyFormatted: (NSString *) phrase
+{
+  int len;
+
+  len = [phrase length];
+
+  if (len > 1 && [phrase characterAtIndex: 0] == '"'
+      && [phrase characterAtIndex: (len - 1)] == '"')
+    return YES;
+
+  if (len > 5 && [phrase hasPrefix: @"=?"] && [phrase hasSuffix: @"?="])
+    return YES;
+
+  return NO;
+}
+
+- (NSString *) _quoteAndEscape: (NSString *) phrase
+{
+  NSString *escaped;
+
+  escaped = [[phrase stringByReplacingString: @"\\" withString: @"\\\\"]
+                    stringByReplacingString: @"\"" withString: @"\\\""];
+
+  return [NSString stringWithFormat: @"\"%@\"", escaped];
+}
+
+- (BOOL) _isBareEmailAddress: (NSString *) address
+{
+  unichar c;
+  int i, len, atCount, atPosition;
+
+  len = [address length];
+  atCount = 0;
+  atPosition = -1;
+  for (i = 0; i < len; i++)
+    {
+      c = [address characterAtIndex: i];
+      if (c == '@')
+        {
+          atCount++;
+          atPosition = i;
+          if (atCount > 1)
+            return NO;
+        }
+      else if (c == ',' || c == ';' || c == ':' || c == '<' || c == '>'
+               || c == '[' || c == ']' || c == '(' || c == ')'
+               || c == '\\' || c == '"' || c == ' ')
+        return NO;
+    }
+
+  return (atCount == 1 && atPosition > 0 && atPosition < (len - 1));
+}
+
+- (NSString *) _quoteSpecials: (NSString *) address
+{
+  NSString *phrase, *trimmed;
+  int i, len;
+
+  if (![address length])
+    return address;
+
+  i = -1;
+  len = [address length];
+  while (len--)
+    if ([address characterAtIndex: len] == '<')
+      {
+        i = len;
+        break;
+      }
+
+  if (i > 0)
+    {
+      phrase = [address substringToIndex: i];
+      trimmed = [phrase stringByTrimmingCharactersInSet:
+                            [NSCharacterSet whitespaceCharacterSet]];
+
+      if (![trimmed length])
+        return address;
+
+      if ([self _alreadyProperlyFormatted: trimmed])
+        return address;
+
+      if ([self _needsQuotingForPhrase: trimmed])
+        return [NSString stringWithFormat: @"%@ %@",
+                         [self _quoteAndEscape: trimmed],
+                         [address substringFromIndex: i]];
+
+      return [NSString stringWithFormat: @"%@ %@",
+                       trimmed, [address substringFromIndex: i]];
+    }
+
+  if (i == 0)
+    return address;
+
+  if ([self _isBareEmailAddress: address])
+    return address;
+
+  trimmed = [address stringByTrimmingCharactersInSet:
+                              [NSCharacterSet whitespaceCharacterSet]];
+
+  if ([self _alreadyProperlyFormatted: trimmed])
+    return trimmed;
+
+  if ([self _needsQuotingForPhrase: trimmed])
+    return [self _quoteAndEscape: trimmed];
+
+  return address;
 }
 
 - (NSArray *) _quoteSpecialsInArray: (NSArray *) addresses
