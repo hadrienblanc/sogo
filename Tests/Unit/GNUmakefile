@@ -98,6 +98,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoContactSourceFolder.m \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
+	TestSOGoCacheLifecycle.m \
 	TestUIxMailRenderingContext.m \
 	TestUIxMailListActionsChanges.m \
 	TestWORequest+SOGo.m \

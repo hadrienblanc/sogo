@@ -62,6 +62,7 @@
 
   if (ex)
     {
+      RELEASE(dispatcher);
       return [NSException exceptionWithHTTPStatus: 500];
     }
 
