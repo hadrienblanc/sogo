@@ -30,5 +30,6 @@
 - (NGCalendarDateRange *) firstOccurenceRange;
 - (NSTimeInterval) occurenceInterval;
 - (BOOL) doesOccurOnDate: (NSCalendarDate *) occurenceDate;
+- (BOOL) isInvitationRequestForUser: (SOGoUser *) user;
 
 @end
