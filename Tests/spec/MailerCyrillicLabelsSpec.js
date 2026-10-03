@@ -15,7 +15,8 @@ Can you read me?
 `
 
 describe('Mailer cyrillic labels (bug 6222)', function() {
-  const folder = 'foldertest-6222-labels'
+  const mailbox = 'test-6222-labels'
+  const folder = `folder${mailbox}`
   const cyrillicLabel = 'тест'
 
   let webdav
@@ -44,10 +45,18 @@ describe('Mailer cyrillic labels (bug 6222)', function() {
     return headers[1][9]
   }
 
+  const _addCyrillicLabel = async function() {
+    const response = await _postAction('addOrRemoveLabel',
+                                       {operation: 'add', msgUIDs: [messageUid], flags: cyrillicLabel})
+    expect(response.status)
+      .withContext('HTTP status code when adding a cyrillic label')
+      .toBe(204)
+  }
+
   beforeAll(async function() {
     webdav = new WebDAV(config.username, config.password)
 
-    const [response] = await webdav.makeCollection(`/SOGo/dav/${config.username}/Mail/0/${folder}`)
+    const [response] = await webdav.makeCollection(`/SOGo/dav/${config.username}/Mail/0/${mailbox}`)
     expect(response.status)
       .withContext('HTTP status code when creating the test folder')
       .toBe(201)
@@ -71,14 +80,11 @@ describe('Mailer cyrillic labels (bug 6222)', function() {
   })
 
   it('attaches a cyrillic tag to a message', async function() {
-    const response = await _postAction('addOrRemoveLabel',
-                                       {operation: 'add', msgUIDs: [messageUid], flags: cyrillicLabel})
-    expect(response.status)
-      .withContext('HTTP status code when adding a cyrillic label (used to be 501)')
-      .toBe(204)
+    await _addCyrillicLabel()
   })
 
   it('exposes the cyrillic label name on the folder', async function() {
+    await _addCyrillicLabel()
     const response = await webdav.getHttp(`/SOGo/so/${config.username}/Mail/0/${folder}/labels`)
     expect(response.status)
       .withContext('HTTP status code when fetching the folder labels')
@@ -90,11 +96,13 @@ describe('Mailer cyrillic labels (bug 6222)', function() {
   })
 
   it('shows the cyrillic tag on the message', async function() {
+    await _addCyrillicLabel()
     const tags = await _tagsOnMessage(messageUid)
     expect(tags).withContext('tags of the message after adding a cyrillic label').toContain(cyrillicLabel)
   })
 
   it('filters the message list on the cyrillic label', async function() {
+    await _addCyrillicLabel()
     const data = await _uidsInView({labels: [cyrillicLabel]})
     expect(data.uids)
       .withContext('uids matching the cyrillic label')
