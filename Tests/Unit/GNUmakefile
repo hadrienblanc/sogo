@@ -90,12 +90,19 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
 	TestUIxMailRenderingContext.m \
+	TestUIxMailListActionsChanges.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	TestSOGoDraftObjectQuoteSpecials.m \
 	TestSOGoDraftObjectIDNFrom.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
+	../../UI/MailerUI/WOContext+UIxMailer.m \
+	../../UI/MailerUI/UIxMailFormatter.m \
+	../../UI/MailerUI/UIxEnvelopeAddressFormatter.m \
+	../../UI/SOGoUI/SOGoDirectAction.m \
+	../../UI/MailPartViewers/UIxMailSizeFormatter.m \
+	../../UI/MailerUI/UIxMailListActions.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/iCalToDo+ActiveSync.m \
 	../../ActiveSync/NSString+ActiveSync.m \
@@ -112,9 +119,9 @@ $(TEST_TOOL)_CPPFLAGS += \
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGObjWeb -lDOM -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
 	-L../../SoObjects/Appointments/Appointments.SOGo -l:Appointments \
-	-L/usr/local/lib  -lSaxObjC -lNGStreams \
+	-L/usr/local/lib  -lSaxObjC -lNGStreams -lEOControl \
 	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj -Wl,-rpath,../../SoObjects/Appointments/Appointments.SOGo
-ADDITIONAL_LDFLAGS += -Wl,--no-as-needed
+ADDITIONAL_LDFLAGS += -Wl,--no-as-needed -Wl,--unresolved-symbols=ignore-in-object-files
 
 ifeq ($(HAS_LIBRARY_sodium), yes)
 ADDITIONAL_CPPFLAGS += -DHAVE_SODIUM=1 `pkg-config --cflags libsodium`
