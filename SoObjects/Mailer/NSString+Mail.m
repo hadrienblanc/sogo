@@ -784,7 +784,8 @@ DomainByDecodingIDNLabels (NSString *domain)
   handler = [_SOGoHTMLContentHandler htmlToTextContentHandler];
   [parser setContentHandler: handler];
 
-  d = [self dataUsingEncoding: NSUTF8StringEncoding];
+  d = [[self dataUsingEncoding: NSUTF8StringEncoding]
+                sanitizedContentUsingVoidTags: nil];
   [parser parseFromSource: d];
 
   return [[handler result] stringByReplacingOccurrencesOfString: @"--\u00A0\n"

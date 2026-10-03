@@ -120,6 +120,16 @@
              @" * inheadx");
 }
 
+- (void) test_htmlToText_metaCharsetDeclaration
+{
+  testEquals([@"<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\"></head><body>Buchungsbestätigung</body></html>" htmlToText],
+             @"Buchungsbestätigung");
+  testEquals([@"<html><head><meta charset=\"windows-1252\"></head><body>Sehr geehrter Herr Skwar, vielen Dank für Ihre Buchung.</body></html>" htmlToText],
+             @"Sehr geehrter Herr Skwar, vielen Dank für Ihre Buchung.");
+  testEquals([@"<meta charset=\"utf-8\">Grüße aus München" htmlToText],
+             @"Grüße aus München");
+}
+
 - (void) test_htmlToText_signatureDelimiter
 {
   testEquals([@"<br /><br />--&nbsp;<br />Simon" htmlToText], @"\n\n-- \nSimon");
