@@ -1,64 +1,27 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
 
-#import <NGMime/NGMimeHeaderFieldGenerator.h>
-
-#import <SOGo/SOGoObject.h>
-#import <Mailer/SOGoDraftObject.h>
-
-#import "SOGoTest.h"
-
-#define DRAFT_CLASS_NAME @"SOGoDraftObject"
+#import "SOGoDraftObjectTestCase.h"
 
 @interface SOGoDraftObject (IDNFromTests)
 - (NSString *) _idnFrom: (NSString *) theFrom;
 - (NSArray *) _idnFromInArray: (NSArray *) theFroms;
 @end
 
-@interface TestSOGoDraftObjectIDNFrom : SOGoTest
-{
-  SOGoDraftObject *draft;
-}
+@interface TestSOGoDraftObjectIDNFrom : SOGoDraftObjectTestCase
 
 @end
 
 @implementation TestSOGoDraftObjectIDNFrom
 
-static Class
-LoadDraftClass ()
+- (NSString *) draftName
 {
-  static Class draftClass = Nil;
-
-  if (!draftClass)
-    {
-      if (![SOGoTest loadSOGoBundle: @"Contacts"
-                          markerClass: DRAFT_CLASS_NAME])
-        [SOGoTest loadSOGoBundle: @"Mailer"
-                      markerClass: DRAFT_CLASS_NAME];
-      draftClass = NSClassFromString (DRAFT_CLASS_NAME);
-    }
-
-  return draftClass;
+  return @"idnFromDraft6233";
 }
 
-- (void) setUp
+- (NSString *) _generatedHeaderFor: (NSString *) theFrom
 {
-  Class draftClass;
-
-  draftClass = LoadDraftClass ();
-  testWithMessage (draftClass != Nil,
-                   @"SOGoDraftObject class unavailable (Mailer.SOGo bundle missing)");
-  if (!draftClass)
-    return;
-
-  draft = [[draftClass alloc] initWithName: @"idnFromDraft6233"
-                                 inContainer: nil];
-}
-
-- (void) tearDown
-{
-  [draft release];
-  [super tearDown];
+  return [self generatedHeaderFor: [draft _idnFrom: theFrom]];
 }
 
 - (void) test_barePunycodeFromGetsIDNDisplayName
@@ -114,20 +77,6 @@ LoadDraftClass ()
 
   testEquals([draft _idnFromInArray: [NSArray array]], [NSArray array]);
   testEquals([draft _idnFromInArray: input], expected);
-}
-
-- (NSString *) _generatedHeaderFor: (NSString *) theFrom
-{
-  NGMimeAddressHeaderFieldGenerator *generator;
-  NSString *transformed;
-
-  generator = [NGMimeAddressHeaderFieldGenerator headerFieldGenerator];
-  transformed = [draft _idnFrom: theFrom];
-
-  return [[[NSString alloc] initWithData:
-              [generator generateDataForHeaderFieldNamed: @"from"
-                                                    value: transformed]
-                              encoding: NSASCIIStringEncoding] autorelease];
 }
 
 - (void) test_generatedHeaderCarriesIDNFormAsEncodedWord

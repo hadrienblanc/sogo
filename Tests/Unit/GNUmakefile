@@ -13,6 +13,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	\
 	SOGoTest.m \
 	SOGoTestRunner.m \
+	SOGoDraftObjectTestCase.m \
 	SaxXMLReaderFactory+SOGoTests.m \
 	../../SoObjects/Mailer/NSString+Mail.m \
 	../../SoObjects/Mailer/NSData+Mail.m \
@@ -78,6 +79,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestServerCore.m \
 	TestNGVList.m \
 	TestSOGoDraftObject.m \
+	TestSOGoDraftObjectIDNFrom.m \
+	TestSOGoDraftObjectQuoteSpecials.m \
 	TestSOGoDraftsFolder.m \
 	TestSOGoMailFolder.m \
 	TestSOGoMailForward.m \
@@ -93,8 +96,6 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxMailListActionsChanges.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
-	TestSOGoDraftObjectQuoteSpecials.m \
-	TestSOGoDraftObjectIDNFrom.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
 	../../UI/MailerUI/WOContext+UIxMailer.m \

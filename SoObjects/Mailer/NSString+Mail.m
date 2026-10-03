@@ -778,7 +778,6 @@ DomainByDecodingIDNLabels (NSString *domain)
   _SOGoHTMLContentHandler *handler;
   id <NSObject, SaxXMLReader> parser;
   NSData *d;
-  NSString *text;
 
   parser = [[SaxXMLReaderFactory standardXMLReaderFactory]
              createXMLReaderForMimeType: @"text/html"];
@@ -788,10 +787,8 @@ DomainByDecodingIDNLabels (NSString *domain)
   d = [self dataUsingEncoding: NSUTF8StringEncoding];
   [parser parseFromSource: d];
 
-  text = [handler result];
-
-  return [text stringByReplacingOccurrencesOfString: @"--\u00A0\n"
-                                          withString: @"-- \n"];
+  return [[handler result] stringByReplacingOccurrencesOfString: @"--\u00A0\n"
+                                                      withString: @"-- \n"];
 }
 
 - (BOOL) isFullHTMLDocument
