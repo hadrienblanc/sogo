@@ -1238,6 +1238,13 @@ static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *rege
 }
 
 - (NSString *) cleanInvalidHTMLTags {
+  // Clean HTML invalid tags as reported in https://bugs.sogo.nu/view.php?id=5755 and https://bugs.sogo.nu/view.php?id=6167
+  // libxml2 (HTML4) sees a standalone empty comment (<!--> or <!--->) as an
+  // unterminated comment and drops the rest of the document, so remove it.
+  // Only do it outside of comments: the Outlook "downlevel-revealed" pattern
+  // <!--[if !mso]><!--> ... <!--<![endif]--> ends its first comment with
+  // "<!-->", and removing it would hide the content in between.
+
   NSString *result;
   unichar *in, *out;
   NSUInteger len, i, j, o;
@@ -1245,6 +1252,8 @@ static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *rege
   len = [self length];
   if (len == 0)
     return [NSString string];
+
+  // Work on raw buffers: linear time, bounded memory (no per-comment objects)
 
   in = NSZoneMalloc (NULL, len * sizeof (unichar));
   out = NSZoneMalloc (NULL, len * sizeof (unichar));
@@ -1259,14 +1268,21 @@ static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *rege
           j = i + 4;
           if (j < len && in[j] == '>')
             {
+              // <!-->
+
               i = j + 1;
               continue;
             }
           if (j + 1 < len && in[j] == '-' && in[j+1] == '>')
             {
+              // <!--->
+
               i = j + 2;
               continue;
             }
+
+          // Regular comment: keep it untouched up to its end ("-->" or "--!>",
+          // as libxml2 accepts both), or up to the end if unterminated
 
           while (j < len)
             {
