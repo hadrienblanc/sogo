@@ -1200,7 +1200,7 @@ static NSString * RemoveRegexMatches(NSString *string, NSRegularExpression *rege
       // before the '=' ("onerror =") and handler names that were not listed
       // before (onfocus, onbegin, onanimationstart, ...). With onfocus gone,
       // a lone "autofocus" has no handler left to trigger.
-      regex = [NSRegularExpression regularExpressionWithPattern:@"\\bon(click|error|focus|load|mouseover|animationstart)[\\s\\u200B&#x09;&#x0A;&#x0D;\\r\\n\\t]*="
+      regex = [NSRegularExpression regularExpressionWithPattern:@"(?<![?&=;])\\bon(click|error|focus|load|mouseover|animationstart)[\\s\\u200B&#x09;&#x0A;&#x0D;\\r\\n\\t]*="
                                    options: NSRegularExpressionCaseInsensitive error:&error];
       result = ReplaceRegexMatches(result, regex, @"data-blocked=");
 
