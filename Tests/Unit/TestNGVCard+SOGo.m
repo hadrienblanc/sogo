@@ -207,6 +207,30 @@ LoadContactsBundle ()
   test (mobileLines == 2);
 }
 
+- (void) test_asLDIFRecordExportsAllPhonesFromBug6106Card
+{
+  NGVCard *card;
+  NSDictionary *record;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"TEL;TYPE=HOME:+41 22 819 44 85\r\n"
+           @"TEL;TYPE=WORK:+41 848 726 224\r\n"
+           @"TEL;TYPE=WORK:+41 800 633 225\r\n"
+           @"ORG:Sana24\r\n"
+           @"CATEGORIES:Firmen / Hotlines,Alle,myContacts\r\n"
+           @"END:VCARD\r\n"];
+
+  record = [card asLDIFRecord];
+
+  testEquals([record objectForKey: @"homephone"],
+             [NSArray arrayWithObject: @"+41 22 819 44 85"]);
+  testEquals(([record objectForKey: @"telephonenumber"]),
+             ([NSArray arrayWithObjects: @"+41 848 726 224",
+                                        @"+41 800 633 225", nil]));
+}
+
 - (void) test_updateFromLDIFRecordExpandsPhoneArrays
 {
   NGVCard *card, *importedCard;
