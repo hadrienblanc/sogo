@@ -84,6 +84,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoDraftObjectQuoteSpecials.m \
 	TestSOGoDraftsFolder.m \
 	TestSOGoMailFolder.m \
+	TestSOGoMailFolderSortOrder.m \
 	TestSOGoMailForward.m \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \

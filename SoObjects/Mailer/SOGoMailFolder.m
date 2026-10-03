@@ -120,6 +120,26 @@ static NSInteger _compareFetchResultsByUID (id entry1, id entry2, NSDictionary *
     return NSOrderedAscending;
 }
 
+static NSComparisonResult _compareUIDsByValue (id uid1, id uid2, void *data)
+{
+  long long value1, value2;
+
+  value1 = [uid1 longLongValue];
+  value2 = [uid2 longLongValue];
+
+  if (value1 < value2)
+    return NSOrderedAscending;
+  else if (value1 > value2)
+    return NSOrderedDescending;
+
+  return NSOrderedSame;
+}
+
+static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, void *data)
+{
+  return _compareUIDsByValue ([thread1 lastObject], [thread2 lastObject], NULL);
+}
+
 @interface NGImap4Connection (PrivateMethods)
 
 - (NSString *) imap4FolderNameForURL: (NSURL *) url;
@@ -998,6 +1018,70 @@ static NSInteger _compareFetchResultsByUID (id entry1, id entry2, NSDictionary *
   return unseen;
 }
 
+- (NSArray *) _fetchUIDsInWriteOrderMatchingQualifier: (id) _q
+{
+  NGImap4Connection *connection;
+  NSDictionary *result;
+  NSArray *uids;
+
+  connection = [self imap4Connection];
+
+  if (![connection selectFolder: [self imap4URL]])
+    return nil;
+
+  result = [[connection client] searchWithQualifier: (EOQualifier *) _q];
+  if (![[result valueForKey: @"result"] boolValue])
+    return nil;
+
+  uids = [result valueForKey: @"search"];
+
+  return [uids isNotNull] ? uids : nil;
+}
+
+- (NSArray *) _fetchThreadedUIDsInWriteOrderMatchingQualifier: (id) _q
+                                                     reverse: (BOOL) _reverse
+{
+  NSArray *uids, *sortedThreads;
+  NSMutableArray *threads;
+  NSEnumerator *e;
+  id thread;
+
+  uids = [[self imap4Connection] fetchThreadedUIDsInURL: [self imap4URL]
+                                              qualifier: _q
+                                           sortOrdering: @"ARRIVAL"];
+  if (![uids isNotNull])
+    return nil;
+
+  if (![uids count] || ![[uids objectAtIndex: 0] isKindOfClass: [NSArray class]])
+    {
+      uids = [uids sortedArrayUsingFunction: _compareUIDsByValue
+                                    context: NULL];
+      if (_reverse)
+        uids = [[uids reverseObjectEnumerator] allObjects];
+
+      return uids;
+    }
+
+  threads = [NSMutableArray arrayWithCapacity: [uids count]];
+  e = [uids objectEnumerator];
+  while ((thread = [e nextObject]))
+    [threads addObject: [thread sortedArrayUsingFunction: _compareUIDsByValue
+                                                  context: NULL]];
+
+  sortedThreads = [threads sortedArrayUsingFunction: _compareThreadsByNewestUID
+                                             context: NULL];
+  if (_reverse)
+    {
+      threads = [NSMutableArray arrayWithCapacity: [sortedThreads count]];
+      e = [sortedThreads reverseObjectEnumerator];
+      while ((thread = [e nextObject]))
+        [threads addObject: [[thread reverseObjectEnumerator] allObjects]];
+      sortedThreads = threads;
+    }
+
+  return sortedThreads;
+}
+
 - (NSArray *) fetchUIDsMatchingQualifier: (id) _q
 			    sortOrdering: (id) _so
 {
@@ -1010,6 +1094,35 @@ static NSInteger _compareFetchResultsByUID (id entry1, id entry2, NSDictionary *
 			    sortOrdering: (id) _so
                                 threaded: (BOOL) _threaded
 {
+  NSArray *uids;
+  BOOL isArrival, reverse;
+
+  isArrival = NO;
+  reverse = NO;
+  if ([_so isKindOfClass: [NSString class]])
+    {
+      if ([_so caseInsensitiveCompare: @"ARRIVAL"] == NSOrderedSame)
+        isArrival = YES;
+      else if ([_so caseInsensitiveCompare: @"REVERSE ARRIVAL"] == NSOrderedSame)
+        {
+          isArrival = YES;
+          reverse = YES;
+        }
+    }
+
+  if (isArrival)
+    {
+      if (_threaded)
+        return [self _fetchThreadedUIDsInWriteOrderMatchingQualifier: _q
+                                                             reverse: reverse];
+
+      uids = [self _fetchUIDsInWriteOrderMatchingQualifier: _q];
+      if ([uids isNotNull] && reverse)
+        uids = [[uids reverseObjectEnumerator] allObjects];
+
+      return uids;
+    }
+
   if (_threaded)
     {
       return [[self imap4Connection] fetchThreadedUIDsInURL: [self imap4URL]
