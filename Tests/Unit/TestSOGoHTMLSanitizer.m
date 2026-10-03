@@ -362,6 +362,31 @@
   testWithMessage ([css rangeOfString: @"margin"].location == NSNotFound, error);
 }
 
+- (void) test_braceLessAtRuleDoesNotSwallowTheNextRule
+{
+  SOGoHTMLSanitizer *handler;
+  NSString *css, *error;
+
+  handler = [self sanitizeHTML:
+               @"<body><style>@import url(\"x.css\"); "
+               @"p.MsoNormal{ margin: 0cm; mso-pagination: widow-orphan; } "
+               @"div.WordSection1{ page: WordSection1; }"
+               @"</style><p>text</p></body>"
+                        rawContent: NO];
+
+  css = [handler css];
+
+  error = [NSString stringWithFormat: @"at-rule statement kept: %@", css];
+  testWithMessage ([css rangeOfString: @"@import"].location == NSNotFound, error);
+  error = [NSString stringWithFormat: @"rule after brace-less at-rule swallowed: %@", css];
+  testWithMessage ([css rangeOfString: @"p.MsoNormal {"].location != NSNotFound, error);
+  testWithMessage ([css rangeOfString: @"margin: 0cm !important"].location != NSNotFound, error);
+  testWithMessage ([css rangeOfString: @"mso-pagination: widow-orphan !important"].location
+                     != NSNotFound, error);
+  error = [NSString stringWithFormat: @"later rule lost: %@", css];
+  testWithMessage ([css rangeOfString: @"div.WordSection1 {"].location != NSNotFound, error);
+}
+
 - (void) test_styleAttributesWithUrlAreNeutralized
 {
   NSString *result, *error;
