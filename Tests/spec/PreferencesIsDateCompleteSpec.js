@@ -128,3 +128,52 @@ describe('Preferences date locale (bug 6182)', function() {
     expect(hungarian.isDateComplete('23.03.26..')).toBe(false)
   })
 })
+
+describe('Preferences date locale (bug 6230)', function() {
+
+  const digitMonths = name => Array.from({ length: 12 }, (unused, index) => `${index + 1}${name}`)
+  const japaneseTables = { months: digitMonths('月'), shortMonths: digitMonths('月'), days: [], shortDays: [] }
+  const koreanTables = { months: digitMonths('월'), shortMonths: digitMonths('월'), days: [], shortDays: [] }
+  const japanese = loadDateLocale({
+    SOGoShortDateFormat: '%d-%b-%y',
+    SOGoFirstDayOfWeek: 0,
+    locale: japaneseTables
+  })
+  const korean = loadDateLocale({
+    SOGoShortDateFormat: '%d-%b-%y',
+    SOGoFirstDayOfWeek: 0,
+    locale: koreanTables
+  })
+
+  it('formats Japanese dates with digit-prefixed month names and reports them complete', function() {
+    const dateString = japanese.formatDate(new Date(2026, 6, 1))
+    expect(dateString)
+      .withContext('formatted %d-%b-%y date')
+      .toBe('01-7月-26')
+    expect(japanese.isDateComplete(dateString))
+      .withContext('isDateComplete on the formatted date')
+      .toBe(true)
+  })
+
+  it('formats Korean dates with digit-prefixed month names and reports them complete', function() {
+    const dateString = korean.formatDate(new Date(2026, 6, 1))
+    expect(dateString)
+      .withContext('formatted %d-%b-%y date')
+      .toBe('01-7월-26')
+    expect(korean.isDateComplete(dateString))
+      .withContext('isDateComplete on the formatted date')
+      .toBe(true)
+  })
+
+  it('parses back a Japanese date holding a digit-prefixed month name', function() {
+    const parsed = japanese.parseDate('01-7月-26')
+    expect(parsed.getFullYear()).toBe(2026)
+    expect(parsed.getMonth()).toBe(6)
+    expect(parsed.getDate()).toBe(1)
+  })
+
+  it('still reports partially typed Japanese dates as incomplete', function() {
+    expect(japanese.isDateComplete('01-7月')).toBe(false)
+    expect(japanese.isDateComplete('01-')).toBe(false)
+  })
+})
