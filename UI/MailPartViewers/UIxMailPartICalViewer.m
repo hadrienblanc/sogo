@@ -46,6 +46,7 @@
 #import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/SOGoUserManager.h>
 #import <SOGo/NSString+Utilities.h>
+#import <Appointments/iCalCalendar+SOGo.h>
 #import <Appointments/iCalEntityObject+SOGo.h>
 #import <Appointments/iCalRepeatableEntityObject+SOGo.h>
 #import <Appointments/SOGoAppointmentFolder.h>
@@ -600,13 +601,32 @@
     return;
 
   if ([self storedEventObject] != nil)
-    return;
+    {
+      [self _updateStoredInvitationForUser: user];
+      return;
+    }
 
   folder = [user personalCalendarFolderInContext: context];
   eventObject = [SOGoAppointmentObject objectWithName: [[self inEvent] uid]
                                           inContainer: folder];
   [eventObject setIsNew: YES];
   [eventObject saveCalendar: [self inCalendar]];
+}
+
+- (void) _updateStoredInvitationForUser: (SOGoUser *) user
+{
+  SOGoAppointmentObject *eventObject;
+  iCalCalendar *storedCalendar;
+
+  eventObject = [self storedEventObject];
+  storedCalendar = [eventObject calendar: NO  secure: NO];
+
+  if (storedCalendar
+      && [storedCalendar applyInvitationUpdate: [self inEvent]  forUser: user])
+    {
+      [eventObject saveCalendar: storedCalendar];
+      [eventObject flush];
+    }
 }
 
 - (id) renderedPart

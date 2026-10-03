@@ -26,6 +26,7 @@
 @class NSString;
 @class iCalEvent;
 @class iCalToDo;
+@class SOGoUser;
 
 @interface iCalCalendar (SOGoExtensions)
 
@@ -34,6 +35,8 @@
 - (NSArray *) quickRecordsFromContent: (NSString *) theContent
                             container: (id) theContainer
                       nameInContainer: (NSString *) nameInContainer;
+- (BOOL) applyInvitationUpdate: (iCalEvent *) newEvent
+                       forUser: (SOGoUser *) user;
 
 @end
 
