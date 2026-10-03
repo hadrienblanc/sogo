@@ -34,6 +34,7 @@
 - (NSString *) uidForUser: (SOGoUser *) user;
 - (NSString *) uidInDomain: (NSString *) domain;
 - (NSString *) uidInContext: (WOContext *) context;
+- (BOOL) hasAccountInContext: (WOContext *) context;
 - (NSString *) contactIDInContext: (WOContext *) context;
 - (BOOL) hasSentBy;
 - (NSString *) sentBy;

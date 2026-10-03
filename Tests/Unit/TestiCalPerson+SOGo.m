@@ -41,6 +41,7 @@
 - (NSString *) uid;
 - (NSString *) uidForUser: (SOGoUser *) user;
 - (NSString *) uidInContext: (WOContext *) context;
+- (BOOL) hasAccountInContext: (WOContext *) context;
 @end
 
 @interface iCalEntityObject (SOGoTestsDeclaration)
@@ -399,6 +400,68 @@ LoadAppointmentsBundle ()
       testEquals ([attendee roleWithDefault], @"OPT-PARTICIPANT");
       testEquals ([attendee partStatWithDefault], @"TENTATIVE");
     }
+}
+
+- (void) test_hasAccountInContextAcceptsAddressOwnedByActiveUser
+{
+  WOContext *context;
+  iCalEvent *event;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  context = [self _contextWithUser];
+  event = [self _eventWithOrganizer: @"test-6144-alias@example.org"
+                          attendees: [NSArray array]];
+
+  test ([[event organizer] hasAccountInContext: context]);
+}
+
+- (void) test_hasAccountInContextRejectsForeignAddress
+{
+  WOContext *context;
+  iCalEvent *event;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  context = [self _contextWithUser];
+  event = [self _eventWithOrganizer: @"organizer6202@example.invalid"
+                          attendees: [NSArray array]];
+
+  test (![[event organizer] hasAccountInContext: context]);
+}
+
+- (void) test_hasAccountInContextRejectsMissingOrganizer
+{
+  WOContext *context;
+  iCalEvent *event;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  context = [self _contextWithUser];
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-6202-noorganizer\r\n"
+                     @"SUMMARY:test 6202\r\n"
+                     @"DTSTART:20261015T100000Z\r\n"
+                     @"DTEND:20261015T110000Z\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  test (![[event organizer] hasAccountInContext: context]);
 }
 
 @end

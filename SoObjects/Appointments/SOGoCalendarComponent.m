@@ -787,6 +787,7 @@ static NSArray *allowed_tags = nil;
   WOApplication *app;
   unsigned i, count;
   iCalPerson *attendee;
+  iCalPerson *organizer;
   NSString *recipient;
   SOGoAptMailNotification *p;
   NSString *mailDate, *subject, *text;
@@ -818,17 +819,15 @@ static NSArray *allowed_tags = nil;
       if (count)
 	{
 	  /* sender */
-	  shortSenderEmail = [[object organizer] rfc822Email];
-	  if ([shortSenderEmail length])
-            senderEmail = [[object organizer] mailAddress];
-          else
-            {
-              shortSenderEmail = [[previousObject organizer] rfc822Email];
-              senderEmail = [[previousObject organizer] mailAddress];
-            }
+	  organizer = [object organizer];
+	  if (![organizer hasAccountInContext: context])
+	    organizer = [previousObject organizer];
 
-          // No organizer, grab the event's owner
-          if (![senderEmail length])
+          shortSenderEmail = [organizer rfc822Email];
+          senderEmail = [organizer mailAddress];
+
+          // No organizer handled by this server, grab the event's owner
+          if (![organizer hasAccountInContext: context])
             senderEmail = shortSenderEmail = [[ownerUser primaryIdentity] objectForKey: @"email"];
 
           /* calendar part */

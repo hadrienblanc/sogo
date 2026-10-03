@@ -138,6 +138,12 @@ static SOGoUserManager *um = nil;
   return uid;
 }
 
+- (BOOL) hasAccountInContext: (WOContext *) context
+{
+  return ([[self rfc822Email] length] > 0
+          && [[self uidInContext: context] length] > 0);
+}
+
 - (BOOL) hasSentBy
 {
   NSString *mail;
