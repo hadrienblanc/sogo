@@ -341,12 +341,12 @@
   ud = [user userDefaults];
 
   if ([ud busyOffHours])
-    [infos addObjectsFromArray: [self busyOffHoursInfosFrom: startDate
-                                                         to: endDate
-                                               dayStartHour: [ud dayStartHour]
-                                                 dayEndHour: [ud dayEndHour]
-                                             ownerTimeZone: [ud timeZone]
-                                               viewTimeZone: [[[context activeUser] userDefaults] timeZone]]];
+    [infos addObjectsFromArray: [[self class] busyOffHoursInfosFrom: startDate
+                                                               to: endDate
+                                                     dayStartHour: [ud dayStartHour]
+                                                       dayEndHour: [ud dayEndHour]
+                                                   ownerTimeZone: [ud timeZone]
+                                                     viewTimeZone: [[[context activeUser] userDefaults] timeZone]]];
 
   return infos;
 }

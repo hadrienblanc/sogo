@@ -361,6 +361,14 @@ static NSArray *VoidTags = nil;
               hasEmbeddedCSS = YES;
               embeddedCSSLevel = 0;
             }
+          else if (*currentChar == ';')
+            {
+              if (hasEmbeddedCSS && embeddedCSSLevel == 0)
+                {
+                  hasEmbeddedCSS = NO;
+                  start = currentChar + 1;
+                }
+            }
         }
     }
   if (currentChar > start)

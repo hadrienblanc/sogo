@@ -41,6 +41,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Crypto.m \
 	TestNSString+URLEscaping.m \
 	TestNSString+Utilities.m \
+	TestNSString+Imap4LabelName.m \
 	TestNSString+Mail.m \
 	TestNSStringMailHelpers.m \
 	TestNSDataMail.m \
@@ -53,6 +54,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	\
 	TestRTFHandler.m \
 	TestSOGoHTMLSanitizer.m \
+	TestSOGoFreeBusyObject.m \
 	../../SoObjects/Contacts/NGVCard+SOGo.m \
 	../../SoObjects/Contacts/NSDictionary+LDIF.m \
 	../../SoObjects/Contacts/NSString+LDIF.m \
@@ -70,8 +72,9 @@ $(TEST_TOOL)_CPPFLAGS += \
 
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGObjWeb -lDOM -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
+	-L../../SoObjects/Appointments/Appointments.SOGo -l:Appointments \
 	-L/usr/local/lib  -lSaxObjC -lNGStreams \
-	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj
+	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj -Wl,-rpath,../../SoObjects/Appointments/Appointments.SOGo
 ADDITIONAL_LDFLAGS += -Wl,--no-as-needed
 
 ifeq ($(HAS_LIBRARY_sodium), yes)
@@ -81,6 +84,10 @@ endif
 
 -include GNUmakefile.preamble
 include $(GNUSTEP_MAKEFILES)/test-tool.make
+
+before-all::
+	$(MAKE) -C ../../SoObjects/Appointments --no-print-directory all
+
 -include GNUmakefile.postamble
 
 check :: $(TEST_TOOL)

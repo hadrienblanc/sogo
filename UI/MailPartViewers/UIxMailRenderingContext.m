@@ -33,12 +33,14 @@
 
 @interface UIxMailRenderingContext (Private)
 
-- (BOOL) _shouldDisplayAsAttachment: (NSDictionary *) info;
+- (BOOL) _shouldDisplayAsAttachment: (NSDictionary *) info
+                           textPart: (BOOL) textPart;
 @end
 
 @implementation UIxMailRenderingContext (Private)
 
 - (BOOL) _shouldDisplayAsAttachment: (NSDictionary *) info
+                           textPart: (BOOL) textPart
 {
   NSString *s;
   BOOL shouldDisplay;
@@ -47,7 +49,7 @@
 
   shouldDisplay = (s && ([s caseInsensitiveCompare: @"ATTACHMENT"] == NSOrderedSame));
 
-  if (!shouldDisplay)
+  if (!shouldDisplay && !textPart)
     shouldDisplay = ([[info objectForKey: @"bodyId"] length] ? YES : NO);
 
   return shouldDisplay;
@@ -205,7 +207,7 @@ static BOOL showNamedTextAttachmentsInline = NO;
   else if ([mt isEqualToString: @"text"])
     {
       if ([st isEqualToString: @"plain"] || [st isEqualToString: @"html"]) {
-	if (!showNamedTextAttachmentsInline && [self _shouldDisplayAsAttachment: _info])
+	if (!showNamedTextAttachmentsInline && [self _shouldDisplayAsAttachment: _info  textPart: YES])
 	  return [self linkViewer];
 
 	return [st isEqualToString: @"html"]
@@ -221,7 +223,7 @@ static BOOL showNamedTextAttachmentsInline = NO;
   if ([mt isEqualToString: @"image"] &&
       !([st isEqualToString: @"tiff"] || [st isEqualToString: @"pdf"]))
     {
-      if ([self _shouldDisplayAsAttachment: _info] || [st isEqualToString: @"svg+xml"])
+      if ([self _shouldDisplayAsAttachment: _info  textPart: NO] || [st isEqualToString: @"svg+xml"])
         return [self linkViewer];
 
       return [self imageViewer];

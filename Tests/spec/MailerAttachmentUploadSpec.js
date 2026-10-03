@@ -2,7 +2,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 
 describe('File attachment upload (bug 6114)', function() {
-  let decorators, BlobImpl, nativeBlob
+  let decorators, BlobImpl, nativeBlob, nativeAngular
 
   class Blob {
     constructor(parts, options) {
@@ -23,18 +23,19 @@ describe('File attachment upload (bug 6114)', function() {
         return moduleChain
       }
     }
+    const source = readFileSync(fileURLToPath(new URL('../../UI/WebServerResources/js/Common/angular-file-upload.trump.js', import.meta.url)), 'utf8')
+    nativeAngular = global.angular
     global.angular = {
       module: function() { return moduleChain },
       forEach: function() {}
     }
-
-    const source = readFileSync(fileURLToPath(new URL('../../UI/WebServerResources/js/Common/angular-file-upload.trump.js', import.meta.url)), 'utf8')
     new Function('angular', source)(global.angular)
-    delete global.angular
+    global.angular = nativeAngular
   })
 
   afterAll(function() {
     global.Blob = nativeBlob
+    global.angular = nativeAngular
   })
 
   const _decoratedUploader = function(xsrfToken) {

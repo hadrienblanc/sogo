@@ -28,12 +28,16 @@
 - (NSString *) jsonRepresentation
 {
   NSString *jsonRepresentation;
+  const char *type;
 
-  jsonRepresentation = [NSString stringWithFormat: @"%@", self];
-  if ([jsonRepresentation isEqualToString: @"YES"])
-    jsonRepresentation = @"true";
-  else if ([jsonRepresentation isEqualToString: @"NO"])
-    jsonRepresentation = @"false";
+  type = [self objCType];
+  if (strcmp (type, @encode (BOOL)) == 0
+      || strcmp (type, "c") == 0
+      || strcmp (type, "C") == 0
+      || strcmp (type, "B") == 0)
+    jsonRepresentation = [self boolValue] ? @"true" : @"false";
+  else
+    jsonRepresentation = [NSString stringWithFormat: @"%@", self];
 
   return jsonRepresentation;
 }
