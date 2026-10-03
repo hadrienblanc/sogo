@@ -569,6 +569,28 @@ static Class iCalEventK = nil;
                     inCategory: @"FreeBusyExclusions"];
 }
 
+- (BOOL) newEventsAsFree
+{
+  NSNumber *asFree;
+
+  asFree = [self folderPropertyValueInCategory: @"FolderNewEventsAsFree"];
+
+  return (asFree ? [asFree boolValue] : NO);
+}
+
+- (void) setNewEventsAsFree: (BOOL) new
+{
+  NSNumber *asFree;
+
+  if (new)
+    asFree = [NSNumber numberWithBool: YES];
+  else
+    asFree = nil;
+
+  [self setFolderPropertyValue: asFree
+                    inCategory: @"FolderNewEventsAsFree"];
+}
+
 - (BOOL) _notificationValueForKey: (NSString *) theKey
                  defaultDomainKey: (NSString *) theDomainKey
 {
@@ -3178,6 +3200,9 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   [refDict removeObjectForKey: reference];
 
   refDict = [moduleSettings objectForKey: @"FolderShowTasks"];
+  [refDict removeObjectForKey: reference];
+
+  refDict = [moduleSettings objectForKey: @"FolderNewEventsAsFree"];
   [refDict removeObjectForKey: reference];
 
   refDict = [moduleSettings objectForKey: @"FolderSynchronize"];

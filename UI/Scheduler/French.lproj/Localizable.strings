@@ -542,6 +542,7 @@ vtodo_class2 = "(Tâche confidentielle)";
 /* Properties dialog */
 "Color" = "Couleur ";
 "Include in free-busy" = "Inclure dans la disponibilité";
+"New events shown as free" = "Nouveaux événements affichés comme disponibles";
 "Synchronization" = "Synchronisation";
 "Synchronize" = "Synchroniser";
 "Tag" = "Label";

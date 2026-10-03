@@ -228,7 +228,7 @@
    */
   ComponentEditorController.$inject = ['$rootScope', '$scope', '$q', '$log', '$timeout', '$window', '$element', '$mdDialog', '$mdToast', 'sgFocus', 'User', 'CalendarSettings', 'Calendar', 'Component', 'Attendees', 'AddressBook', 'Card', 'Preferences', 'stateComponent'];
   function ComponentEditorController($rootScope, $scope, $q, $log, $timeout, $window, $element, $mdDialog, $mdToast, focus, User, CalendarSettings, Calendar, Component, Attendees, AddressBook, Card, Preferences, stateComponent) {
-    var vm = this, component, oldStartDate, oldEndDate, oldDueDate, dayStartTime, dayEndTime;
+    var vm = this, component, oldStartDate, oldEndDate, oldDueDate, dayStartTime, dayEndTime, calendar;
 
     this.$onInit = function () {
       this.service = Calendar;
@@ -241,6 +241,11 @@
       this.preferences = Preferences;
 
       if (this.component.type == 'appointment') {
+        if (this.component.isNew) {
+          calendar = Calendar.$get(this.component.pid);
+          if (calendar && calendar.newEventsAsFree)
+            this.component.isTransparent = 1;
+        }
         this.component.initAttendees();
         this.attendeeConflictError = false;
         this.attendeesEditor = {

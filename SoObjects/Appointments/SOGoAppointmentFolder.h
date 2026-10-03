@@ -169,6 +169,9 @@ typedef enum {
 - (BOOL) includeInFreeBusy;
 - (void) setIncludeInFreeBusy: (BOOL) newInclude;
 
+- (BOOL) newEventsAsFree;
+- (void) setNewEventsAsFree: (BOOL) new;
+
 - (BOOL) notifyOnPersonalModifications;
 - (void) setNotifyOnPersonalModifications: (BOOL) b;
 - (BOOL) notifyOnExternalModifications;
