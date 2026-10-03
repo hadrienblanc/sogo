@@ -125,6 +125,28 @@
   testWithMessage ([result rangeOfString: @"big.png"].location != NSNotFound, error);
 }
 
+- (void) test_conditionalCommentWrappedTextSurvivesInvalidTagCleanup
+{
+  NSString *preparsed, *result, *error;
+
+  preparsed = [[NSString stringWithString:
+                   @"<body>"
+                   @"<p>intro</p>"
+                   @"<!--[if !mso]><!-->"
+                   @"https://domain.tld"
+                   @"<!--<![endif]-->"
+                   @"<p>outro</p>"
+                   @"</body>"]
+                 cleanInvalidHTMLTags];
+  result = [self sanitize: preparsed];
+
+  error = [NSString stringWithFormat: @"url between conditional comments dropped: %@", result];
+  testWithMessage ([result rangeOfString: @"https://domain.tld"].location != NSNotFound, error);
+  error = [NSString stringWithFormat: @"content after conditional comments dropped: %@", result];
+  testWithMessage ([result rangeOfString: @"intro"].location != NSNotFound, error);
+  testWithMessage ([result rangeOfString: @"outro"].location != NSNotFound, error);
+}
+
 - (void) test_bannedTagsAreDropped
 {
   NSString *result, *error;
