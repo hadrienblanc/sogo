@@ -42,4 +42,48 @@ MessageIDShape(NSString *mailOrDomain)
   testEquals(MessageIDShape(nil), @"<UUID>");
 }
 
+- (void) test_emailWithDecodedIDNDomain
+{
+  testEquals([@"test@xn--exmple-4ya.org" emailWithDecodedIDNDomain],
+             @"test@exümple.org");
+  testEquals([@"test@xn--bcher-kva.example" emailWithDecodedIDNDomain],
+             @"test@bücher.example");
+  testEquals([@"test@xn--mnchen-3ya.de" emailWithDecodedIDNDomain],
+             @"test@münchen.de");
+  testEquals([@"u@xn--80ak6aa92e.com" emailWithDecodedIDNDomain],
+             @"u@аррӏе.com");
+  testEquals([@"a@xn--bcher-kva.xn--exmple-4ya.org" emailWithDecodedIDNDomain],
+             @"a@bücher.exümple.org");
+  testEquals([@"a@b.xn--bcher-kva" emailWithDecodedIDNDomain],
+             @"a@b.bücher");
+}
+
+- (void) test_emailWithDecodedIDNDomain_keepsASCIIAddresses
+{
+  testEquals([@"test@example.org" emailWithDecodedIDNDomain],
+             @"test@example.org");
+  testEquals([@"a@xn--exmple-4ya" emailWithDecodedIDNDomain],
+             @"a@exümple");
+  testEquals([@"plainstring" emailWithDecodedIDNDomain],
+             @"plainstring");
+  testEquals([@"" emailWithDecodedIDNDomain],
+             @"");
+  testEquals([@"@xn--bcher-kva.example" emailWithDecodedIDNDomain],
+             @"@xn--bcher-kva.example");
+  testEquals([@"test@" emailWithDecodedIDNDomain],
+             @"test@");
+}
+
+- (void) test_emailWithDecodedIDNDomain_rejectsMalformedLabels
+{
+  testEquals([@"a@xn--.example" emailWithDecodedIDNDomain],
+             @"a@xn--.example");
+  testEquals([@"a@xn--a.example" emailWithDecodedIDNDomain],
+             @"a@xn--a.example");
+  testEquals([@"a@xn--*+.example" emailWithDecodedIDNDomain],
+             @"a@xn--*+.example");
+  testEquals([@"a@xn--bcher-kva.example." emailWithDecodedIDNDomain],
+             @"a@bücher.example.");
+}
+
 @end

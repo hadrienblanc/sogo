@@ -45,6 +45,184 @@
 
 #define paddingBuffer 8192
 
+#define kPunycodeBase 36
+#define kPunycodeTMin 1
+#define kPunycodeTMax 26
+#define kPunycodeSkew 38
+#define kPunycodeDamp 700
+#define kPunycodeInitialBias 72
+#define kPunycodeInitialN 128
+
+static NSUInteger
+PunycodeAdaptDelta (NSUInteger delta, NSUInteger numpoints, BOOL firsttime)
+{
+  NSUInteger k;
+
+  delta = firsttime ? (delta / kPunycodeDamp) : (delta / 2);
+  delta += delta / numpoints;
+  for (k = 0; delta > ((kPunycodeBase - kPunycodeTMin) * kPunycodeTMax) / 2;
+       k += kPunycodeBase)
+    delta /= (kPunycodeBase - kPunycodeTMin);
+
+  return k + (((kPunycodeBase - kPunycodeTMin + 1) * delta)
+              / (delta + kPunycodeSkew));
+}
+
+static NSUInteger
+PunycodeDecodeDigit (unichar c)
+{
+  if (c >= 'A' && c <= 'Z')
+    return (c - 'A');
+  if (c >= 'a' && c <= 'z')
+    return (c - 'a');
+  if (c >= '0' && c <= '9')
+    return ((c - '0') + 26);
+
+  return NSUIntegerMax;
+}
+
+static NSString *
+DecodePunycodeLabel (NSString *aceLabel)
+{
+  NSMutableArray *codePoints;
+  NSMutableString *decoded;
+  unichar *input;
+  NSUInteger inputLength, b, inPos, i, n, bias, k, w, digit, t, oldi, outLength;
+  NSUInteger cp, j, count;
+
+  inputLength = [aceLabel length];
+  if (inputLength == 0 || inputLength > 63)
+    return nil;
+
+  input = malloc (inputLength * sizeof (unichar));
+  [aceLabel getCharacters: input];
+
+  codePoints = [NSMutableArray arrayWithCapacity: inputLength];
+
+  b = 0;
+  for (j = 0; j < inputLength; j++)
+    if (input[j] == '-')
+      b = j;
+
+  for (j = 0; j < b; j++)
+    [codePoints addObject: [NSNumber numberWithUnsignedLong: input[j]]];
+
+  n = kPunycodeInitialN;
+  i = 0;
+  bias = kPunycodeInitialBias;
+  inPos = (b > 0) ? (b + 1) : 0;
+
+  while (inPos < inputLength)
+    {
+      oldi = i;
+      w = 1;
+      for (k = kPunycodeBase; ; k += kPunycodeBase)
+        {
+          if (inPos >= inputLength)
+            {
+              free (input);
+              return nil;
+            }
+          digit = PunycodeDecodeDigit (input[inPos++]);
+          if (digit == NSUIntegerMax || digit >= kPunycodeBase)
+            {
+              free (input);
+              return nil;
+            }
+          if (digit > (NSUIntegerMax - i) / w)
+            {
+              free (input);
+              return nil;
+            }
+          i += digit * w;
+          t = (k <= bias) ? kPunycodeTMin
+            : ((k >= bias + kPunycodeTMax) ? kPunycodeTMax : (k - bias));
+          if (digit < t)
+            break;
+          if (w > NSUIntegerMax / (kPunycodeBase - t))
+            {
+              free (input);
+              return nil;
+            }
+          w *= (kPunycodeBase - t);
+        }
+
+      outLength = [codePoints count];
+      bias = PunycodeAdaptDelta (i - oldi, outLength + 1, (oldi == 0));
+
+      n += i / (outLength + 1);
+      i %= (outLength + 1);
+
+      if (n > 0x10FFFF || (n >= 0xD800 && n <= 0xDFFF) || n < 0xA0)
+        {
+          free (input);
+          return nil;
+        }
+
+      [codePoints insertObject: [NSNumber numberWithUnsignedLong: n]
+                        atIndex: i];
+      i++;
+    }
+
+  free (input);
+
+  decoded = [NSMutableString stringWithCapacity: [codePoints count] + 2];
+  count = [codePoints count];
+  for (j = 0; j < count; j++)
+    {
+      cp = [[codePoints objectAtIndex: j] unsignedLongValue];
+      if (cp <= 0xFFFF)
+        [decoded appendFormat: @"%C", (unichar) cp];
+      else
+        {
+          [decoded appendFormat: @"%C",
+            (unichar) (0xD800 + ((cp - 0x10000) >> 10))];
+          [decoded appendFormat: @"%C",
+            (unichar) (0xDC00 + ((cp - 0x10000) & 0x3FF))];
+        }
+    }
+
+  return [NSString stringWithString: decoded];
+}
+
+static NSString *
+DomainByDecodingIDNLabels (NSString *domain)
+{
+  NSMutableArray *labels;
+  NSArray *aceLabels;
+  NSString *label, *decodedLabel;
+  NSUInteger count, i;
+  BOOL changed;
+
+  if (![domain length])
+    return nil;
+
+  aceLabels = [domain componentsSeparatedByString: @"."];
+  labels = [NSMutableArray arrayWithCapacity: [aceLabels count]];
+  changed = NO;
+
+  count = [aceLabels count];
+  for (i = 0; i < count; i++)
+    {
+      label = [aceLabels objectAtIndex: i];
+      decodedLabel = nil;
+      if ([label length] > 4 && [label hasPrefix: @"xn--"])
+        decodedLabel = DecodePunycodeLabel ([label substringFromIndex: 4]);
+      if (decodedLabel)
+        {
+          [labels addObject: decodedLabel];
+          changed = YES;
+        }
+      else
+        [labels addObject: label];
+    }
+
+  if (!changed)
+    return nil;
+
+  return [labels componentsJoinedByString: @"."];
+}
+
 @interface _SOGoHTMLContentHandler : NSObject <SaxContentHandler, SaxLexicalHandler>
 {
   NSMutableArray *images;
@@ -752,6 +930,26 @@ convertChars (const char *oldString, unsigned int oldLength,
     decodedHeader = self;
 
   return decodedHeader;
+}
+
+- (NSString *) emailWithDecodedIDNDomain
+{
+  NSString *localPart, *domain, *decodedDomain;
+  NSRange atRange;
+
+  atRange = [self rangeOfString: @"@" options: NSBackwardsSearch];
+  if (atRange.location == NSNotFound || atRange.location == 0
+      || NSMaxRange (atRange) >= [self length])
+    return self;
+
+  localPart = [self substringToIndex: atRange.location];
+  domain = [self substringFromIndex: NSMaxRange (atRange)];
+
+  decodedDomain = DomainByDecodingIDNLabels (domain);
+  if (!decodedDomain)
+    return self;
+
+  return [NSString stringWithFormat: @"%@@%@", localPart, decodedDomain];
 }
 
 - (NSString *) asSafeFilename

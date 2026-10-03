@@ -34,6 +34,7 @@
       fromIndex: (int) start;
 - (int) indexOf: (unichar) _c;
 - (NSString *) decodedHeader;
+- (NSString *) emailWithDecodedIDNDomain;
 - (NSString *) asSafeFilename;
 - (NSString *) asPreferredFilenameUsingPath: (NSString *) thePath;
 
