@@ -327,8 +327,8 @@
 					     roles: nil
 					     trust: YES];
   [user autorelease];
-  user->domainDefaultsValue = [[StubServerCoreDomainDefaults new] retain];
-  user->settingsValue = [[StubServerCoreUserSettings new] retain];
+  user->domainDefaultsValue = [StubServerCoreDomainDefaults new];
+  user->settingsValue = [StubServerCoreUserSettings new];
 
   return user;
 }
@@ -1547,7 +1547,6 @@
   [[SOGoCache sharedCache] killCache];
   [user release];
 }
-
 
 - (void) test_ownerAndIgnoreRights
 {
@@ -3961,6 +3960,5 @@
   failIf([fields count] != 1);
   testEquals([fields objectForKey: @"{DAV:}getetag"], @"c_version");
 }
-
 
 @end
