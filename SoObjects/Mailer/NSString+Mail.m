@@ -45,27 +45,27 @@
 
 #define paddingBuffer 8192
 
-#define kPunycodeBase 36
-#define kPunycodeTMin 1
-#define kPunycodeTMax 26
-#define kPunycodeSkew 38
-#define kPunycodeDamp 700
-#define kPunycodeInitialBias 72
-#define kPunycodeInitialN 128
+#define punycodeBase 36
+#define punycodeTMin 1
+#define punycodeTMax 26
+#define punycodeSkew 38
+#define punycodeDamp 700
+#define punycodeInitialBias 72
+#define punycodeInitialN 128
 
 static NSUInteger
 PunycodeAdaptDelta (NSUInteger delta, NSUInteger numpoints, BOOL firsttime)
 {
   NSUInteger k;
 
-  delta = firsttime ? (delta / kPunycodeDamp) : (delta / 2);
+  delta = firsttime ? (delta / punycodeDamp) : (delta / 2);
   delta += delta / numpoints;
-  for (k = 0; delta > ((kPunycodeBase - kPunycodeTMin) * kPunycodeTMax) / 2;
-       k += kPunycodeBase)
-    delta /= (kPunycodeBase - kPunycodeTMin);
+  for (k = 0; delta > ((punycodeBase - punycodeTMin) * punycodeTMax) / 2;
+       k += punycodeBase)
+    delta /= (punycodeBase - punycodeTMin);
 
-  return k + (((kPunycodeBase - kPunycodeTMin + 1) * delta)
-              / (delta + kPunycodeSkew));
+  return k + (((punycodeBase - punycodeTMin + 1) * delta)
+              / (delta + punycodeSkew));
 }
 
 static NSUInteger
@@ -107,16 +107,16 @@ DecodePunycodeLabel (NSString *aceLabel)
   for (j = 0; j < b; j++)
     [codePoints addObject: [NSNumber numberWithUnsignedLong: input[j]]];
 
-  n = kPunycodeInitialN;
+  n = punycodeInitialN;
   i = 0;
-  bias = kPunycodeInitialBias;
+  bias = punycodeInitialBias;
   inPos = (b > 0) ? (b + 1) : 0;
 
   while (inPos < inputLength)
     {
       oldi = i;
       w = 1;
-      for (k = kPunycodeBase; ; k += kPunycodeBase)
+      for (k = punycodeBase; ; k += punycodeBase)
         {
           if (inPos >= inputLength)
             {
@@ -124,7 +124,7 @@ DecodePunycodeLabel (NSString *aceLabel)
               return nil;
             }
           digit = PunycodeDecodeDigit (input[inPos++]);
-          if (digit == NSUIntegerMax || digit >= kPunycodeBase)
+          if (digit == NSUIntegerMax || digit >= punycodeBase)
             {
               free (input);
               return nil;
@@ -135,16 +135,16 @@ DecodePunycodeLabel (NSString *aceLabel)
               return nil;
             }
           i += digit * w;
-          t = (k <= bias) ? kPunycodeTMin
-            : ((k >= bias + kPunycodeTMax) ? kPunycodeTMax : (k - bias));
+          t = (k <= bias) ? punycodeTMin
+            : ((k >= bias + punycodeTMax) ? punycodeTMax : (k - bias));
           if (digit < t)
             break;
-          if (w > NSUIntegerMax / (kPunycodeBase - t))
+          if (w > NSUIntegerMax / (punycodeBase - t))
             {
               free (input);
               return nil;
             }
-          w *= (kPunycodeBase - t);
+          w *= (punycodeBase - t);
         }
 
       outLength = [codePoints count];
