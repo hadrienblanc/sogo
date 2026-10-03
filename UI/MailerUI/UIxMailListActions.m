@@ -1065,42 +1065,58 @@
                                                      threaded: sortByThread];
       if ((max = [changedMessages count]))
         {
-          // Split new or modified uids from deleted uids
-          changedUids = [NSMutableArray array];
-          deletedUids = [NSMutableArray array];
-          for (i = 0; i < max; i++)
+          if (sortByThread)
             {
-              changedMessage = [changedMessages objectAtIndex: i];
-              uid = [[changedMessage allKeys] lastObject];
-              if ([[changedMessage objectForKey: uid] isEqual: [NSNull null]])
-                [deletedUids addObject: uid];
-              else
-                [changedUids addObject: uid];
+              data = [self getUIDsInFolder: folder
+                              withHeaders: YES];
+              if (data != nil)
+                {
+                  [data setObject: newSyncToken
+                           forKey: @"syncToken"];
+                  response = [self responseWithStatus: 200
+                              andJSONRepresentation: data];
+                }
             }
 
-          // Fetch headers for new or modified messages
-          max = [changedUids count];
-          if (max > headersPrefetchMaxSize)
-            max = headersPrefetchMaxSize;
-          r = NSMakeRange(0, max);
-          headers = [self getHeadersForUIDs: [changedUids subarrayWithRange: r]
-                                   inFolder: folder];
+          if (!response)
+            {
+              // Split new or modified uids from deleted uids
+              changedUids = [NSMutableArray array];
+              deletedUids = [NSMutableArray array];
+              for (i = 0; i < max; i++)
+                {
+                  changedMessage = [changedMessages objectAtIndex: i];
+                  uid = [[changedMessage allKeys] lastObject];
+                  if ([[changedMessage objectForKey: uid] isEqual: [NSNull null]])
+                    [deletedUids addObject: uid];
+                  else
+                    [changedUids addObject: uid];
+                }
 
-          data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                 changedUids, @"changed",
-                               deletedUids, @"deleted",
-                               headers, @"headers",
-                               newSyncToken, @"syncToken",
-                               [NSNumber numberWithUnsignedInt: [folder unseenCount]], @"unseenCount",
-                               nil];
-                               
-          // We also return the inbox quota
-          account = [folder mailAccountFolder];
-          quota = [account getInboxQuota];
-          if (quota != nil)
-            [data setObject: quota forKey: @"quotas"];
+              // Fetch headers for new or modified messages
+              max = [changedUids count];
+              if (max > headersPrefetchMaxSize)
+                max = headersPrefetchMaxSize;
+              r = NSMakeRange(0, max);
+              headers = [self getHeadersForUIDs: [changedUids subarrayWithRange: r]
+                                       inFolder: folder];
 
-          response = [self responseWithStatus: 200 andJSONRepresentation: data];
+              data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                     changedUids, @"changed",
+                                   deletedUids, @"deleted",
+                                   headers, @"headers",
+                                   newSyncToken, @"syncToken",
+                                   [NSNumber numberWithUnsignedInt: [folder unseenCount]], @"unseenCount",
+                                   nil];
+
+              // We also return the inbox quota
+              account = [folder mailAccountFolder];
+              quota = [account getInboxQuota];
+              if (quota != nil)
+                [data setObject: quota forKey: @"quotas"];
+
+              response = [self responseWithStatus: 200 andJSONRepresentation: data];
+            }
         }
     }
   if (!response)
