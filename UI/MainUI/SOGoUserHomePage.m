@@ -639,7 +639,8 @@
  *
  * @apiSuccess (Success 200) {Object[]} users        List of matching users
  * @apiSuccess (Success 200) {String} users.uid      User ID
- * @apiSuccess (Success 200) {String} users.c_email  Main email address
+ * @apiSuccess (Success 200) {String} users.c_email  Main email address, omitted when the
+ *                                                   user's source is not an address book
  * @apiSuccess (Success 200) {String} users.cn       Common name
  * @apiSuccess (Success 200) {Number} users.isGroup  1 if the user is a group
  * @apiError   (Error 400) {Object} error            The error message
