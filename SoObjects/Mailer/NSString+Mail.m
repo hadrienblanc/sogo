@@ -600,6 +600,7 @@
   _SOGoHTMLContentHandler *handler;
   id <NSObject, SaxXMLReader> parser;
   NSData *d;
+  NSString *text;
 
   parser = [[SaxXMLReaderFactory standardXMLReaderFactory]
              createXMLReaderForMimeType: @"text/html"];
@@ -609,7 +610,10 @@
   d = [self dataUsingEncoding: NSUTF8StringEncoding];
   [parser parseFromSource: d];
 
-  return [handler result];
+  text = [handler result];
+
+  return [text stringByReplacingOccurrencesOfString: @"--\u00A0\n"
+                                          withString: @"-- \n"];
 }
 
 - (BOOL) isFullHTMLDocument
