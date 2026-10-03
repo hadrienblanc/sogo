@@ -382,6 +382,26 @@ LoadDraftClass ()
   return [NSData dataWithBytes: cp1251Bytes length: sizeof(cp1251Bytes)];
 }
 
+- (void) test_htmlBodyKeepsInlineFontStyles
+{
+  NSData *message;
+  NSString *messageString;
+
+  [draft setIsHTML: YES];
+  [draft setText: @"<html><body><p><span style=\"font-size:36px;\">BIG</span></p><p><span style=\"font-size:12px;\">small</span></p></body></html>"];
+
+  message = [draft mimeMessageForRecipient: nil extractingImages: YES];
+  testWithMessage (message != nil, @"the composed message must be generated");
+  messageString = [[[NSString alloc] initWithData: message
+                                          encoding: NSUTF8StringEncoding] autorelease];
+  testWithMessage ([messageString rangeOfString: @"text/html"].location != NSNotFound,
+                   @"the composed message must carry an html part");
+  testWithMessage ([messageString rangeOfString: @"font-size:36px;"].location != NSNotFound,
+                   @"font size changes must be sent (bug 6095)");
+  testWithMessage ([messageString rangeOfString: @"font-size:12px;"].location != NSNotFound,
+                   @"all font size changes must be sent (bug 6095)");
+}
+
 - (void) test_textAttachmentBytesArePreserved
 {
   NSMutableDictionary *metadata;

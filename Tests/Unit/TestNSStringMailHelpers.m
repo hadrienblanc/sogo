@@ -171,6 +171,18 @@
              @"<html><body><div title=\"he said \\\\\" hi\\\"=\"\" \\\"=\"\">x</div><span>after</span></body></html>");
 }
 
+- (void) test_htmlByExtractingImages_keepsInlineFontStyles
+{
+  NSMutableArray *images;
+
+  images = [NSMutableArray array];
+  testEquals([@"<p><span style=\"font-size:36px;\">BIG</span></p><p><span style=\"font-size:12px;\">small</span></p>" htmlByExtractingImages: images],
+             @"<html><body><p><span style=\"font-size:36px;\">BIG</span></p><p><span style=\"font-size:12px;\">small</span></p></body></html>");
+  testEquals([@"<p><span style=\"font-size:20px; font-family:Arial, sans-serif;\">mixed</span></p>" htmlByExtractingImages: images],
+             @"<html><body><p><span style=\"font-size:20px; font-family:Arial, sans-serif;\">mixed</span></p></body></html>");
+  testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 0]);
+}
+
 - (void) test_htmlByExtractingImages_dataUris
 {
   NSMutableArray *images;
