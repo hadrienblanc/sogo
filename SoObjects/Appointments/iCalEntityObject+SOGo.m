@@ -575,6 +575,17 @@ NSNumber *iCalDistantFutureNumber = nil;
   return newEntry;
 }
 
+- (void) resetCreationMetadata
+{
+  NSCalendarDate *now;
+
+  now = [NSCalendarDate calendarDate];
+  [self setCreated: now];
+  [self setLastModified: now];
+  [self setTimeStampAsDate: now];
+  [self removeChildren: [self childrenWithTag: @"sequence"]];
+}
+
 - (NSArray *) attendeesWithoutUser: (SOGoUser *) user
 {
   NSMutableArray *newAttendees;

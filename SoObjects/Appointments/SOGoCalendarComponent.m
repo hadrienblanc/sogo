@@ -1303,7 +1303,13 @@ static NSArray *allowed_tags = nil;
       elements = [calendar allObjects];
       max = [elements count];
       for (count = 0; count < max; count++)
-        [[elements objectAtIndex: count] setUid: newUID];
+        {
+          iCalEntityObject *currentElement;
+
+          currentElement = [elements objectAtIndex: count];
+          [currentElement setUid: newUID];
+          [currentElement resetCreationMetadata];
+        }
     }
   else
     {
