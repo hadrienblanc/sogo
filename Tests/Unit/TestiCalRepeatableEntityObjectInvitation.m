@@ -24,7 +24,6 @@
 
 #import <NGCards/iCalCalendar.h>
 #import <NGCards/iCalEvent.h>
-#import <NGCards/iCalPerson.h>
 
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/SOGoUser.h>
