@@ -100,6 +100,15 @@
              @" * inheadx");
 }
 
+- (void) test_htmlToText_signatureDelimiter
+{
+  testEquals([@"<br /><br />--&nbsp;<br />Simon" htmlToText], @"\n\n-- \nSimon");
+  testEquals([@"text<br /><br />--\u00A0<br />sig" htmlToText], @"text\n\n-- \nsig");
+  testEquals([@"--&nbsp;<br />sig" htmlToText], @"-- \nsig");
+  testEquals([@"a&nbsp;b" htmlToText], @"a\u00A0b");
+  testEquals([@"well--known&nbsp;term<br />" htmlToText], @"well--known\u00A0term\n");
+}
+
 - (void) test_htmlToText_ignoredContent
 {
   testEquals([@"<html><body>before<script>var x = 1;</script>middle<style>p{}</style>after</body></html>" htmlToText],
