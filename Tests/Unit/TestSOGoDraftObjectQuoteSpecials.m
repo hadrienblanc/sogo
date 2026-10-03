@@ -176,11 +176,10 @@ LoadDraftClass ()
   generator = [NGMimeAddressHeaderFieldGenerator headerFieldGenerator];
   quoted = [draft _quoteSpecials: address];
 
-  return [NSString stringWithString:
-            [[[NSString alloc] initWithData:
-                [generator generateDataForHeaderFieldNamed: @"from"
-                                                      value: quoted]
-                                  encoding: NSASCIIStringEncoding] autorelease]];
+  return [[[NSString alloc] initWithData:
+              [generator generateDataForHeaderFieldNamed: @"from"
+                                                    value: quoted]
+                              encoding: NSASCIIStringEncoding] autorelease];
 }
 
 - (void) test_generatedHeadersKeepSingleAddress
