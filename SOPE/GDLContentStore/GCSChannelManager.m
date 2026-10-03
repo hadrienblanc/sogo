@@ -36,13 +36,6 @@
 #import "NSURL+GCS.h"
 #import "EOAdaptorChannel+GCS.h"
 
-/*
-  TODO:
-  - implemented pooling
-  - auto-close channels which are very old?!
-  (eg missing release due to an exception)
-*/
-
 @interface GCSChannelHandle : NSObject
 {
 @public
@@ -269,7 +262,6 @@ static NSTimeInterval ChannelCollectionTimer = 5 * 60;
 
 - (EOAdaptorChannel *) acquireOpenChannelForURL: (NSURL *) _url
 {
-  // TODO: naive implementation, add pooling!
   EOAdaptorChannel *channel;
   GCSChannelHandle *handle;
   NSCalendarDate *now, *lastFailure;
