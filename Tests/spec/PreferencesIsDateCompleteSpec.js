@@ -1,9 +1,5 @@
 import { readFileSync } from 'fs'
 
-global.angular = global.angular || { isNumber: v => typeof v === 'number' }
-global.Element = global.Element || class Element {}
-await import(new URL('../../UI/WebServerResources/js/Common/utils.js', import.meta.url).pathname)
-
 //
 // Unit test of the md-datepicker locale adapter installed by the
 // Preferences service (bugs.sogo.nu #6182). Short date formats that
@@ -12,6 +8,8 @@ await import(new URL('../../UI/WebServerResources/js/Common/utils.js', import.me
 // invalid and the save button of the whole preferences form stays
 // disabled. The service is loaded from its AngularJS source with
 // stubbed dependencies; no SOGo server is required.
+
+global.angular = global.angular || { isNumber: v => typeof v === 'number' }
 
 global._ = global._ || {
   forEach: (collection, iteratee) => {
@@ -48,7 +46,7 @@ function loadDateLocale(defaults) {
     module: () => angularModule
   }
   const source = readFileSync(
-    path.join(__dirname, '../../UI/WebServerResources/js/Preferences/Preferences.service.js'),
+    new URL('../../UI/WebServerResources/js/Preferences/Preferences.service.js', import.meta.url),
     'utf8')
   new Function('angular', '_', 'l', 'window', source)(angular, global._, key => key, {})
 

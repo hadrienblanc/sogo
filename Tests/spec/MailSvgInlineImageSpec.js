@@ -161,7 +161,7 @@ describe('Mail inline SVG images (bug 6152)', function() {
     expect(response.status)
       .withContext('HTTP status code when fetching the SVG part')
       .toBe(200)
-    expect(response.headers.get('content-type'))
+    expect(response.headers.get('content-type').split(';')[0].trim())
       .withContext('the SVG part must never be served as image/svg+xml')
       .toBe('text/plain')
   })

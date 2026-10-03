@@ -51,7 +51,7 @@ const saveList = async function(selectedEmail) {
 
 const storedMemberEmail = async function() {
   const [response] = await webdav.getCard(`${davAddressBook}/`, listName)
-  const body = await response.text()
+  const body = response.raw
   const card = body.split('\r\n').find(line => line.startsWith('CARD;'))
 
   expect(card)
