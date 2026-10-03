@@ -251,7 +251,7 @@
     });
     if (index > -1)
       this.component.attendees.splice(index, 1);
-    delete this.$futureFreebusyData[attendee.uid];
+    delete this.$futureFreebusyData[attendee.uid || attendee.email];
   };
 
   /**
@@ -457,6 +457,9 @@
       this.$futureFreebusyData[attendee.uid] = promise;
 
       return promise;
+    }
+    else {
+      this.$futureFreebusyData[attendee.email] = Attendees.$q.when();
     }
   };
 
