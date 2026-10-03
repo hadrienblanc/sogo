@@ -175,6 +175,7 @@
     {
       NSMutableArray *rDates = [NSMutableArray array];
       NSCalendarDate *rDate;
+      NSArray *elementDates;
       iCalDateTime *rdateTime;
       BOOL allDayComponent;
       NSInteger offset, j, max;
@@ -187,11 +188,11 @@
       for (i = 0; i < count; i++)
         {
           rdateTime = [rdateElements objectAtIndex: i];
-          dates = [rdateTime dateTimes];
-          max = [dates count];
+          elementDates = [rdateTime dateTimes];
+          max = [elementDates count];
           for (j = 0; j < max; j++)
             {
-              rDate = [dates objectAtIndex: j];
+              rDate = [elementDates objectAtIndex: j];
               if ([rdateTime isAllDay]
                   || (allDayComponent
                       && [rDate hourOfDay] == 0
