@@ -64,6 +64,15 @@ static unsigned changesThreadedFetchCalls;
   return nil;
 }
 
+- (NSDictionary *) searchWithQualifier: (id) qualifier
+{
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+                    [NSNumber numberWithBool: YES], @"result",
+                    [[changesSortedUids reverseObjectEnumerator] allObjects],
+                    @"search",
+                    nil];
+}
+
 @end
 
 @interface Test6231Connection : NSObject
@@ -73,6 +82,7 @@ static unsigned changesThreadedFetchCalls;
 
 - (id) client;
 - (BOOL) enableExtensions: (NSArray *) extensions;
+- (BOOL) selectFolder: (id) url;
 - (NSArray *) fetchUIDsInURL: (NSURL *) url
                    qualifier: (id) qualifier
                 sortOrdering: (id) sortOrdering;
@@ -107,6 +117,11 @@ static unsigned changesThreadedFetchCalls;
 }
 
 - (BOOL) enableExtensions: (NSArray *) extensions
+{
+  return YES;
+}
+
+- (BOOL) selectFolder: (id) url
 {
   return YES;
 }
@@ -447,13 +462,13 @@ ChangesFolderClass ()
             [NSArray arrayWithObjects: [NSNumber numberWithInt: 7],
                                       [NSNumber numberWithInt: 1],
                                       [NSNumber numberWithInt: 0], nil],
-            [NSArray arrayWithObjects: [NSNumber numberWithInt: 1],
+            [NSArray arrayWithObjects: [NSNumber numberWithInt: 3],
                                       [NSNumber numberWithInt: 0],
                                       [NSNumber numberWithInt: 1], nil],
             [NSArray arrayWithObjects: [NSNumber numberWithInt: 2],
                                       [NSNumber numberWithInt: 1],
                                       [NSNumber numberWithInt: 0], nil],
-            [NSArray arrayWithObjects: [NSNumber numberWithInt: 3],
+            [NSArray arrayWithObjects: [NSNumber numberWithInt: 1],
                                       [NSNumber numberWithInt: 2],
                                       [NSNumber numberWithInt: 0], nil],
             nil];
