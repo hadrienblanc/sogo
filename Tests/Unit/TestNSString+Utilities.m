@@ -125,6 +125,16 @@
   testEquals([[NSString stringWithString:@"&#123;&#123;1337*1337&#125;&#125;"] stringWithoutHTMLInjection: NO stripAngular: YES], @"{\\{1337*1337}/}");
 }
 
+- (void) test_stringWithoutHTMLInjectionKeepsQueryStrings
+{
+  testEquals([[NSString stringWithString:@"https://bugs.sogo.nu/verify.php?id=4129&confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3"] stringWithoutHTMLInjection: NO stripAngular: NO], @"https://bugs.sogo.nu/verify.php?id=4129&confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3");
+  testEquals([[NSString stringWithString:@"<a rel=\"noopener\" href=\"https://bugs.sogo.nu/verify.php?id=4129&confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3\">https://bugs.sogo.nu/verify.php?id=4129&amp;confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3</a>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"<a rel=\"noopener\" href=\"https://bugs.sogo.nu/verify.php?id=4129&confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3\">https://bugs.sogo.nu/verify.php?id=4129&amp;confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3</a>");
+  testEquals([[NSString stringWithString:@"<a rel=\"noopener\" href=\"https://example.com/view?onload=1&amp;onerror=2\">https://example.com/view?onload=1&amp;onerror=2</a>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"<a rel=\"noopener\" href=\"https://example.com/view?onload=1&amp;onerror=2\">https://example.com/view?onload=1&amp;onerror=2</a>");
+  testEquals([[NSString stringWithString:@"<a rel=\"noopener\" href=\"https://example.com/p?onfocus=3\">https://example.com/p?onfocus=3</a>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"<a rel=\"noopener\" href=\"https://example.com/p?onfocus=3\">https://example.com/p?onfocus=3</a>");
+  testEquals([[NSString stringWithString:@"<img/onerror=alert(1)>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"<img/data-blocked=alert(1)>");
+  testEquals([[NSString stringWithString:@"<img onclick&#x09;=alert(1)>"] stringWithoutHTMLInjection: NO stripAngular: NO], @"<img data-blocked=alert(1)>");
+}
+
 - (void) test_stringWithoutHTMLInjectionKeepingSubjectMarkup
 {
   testEquals([[NSString stringWithString:@"[Wikitech-l] Re: VisualEditor inserting <br />"] stringWithoutHTMLInjection: NO stripAngular: NO], @"[Wikitech-l] Re: VisualEditor inserting <br />");

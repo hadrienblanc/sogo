@@ -3,6 +3,7 @@
 #import <NGMime/NGMimeBodyPart.h>
 
 #import "Mailer/NSString+Mail.h"
+#import <SOGo/NSString+Utilities.h>
 
 #import "SOGoTest.h"
 
@@ -31,6 +32,25 @@
   testEquals([@"a\r\nb" stringByConvertingCRLNToHTML], @"a<br />b");
   testEquals([@"a\rb" stringByConvertingCRLNToHTML], @"ab");
   testEquals([@"\n" stringByConvertingCRLNToHTML], @"<br />");
+}
+
+- (void) test_plainTextMailPipelineKeepsVerificationURL
+{
+  NSString *body, *rendered, *expected;
+
+  body = @"Visit the following URL (make sure it is entered as the single line):\n\nhttps://bugs.sogo.nu/verify.php?id=4129&confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3\n\nIf you did not request any registration, ignore this message.";
+  rendered = [[[[body stringByEscapingHTMLString] stringByDetectingURLs]
+                stringByConvertingCRLNToHTML]
+               stringWithoutHTMLInjection: NO stripAngular: NO];
+  expected = @"Visit the following URL (make sure it is entered as the single line):<br /><br /><a rel=\"noopener\" href=\"https://bugs.sogo.nu/verify.php?id=4129&amp;confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3\">https://bugs.sogo.nu/verify.php?id=4129&amp;confirm_hash=9aae6f14c8f52ee6d4c4f5a4e0d1b2c3</a><br /><br />If you did not request any registration, ignore this message.";
+  testEquals(rendered, expected);
+
+  body = @"See https://example.com/view?onload=1&onerror=2 for details";
+  rendered = [[[[body stringByEscapingHTMLString] stringByDetectingURLs]
+               stringByConvertingCRLNToHTML]
+              stringWithoutHTMLInjection: NO stripAngular: NO];
+  expected = @"See <a rel=\"noopener\" href=\"https://example.com/view?onload=1&amp;onerror=2\">https://example.com/view?onload=1&amp;onerror=2</a> for details";
+  testEquals(rendered, expected);
 }
 
 - (void) test_indexOf
