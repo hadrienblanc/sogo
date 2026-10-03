@@ -151,6 +151,7 @@
   testEquals([[NSString stringWithString:@"<div>A<!-->B<!-- c -->C<!-->D</div>"] cleanInvalidHTMLTags], @"<div>AB<!-- c -->CD</div>");
   testEquals([[NSString stringWithString:@"<div><!--[if !mso]><span>Test</span><!--<![endif]--></div>"] cleanInvalidHTMLTags], @"<div><!--[if !mso]><span>Test</span><!--<![endif]--></div>");
   testEquals([[NSString stringWithString:@"<a><!--[if !mso]><!--> <div><img src=\"x\"/></div> <!--<![endif]--><!--[if mso]><v:fill/><![endif]--></a>"] cleanInvalidHTMLTags], @"<a><!--[if !mso]><!--> <div><img src=\"x\"/></div> <!--<![endif]--><!--[if mso]><v:fill/><![endif]--></a>");
+  testEquals([[NSString stringWithString:@"<div><!--[if !mso]><!--> https://domain.tld <!--<![endif]--></div>"] cleanInvalidHTMLTags], @"<div><!--[if !mso]><!--> https://domain.tld <!--<![endif]--></div>");
   testEquals([[NSString stringWithString:@"A<!-- x --!>B<!-->C"] cleanInvalidHTMLTags], @"A<!-- x --!>BC");
   testEquals([[NSString stringWithString:@"<div>A<!-- B</div>"] cleanInvalidHTMLTags], @"<div>A<!-- B</div>");
 }
