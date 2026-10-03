@@ -94,7 +94,7 @@ DecodePunycodeLabel (NSString *aceLabel)
   if (inputLength == 0 || inputLength > 63)
     return nil;
 
-  input = malloc (inputLength * sizeof (unichar));
+  input = NSZoneMalloc (NULL, inputLength * sizeof (unichar));
   [aceLabel getCharacters: input];
 
   codePoints = [NSMutableArray arrayWithCapacity: inputLength];
@@ -120,18 +120,18 @@ DecodePunycodeLabel (NSString *aceLabel)
         {
           if (inPos >= inputLength)
             {
-              free (input);
+              NSZoneFree (NULL, input);
               return nil;
             }
           digit = PunycodeDecodeDigit (input[inPos++]);
           if (digit == NSUIntegerMax || digit >= punycodeBase)
             {
-              free (input);
+              NSZoneFree (NULL, input);
               return nil;
             }
           if (digit > (NSUIntegerMax - i) / w)
             {
-              free (input);
+              NSZoneFree (NULL, input);
               return nil;
             }
           i += digit * w;
@@ -141,7 +141,7 @@ DecodePunycodeLabel (NSString *aceLabel)
             break;
           if (w > NSUIntegerMax / (punycodeBase - t))
             {
-              free (input);
+              NSZoneFree (NULL, input);
               return nil;
             }
           w *= (punycodeBase - t);
@@ -155,7 +155,7 @@ DecodePunycodeLabel (NSString *aceLabel)
 
       if (n > 0x10FFFF || (n >= 0xD800 && n <= 0xDFFF) || n < 0xA0)
         {
-          free (input);
+          NSZoneFree (NULL, input);
           return nil;
         }
 
@@ -164,7 +164,7 @@ DecodePunycodeLabel (NSString *aceLabel)
       i++;
     }
 
-  free (input);
+  NSZoneFree (NULL, input);
 
   decoded = [NSMutableString stringWithCapacity: [codePoints count] + 2];
   count = [codePoints count];
