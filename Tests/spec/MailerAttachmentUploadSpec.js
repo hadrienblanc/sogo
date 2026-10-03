@@ -2,7 +2,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 
 describe('File attachment upload (bug 6114)', function() {
-  let decorators, BlobImpl
+  let decorators, BlobImpl, nativeBlob
 
   class Blob {
     constructor(parts, options) {
@@ -12,8 +12,10 @@ describe('File attachment upload (bug 6114)', function() {
   }
 
   beforeAll(function() {
+    nativeBlob = global.Blob
     global.Blob = Blob
     BlobImpl = Blob
+    decorators = {}
 
     const moduleChain = {
       decorator: function(name, decorated) {
@@ -32,7 +34,7 @@ describe('File attachment upload (bug 6114)', function() {
   })
 
   afterAll(function() {
-    delete global.Blob
+    global.Blob = nativeBlob
   })
 
   const _decoratedUploader = function(xsrfToken) {

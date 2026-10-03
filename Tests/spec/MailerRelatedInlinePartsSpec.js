@@ -197,9 +197,9 @@ describe('Mail multipart/related rendering (bug 6240)', function() {
     expect(resourceParts.length)
       .withContext('the non-root inline text/html resource must be rendered as an attachment')
       .toBe(1)
-    expect(parts.filter(p => p.type == 'UIxMailPartHTMLViewer' && p.content.indexOf('RELATED RESOURCE') > -1)
+    expect(parts.filter(p => p.type == 'UIxMailPartHTMLViewer' && p.content.indexOf('RELATED RESOURCE') > -1).length)
       .withContext('the related resource must not leak into the message body')
-      .length).toBe(0)
+      .toBe(0)
   })
 
   it('keeps rendering non-root attachment resources of multipart/related as attachments', async function() {
