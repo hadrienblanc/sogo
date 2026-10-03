@@ -80,7 +80,7 @@
  */
 - (NSDictionary *) attributesInContext: (WOContext *) context
 {
-  NSArray *allComponents, *rules, *dates;
+  NSArray *allComponents, *rules, *dates, *rdateElements;
   NSCalendarDate *untilDate;
   NSMutableDictionary *data, *repeat;
   NSString *frequency;
@@ -103,11 +103,13 @@
       masterComponent = [allComponents objectAtIndex: 0];
       rules = [masterComponent recurrenceRules];
       dates = [masterComponent recurrenceDates];
+      rdateElements = [masterComponent childrenWithTag: @"rdate"];
     }
   else
     {
       rules = [self recurrenceRules];
       dates = [self recurrenceDates];
+      rdateElements = [self childrenWithTag: @"rdate"];
     }
 
   if ([rules count] > 0)
@@ -173,14 +175,37 @@
     {
       NSMutableArray *rDates = [NSMutableArray array];
       NSCalendarDate *rDate;
+      iCalDateTime *rdateTime;
+      BOOL allDayComponent;
+      NSInteger offset, j, max;
+
+      allDayComponent = [self isKindOfClass: [iCalEvent class]]
+        && [(iCalEvent *) self isAllDay];
       ud = [[context activeUser] userDefaults];
       timeZone = [ud timeZone];
-      count = [dates count];
+      count = [rdateElements count];
       for (i = 0; i < count; i++)
         {
-          rDate = [dates objectAtIndex: i];
-          [rDate setTimeZone: timeZone];
-          [rDates addObject: [rDate iso8601DateString]];
+          rdateTime = [rdateElements objectAtIndex: i];
+          dates = [rdateTime dateTimes];
+          max = [dates count];
+          for (j = 0; j < max; j++)
+            {
+              rDate = [dates objectAtIndex: j];
+              if ([rdateTime isAllDay]
+                  || (allDayComponent
+                      && [rDate hourOfDay] == 0
+                      && [rDate minuteOfHour] == 0
+                      && [rDate secondOfMinute] == 0))
+                {
+                  offset = [timeZone secondsFromGMTForDate: rDate];
+                  rDate = [rDate dateByAddingYears: 0 months: 0 days: 0
+                                              hours: 0 minutes: 0
+                                            seconds: -offset];
+                }
+              [rDate setTimeZone: timeZone];
+              [rDates addObject: [rDate iso8601DateString]];
+            }
         }
       [data setObject: [NSDictionary dictionaryWithObject: rDates forKey: @"dates"] forKey: @"repeat"];
     }
@@ -236,6 +261,11 @@
                 }
               else if ([o caseInsensitiveCompare: @"CUSTOM"] == NSOrderedSame)
                 {
+                  BOOL allDayDates;
+
+                  allDayDates = isAllDay
+                    || ([self isKindOfClass: [iCalEvent class]]
+                        && [(iCalEvent *) self isAllDay]);
                   [self removeAllRecurrenceRules];
                   [self removeAllRecurrenceDates];
                   o = [repeat objectForKey: @"dates"];
@@ -250,6 +280,10 @@
                               date = [self dateFromString: [o objectForKey: @"date"] inContext: context];
                               if (!isAllDay)
                                 [self adjustDate: &date withTimeString: [o objectForKey: @"time"] inContext: context];
+                              if (allDayDates)
+                                date = [date dateByAddingYears: 0 months: 0 days: 0
+                                                         hours: 0 minutes: 0
+                                                       seconds: [[date timeZone] secondsFromGMTForDate: date]];
                               [self addToRecurrenceDates: date];
                             }
                         }
