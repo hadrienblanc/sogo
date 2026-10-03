@@ -62,6 +62,7 @@
 
 - (NSObject <SOGoSource> *) sourceWithID: (NSString *) sourceID;
 - (NSDictionary *) metadataForSourceID: (NSString *) sourceID;
+- (BOOL) isAddressBookSource: (NSObject <SOGoSource> *) aSource;
 - (NSString *) displayNameForSourceWithID: (NSString *) sourceID;
 - (NSDictionary *) contactInfosForUserWithUIDorEmail: (NSString *) uid;
 - (NSDictionary *) contactInfosForUserWithUIDorEmail: (NSString *) uid

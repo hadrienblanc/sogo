@@ -283,6 +283,25 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
   return [_sourcesMetadata objectForKey: sourceID];
 }
 
+- (BOOL) isAddressBookSource: (NSObject <SOGoSource> *) aSource
+{
+  NSEnumerator *allIDs;
+  NSString *currentID;
+  BOOL isAddressBook;
+
+  isAddressBook = NO;
+  if (aSource)
+    {
+      allIDs = [[_sources allKeys] objectEnumerator];
+      while (!isAddressBook && (currentID = [allIDs nextObject]))
+        if ([_sources objectForKey: currentID] == aSource)
+          isAddressBook = [[[_sourcesMetadata objectForKey: currentID]
+                             objectForKey: @"isAddressBook"] boolValue];
+    }
+
+  return isAddressBook;
+}
+
 - (NSArray *) authenticationSourceIDsInDomain: (NSString *) domain
 {
   NSMutableArray *sourceIDs;

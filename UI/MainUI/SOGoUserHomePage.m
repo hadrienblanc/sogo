@@ -585,8 +585,10 @@
   NSArray *allUsers;
   int count, max;
   BOOL activeUserIsInDomain;
+  SOGoUserManager *um;
 
   owner = [[self clientObject] ownerInContext: context];
+  um = [SOGoUserManager sharedUserManager];
   activeUserIsInDomain = ([domain length] == 0 || [[[context activeUser] domain] isEqualToString: domain]);
 
   // We sort our array - this is pretty useful for the Web
@@ -608,11 +610,16 @@
             uid = [NSString stringWithFormat: @"%@@%@", uid, domain];
           [jsonLine setObject: uid forKey: @"uid"];
           [jsonLine setObject: [contact objectForKey: @"cn"] forKey: @"cn"];
-          [jsonLine setObject: [contact objectForKey: @"c_email"] forKey: @"c_email"];
-          [jsonLine setObject: [NSNumber numberWithBool: [[contact objectForKey: @"isGroup"] boolValue]] forKey: @"isGroup"];
-          contactInfo = [contact objectForKey: @"c_info"];
-          if (contactInfo)
-            [jsonLine setObject: contactInfo forKey: @"c_info"];
+          if ([um isAddressBookSource: [contact objectForKey: @"source"]])
+            {
+              [jsonLine setObject: [contact objectForKey: @"c_email"]
+                          forKey: @"c_email"];
+              contactInfo = [contact objectForKey: @"c_info"];
+              if (contactInfo)
+                [jsonLine setObject: contactInfo forKey: @"c_info"];
+            }
+          [jsonLine setObject: [NSNumber numberWithBool: [[contact objectForKey: @"isGroup"] boolValue]]
+                      forKey: @"isGroup"];
           [jsonResponse addObject: jsonLine];
         }
     }
