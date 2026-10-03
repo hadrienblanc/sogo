@@ -34,6 +34,7 @@
 
 #import <SOGo/NSCalendarDate+SOGo.h>
 #import <SOGo/NSString+Utilities.h>
+#import <SOGo/SOGoCache.h>
 #import <SOGo/SOGoCredentialsFile.h>
 #import <SOGo/SOGoMailer.h>
 #import <SOGo/SOGoProductLoader.h>
@@ -206,6 +207,9 @@
                         content: content
                              to: [owner primaryIdentity]
                      withMailer: mailer];
+
+  [app release];
+  [[SOGoCache sharedCache] killCache];
 }
 
 - (void) usage

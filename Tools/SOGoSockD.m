@@ -27,6 +27,8 @@
 
 #import <NGExtensions/NSObject+Logs.h>
 
+#import <SOGo/SOGoCache.h>
+
 #import "SOGoSockDScanner.h"
 #import "SOGoSockD.h"
 
@@ -148,6 +150,7 @@
           socketData = [NSMutableData dataWithCapacity: 16384];
         }
     }
+  [[SOGoCache sharedCache] killCache];
   [pool release];
 }
 

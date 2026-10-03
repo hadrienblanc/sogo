@@ -4309,6 +4309,8 @@ void handle_eas_terminate(int signum)
     {
       [(WOResponse *)theResponse setStatus: 403];
       [self logWithFormat: @"EAS - Forbidden access for user %@", [activeUser loginInDomain]];
+      RELEASE(context);
+      RELEASE(pool);
       return nil;
     }
 
@@ -4319,6 +4321,8 @@ void handle_eas_terminate(int signum)
     {
       [(WOResponse *)theResponse setStatus: 500];
       [self logWithFormat: @"EAS - No device id provided, ignoring request."];
+      RELEASE(context);
+      RELEASE(pool);
       return nil;
     }
 
