@@ -51,18 +51,21 @@
                ownerZone: (NSString *) ownerZoneId
                  viewZone: (NSString *) viewZoneId
 {
-  return [SOGoFreeBusyObject busyOffHoursInfosFrom:
-                     [self _dateWithYear: startYear month: 10 day: startDay
-                                   hour: startHour minute: startMin
-                               timeZoneId: viewZoneId]
-                                             to:
-                     [self _dateWithYear: startYear month: 10 day: endDay
-                                   hour: endHour minute: endMin
-                               timeZoneId: viewZoneId]
-                                   dayStartHour: 10
-                                     dayEndHour: 18
-                                 ownerTimeZone: [NSTimeZone timeZoneWithName: ownerZoneId]
-                                   viewTimeZone: [NSTimeZone timeZoneWithName: viewZoneId]];
+  NSCalendarDate *startDate, *endDate;
+
+  startDate = [self _dateWithYear: startYear month: 10 day: startDay
+                             hour: startHour minute: startMin
+                       timeZoneId: viewZoneId];
+  endDate = [self _dateWithYear: startYear month: 10 day: endDay
+                           hour: endHour minute: endMin
+                     timeZoneId: viewZoneId];
+
+  return [SOGoFreeBusyObject busyOffHoursInfosFrom: startDate
+                                                to: endDate
+                                      dayStartHour: 10
+                                        dayEndHour: 18
+                                     ownerTimeZone: [NSTimeZone timeZoneWithName: ownerZoneId]
+                                      viewTimeZone: [NSTimeZone timeZoneWithName: viewZoneId]];
 }
 
 - (NSString *) _wallClock: (NSCalendarDate *) theDate
