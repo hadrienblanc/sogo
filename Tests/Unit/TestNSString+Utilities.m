@@ -121,7 +121,6 @@
   testEquals(result, @"café");
 }
 
-
 - (void) test_stringWithoutHTMLInjection
 {
   testEquals([[NSString stringWithString:@"<a href=\"\">foo</a>bar"] stringWithoutHTMLInjection: YES stripAngular: NO], @" foo bar");
