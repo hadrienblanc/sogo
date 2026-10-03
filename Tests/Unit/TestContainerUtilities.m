@@ -254,32 +254,6 @@
 
 @end
 
-@interface StubYesNumber : NSNumber
-- (NSString *) descriptionWithLocale: (id) locale;
-@end
-
-@implementation StubYesNumber
-
-- (NSString *) descriptionWithLocale: (id) locale
-{
-  return @"YES";
-}
-
-@end
-
-@interface StubNoNumber : NSNumber
-- (NSString *) descriptionWithLocale: (id) locale;
-@end
-
-@implementation StubNoNumber
-
-- (NSString *) descriptionWithLocale: (id) locale
-{
-  return @"NO";
-}
-
-@end
-
 __attribute__((constructor))
 static void EnsureLabelResources (void)
 {
@@ -639,7 +613,7 @@ static void EnsureLabelResources (void)
   testEquals([dict jsonRepresentation], @"{\"k\":1}");
 
   dict = [NSDictionary dictionaryWithObject: [NSNumber numberWithBool: YES] forKey: @"k"];
-  testEquals([dict jsonRepresentation], @"{\"k\":1}");
+  testEquals([dict jsonRepresentation], @"{\"k\":true}");
 
   dict = [NSDictionary dictionaryWithObject: [NSArray arrayWithObjects: @"a", nil]
                                      forKey: @"k"];
@@ -739,22 +713,8 @@ static void EnsureLabelResources (void)
 {
   testEquals([[NSNumber numberWithInt: 42] jsonRepresentation], @"42");
   testEquals([[NSNumber numberWithDouble: 1.5] jsonRepresentation], @"1.5");
-  testEquals([[NSNumber numberWithBool: YES] jsonRepresentation], @"1");
-  testEquals([[NSNumber numberWithBool: NO] jsonRepresentation], @"0");
-}
-
-- (void) test_numberJsonRepresentationYesNo
-{
-  StubYesNumber *yesNumber;
-  StubNoNumber *noNumber;
-
-  yesNumber = [StubYesNumber new];
-  testEquals([yesNumber jsonRepresentation], @"true");
-  [yesNumber release];
-
-  noNumber = [StubNoNumber new];
-  testEquals([noNumber jsonRepresentation], @"false");
-  [noNumber release];
+  testEquals([[NSNumber numberWithBool: YES] jsonRepresentation], @"true");
+  testEquals([[NSNumber numberWithBool: NO] jsonRepresentation], @"false");
 }
 
 - (void) test_objectJsonRepresentationRaises
