@@ -46,7 +46,7 @@
         // Update the message flags. The message must be displayed in the parent window.
         $scope.$watchCollection(function() { return vm.message.flags; }, function(newTags, oldTags) {
           var ctrls;
-          if (newTags || oldTags) {
+          if (newTags !== oldTags && (newTags || oldTags)) {
             ctrls = $parentControllers();
             if (ctrls.messageCtrl) {
               ctrls.messageCtrl.service.$timeout(function() {
