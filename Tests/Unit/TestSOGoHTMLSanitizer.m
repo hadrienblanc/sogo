@@ -452,6 +452,29 @@
   testWithMessage ([result rangeOfString: @"title=\"ok\""].location != NSNotFound, error);
 }
 
+- (void) test_styleAttributesWithoutUrlAreKept
+{
+  NSString *result, *error;
+
+  result = [self sanitize:
+              @"<body>"
+              @"<p><span style=\"font-size:36px;\">BIG</span>"
+              @"<span style=\"font-size:12px;\">small</span></p>"
+              @"<div style=\"color: blue; margin: 0;\">c</div>"
+              @"</body>"];
+
+  error = [NSString stringWithFormat: @"benign style neutralized: %@", result];
+  testWithMessage ([result rangeOfString: @"unsafe-style"].location == NSNotFound, error);
+  error = [NSString stringWithFormat: @"font-size style dropped: %@", result];
+  testWithMessage ([result rangeOfString: @"style=\"font-size:36px;\""].location != NSNotFound,
+                   error);
+  testWithMessage ([result rangeOfString: @"style=\"font-size:12px;\""].location != NSNotFound,
+                   error);
+  error = [NSString stringWithFormat: @"other benign style dropped: %@", result];
+  testWithMessage ([result rangeOfString: @"color: blue; margin: 0;"].location != NSNotFound,
+                   error);
+}
+
 - (void) test_hrefSchemesAreValidated
 {
   NSString *result, *error;
