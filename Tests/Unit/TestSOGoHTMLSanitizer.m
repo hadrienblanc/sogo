@@ -28,6 +28,7 @@
 #import <SaxObjC/SaxXMLReaderFactory.h>
 
 #import <SOGo/SOGoHTMLSanitizer.h>
+#import <SOGo/NSString+Utilities.h>
 
 @interface TestSOGoHTMLSanitizer : SOGoTest
 @end
@@ -93,6 +94,30 @@
               @"</a>"
               @"<p>outro</p>"
               @"</body>"];
+
+  error = [NSString stringWithFormat: @"content after comment dropped: %@", result];
+  testWithMessage ([result rangeOfString: @"intro"].location != NSNotFound, error);
+  testWithMessage ([result rangeOfString: @"outro"].location != NSNotFound, error);
+  testWithMessage ([result rangeOfString: @"big.png"].location != NSNotFound, error);
+}
+
+- (void) test_conditionalCommentWrappedImagesSurviveInvalidTagCleanup
+{
+  NSString *preparsed, *result, *error;
+
+  preparsed = [[NSString stringWithString:
+                   @"<body>"
+                   @"<p>intro</p>"
+                   @"<a href=\"https://example.com/\">"
+                   @"<!--[if !mso]><!-->"
+                   @"<div><img src=\"https://example.com/big.png\"/></div>"
+                   @"<!--<![endif]-->"
+                   @"<!--[if mso]><v:roundrect></v:roundrect><![endif]-->"
+                   @"</a>"
+                   @"<p>outro</p>"
+                   @"</body>"]
+                 cleanInvalidHTMLTags];
+  result = [self sanitize: preparsed];
 
   error = [NSString stringWithFormat: @"content after comment dropped: %@", result];
   testWithMessage ([result rangeOfString: @"intro"].location != NSNotFound, error);
