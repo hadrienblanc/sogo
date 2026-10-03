@@ -1067,8 +1067,7 @@
         {
           if (sortByThread)
             {
-              data = [self getUIDsInFolder: folder
-                              withHeaders: YES];
+              data = [self getUIDsInFolder: folder withHeaders: YES];
               if (data != nil)
                 {
                   [data setObject: newSyncToken
