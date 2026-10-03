@@ -98,7 +98,8 @@ describe('Threaded refresh of the message list (bug 6231)', function() {
 
     await _putMessage(webdav, rootMessage)
 
-    await preferences.set('SOGoMailSortByThreads', 1)
+    await preferences.setOrCreate('SOGoMailSortByThreads', 1)
+    await preferences.save()
 
     const view = await _viewFolder(preferences)
     expect(view.threaded)
@@ -108,19 +109,18 @@ describe('Threaded refresh of the message list (bug 6231)', function() {
     expect(syncToken)
       .withContext('the initial view must return a sync token')
       .toBeDefined()
+
+    await _putMessage(webdav, replyMessage)
   })
 
   afterAll(async function() {
-    if (originalPreference !== null)
-      await preferences.set('SOGoMailSortByThreads', originalPreference)
-    else
-      await preferences.set('SOGoMailSortByThreads', 0)
-    await webdav.deleteObject(resource + mailbox)
+    await preferences.setOrCreate('SOGoMailSortByThreads',
+                                  originalPreference === null ? 0 : originalPreference)
+    await preferences.save()
+    await webdav.deleteObject(resource + `folder${mailbox}`)
   })
 
   it('returns the full folder state when a reply arrived (bug 6231)', async function() {
-    await _putMessage(webdav, replyMessage)
-
     const changes = await _fetchChanges(preferences, syncToken)
 
     expect(changes.uids)

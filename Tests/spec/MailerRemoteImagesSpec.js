@@ -131,6 +131,7 @@ describe('Mail remote inline images from known senders (bug 6170)', function() {
   })
 
   it('reports a sender listed in the address book as known', async function() {
+    await preferences.set('SOGoMailDisplayRemoteInlineImages', 'known')
     const data = await _fetchView(knownSenderLocation)
 
     expect(data.senderInAddressBook)
@@ -142,6 +143,7 @@ describe('Mail remote inline images from known senders (bug 6170)', function() {
   })
 
   it('does not flag a sender whose address is only a substring of a card email', async function() {
+    await preferences.set('SOGoMailDisplayRemoteInlineImages', 'known')
     const data = await _fetchView(substringSpoofLocation)
 
     expect(data.senderInAddressBook)
@@ -150,6 +152,7 @@ describe('Mail remote inline images from known senders (bug 6170)', function() {
   })
 
   it('does not flag a message without a From header', async function() {
+    await preferences.set('SOGoMailDisplayRemoteInlineImages', 'known')
     const data = await _fetchView(missingFromLocation)
 
     expect(data.senderInAddressBook)
@@ -158,8 +161,7 @@ describe('Mail remote inline images from known senders (bug 6170)', function() {
   })
 
   it('omits the known-sender flag when the preference is not "known"', async function() {
-    await preferences.set('SOGoMailDisplayRemoteInlineImages',
-                          originalPreference || 'never')
+    await preferences.set('SOGoMailDisplayRemoteInlineImages', 'never')
     const data = await _fetchView(knownSenderLocation)
 
     expect(data.senderInAddressBook)
