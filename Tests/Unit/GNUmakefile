@@ -96,6 +96,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \
 	TestSOGoAppointmentFolderNewEventsAsFree.m \
+	TestSOGoAppointmentObjectConflictWindow.m \
 	TestSOGoContactSourceFolder.m \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \

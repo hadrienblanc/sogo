@@ -630,6 +630,18 @@
 // Note that it doesn't matter if it changes the participation
 // status since in case of an error, nothing will get saved.
 //
++ (NSCalendarDate *) conflictCheckStartDateForEvent: (iCalEvent *) theEvent
+{
+  NSCalendarDate *startDate, *now;
+
+  now = [[NSCalendarDate date] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
+  startDate = [[theEvent startDate] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
+  if ([startDate compare: now] == NSOrderedAscending)
+    startDate = now;
+
+  return startDate;
+}
+
 - (NSException *) _handleAttendeesConflicts: (NSArray *) theAttendees
                                    forEvent: (iCalEvent *) theEvent
                                       force: (BOOL) forceSave
@@ -684,7 +696,7 @@
 
     // We get the start/end date for our conflict range. If the event to be added is recurring, we
     // check for at least a year to start with.
-    start = [[theEvent startDate] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
+    start = [SOGoAppointmentObject conflictCheckStartDateForEvent: theEvent];
     end = [[theEvent endDate] dateByAddingYears: ([theEvent isRecurrent] ? 1 : 0)  months: 0  days: 0  hours: 0  minutes: 0  seconds: -1];
         
     folder = [user personalCalendarFolderInContext: context];
