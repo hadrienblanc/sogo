@@ -1906,6 +1906,64 @@ static NSString    *userAgent      = nil;
   return result;
 }
 
+- (NSString *) _idnFrom: (NSString *) theFrom
+{
+  NSCharacterSet *trimSet;
+  NSRange ltRange;
+  NSString *address, *phrase, *unicodeAddress;
+
+  if (![theFrom length])
+    return theFrom;
+
+  ltRange = [theFrom rangeOfString: @"<"];
+  if (ltRange.location != NSNotFound)
+    {
+      phrase = [[theFrom substringToIndex: ltRange.location]
+                 stringByTrimmingCharactersInSet:
+                   [NSCharacterSet whitespaceCharacterSet]];
+      if ([phrase length] > 0)
+        return theFrom;
+
+      trimSet = [NSCharacterSet characterSetWithCharactersInString: @"> \t"];
+      address = [[theFrom substringFromIndex: NSMaxRange (ltRange)]
+                  stringByTrimmingCharactersInSet: trimSet];
+    }
+  else
+    {
+      if ([theFrom rangeOfString: @"@"].location == NSNotFound)
+        return theFrom;
+
+      address = [theFrom stringByTrimmingCharactersInSet:
+                           [NSCharacterSet whitespaceCharacterSet]];
+    }
+
+  if (![address length])
+    return theFrom;
+
+  unicodeAddress = [address emailWithDecodedIDNDomain];
+  if ([unicodeAddress isEqualToString: address])
+    return theFrom;
+
+  return [NSString stringWithFormat: @"%@ <%@>", unicodeAddress, address];
+}
+
+- (NSArray *) _idnFromInArray: (NSArray *) theFroms
+{
+  NSMutableArray *result;
+  NSString *theFrom;
+  int count, max;
+
+  max = [theFroms count];
+  result = [NSMutableArray arrayWithCapacity: max];
+  for (count = 0; count < max; count++)
+    {
+      theFrom = [self _idnFrom: [theFroms objectAtIndex: count]];
+      [result addObject: theFrom];
+    }
+
+  return result;
+}
+
 - (NGMutableHashMap *) mimeHeaderMapWithHeaders: (NSDictionary *) _headers
                                       excluding: (NSArray *) _exclude
 {
@@ -1929,9 +1987,9 @@ static NSString    *userAgent      = nil;
 
   if (![self isEmptyValue:from]) {
     if ([from isKindOfClass:[NSArray class]])
-      [map setObjects: [self _quoteSpecialsInArray: from] forKey: @"from"];
+      [map setObjects: [self _quoteSpecialsInArray: [self _idnFromInArray: from]] forKey: @"from"];
     else
-      [map setObject: [self _quoteSpecials: from] forKey: @"from"];
+      [map setObject: [self _quoteSpecials: [self _idnFrom: from]] forKey: @"from"];
   }
 
   if ((replyTo = [headers objectForKey: @"reply-to"]))

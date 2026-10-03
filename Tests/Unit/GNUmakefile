@@ -93,6 +93,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	TestSOGoDraftObjectQuoteSpecials.m \
+	TestSOGoDraftObjectIDNFrom.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
