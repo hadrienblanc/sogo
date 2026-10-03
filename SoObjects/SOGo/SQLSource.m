@@ -345,11 +345,13 @@
             rc = [self _isPassword: _pwd  equalTo: value];
           }
           [channel cancelFetch];
+          [cm releaseChannel: channel];
         }
       else
-        [self errorWithFormat: @"could not run SQL '%@': %@", qualifier, ex];
-
-      [cm releaseChannel: channel];
+        {
+          [self errorWithFormat: @"could not run SQL '%@': %@", qualifier, ex];
+          [cm releaseChannel: channel  immediately: YES];
+        }
     }
   else
     [self errorWithFormat:@"failed to acquire channel for URL: %@",
