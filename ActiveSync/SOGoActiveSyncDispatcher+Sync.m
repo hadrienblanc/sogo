@@ -413,7 +413,7 @@ FIXME
 
                      // Everything is fine, lets generate our response
                      [theBuffer appendString: @"<Add>"];
-                     [theBuffer appendFormat: @"<ClientId>%@</ClientId>", clientId];
+                     [theBuffer appendFormat: @"<ClientId>%@</ClientId>", [clientId activeSyncRepresentationInContext: context]];
                      [theBuffer appendFormat: @"<ServerId>%@</ServerId>", serverId];
                      [theBuffer appendFormat: @"<Status>%d</Status>", 1];
                      [theBuffer appendString: s];
@@ -527,8 +527,8 @@ FIXME
 
           // Everything is fine, lets generate our response
           [theBuffer appendString: @"<Add>"];
-          [theBuffer appendFormat: @"<ClientId>%@</ClientId>", clientId];
-          [theBuffer appendFormat: @"<ServerId>%@</ServerId>", easId];
+          [theBuffer appendFormat: @"<ClientId>%@</ClientId>", [clientId activeSyncRepresentationInContext: context]];
+          [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [easId activeSyncRepresentationInContext: context]];
           [theBuffer appendFormat: @"<Status>%d</Status>", 1];
           [theBuffer appendString: @"</Add>"];
         }
@@ -646,7 +646,7 @@ FIXME
           if ([sogoObject isKindOfClass: [NSException class]])
             {
               [theBuffer appendString: @"<Change>"];
-              [theBuffer appendFormat: @"<ServerId>%@</ServerId>", origServerId];
+              [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [origServerId activeSyncRepresentationInContext: context]];
               [theBuffer appendFormat: @"<Status>%d</Status>", 8];
               [theBuffer appendString: @"</Change>"];
               continue;
@@ -782,7 +782,7 @@ FIXME
           [self _setFolderMetadata: folderMetadata  forKey: [self _getNameInCache: theCollection withType: theFolderType]];
 
           [theBuffer appendString: @"<Change>"];
-          [theBuffer appendFormat: @"<ServerId>%@</ServerId>", origServerId];
+          [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [origServerId activeSyncRepresentationInContext: context]];
 
           // A body element is sent only for draft mails - status 8 will delete the mail on the client - the next sync update fetch the new mail
           if ([allChanges objectForKey: @"Body"] && theFolderType == ActiveSyncMailFolder)
@@ -936,7 +936,7 @@ FIXME
                 [sogoObject delete];
 
               [theBuffer appendString: @"<Delete>"];
-              [theBuffer appendFormat: @"<ServerId>%@</ServerId>", origServerId];
+              [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [origServerId activeSyncRepresentationInContext: context]];
               [theBuffer appendFormat: @"<Status>%d</Status>", 1];
               [theBuffer appendString: @"</Delete>"];
            }
@@ -971,7 +971,7 @@ FIXME
   
   // FIXME - error handling
   [theBuffer appendString: @"<Fetch>"];
-  [theBuffer appendFormat: @"<ServerId>%@</ServerId>", serverId];
+  [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [serverId activeSyncRepresentationInContext: context]];
   [theBuffer appendFormat: @"<Status>%d</Status>", 1];
   [theBuffer appendString: @"<ApplicationData>"];
   [theBuffer appendString: [o activeSyncRepresentationInContext: context]];
@@ -1086,7 +1086,7 @@ FIXME
                     [self logWithFormat: @"EAS - SoftDelete %@", key];
 
                   [s appendString: @"<SoftDelete xmlns=\"AirSync:\">"];
-                  [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", key];
+                  [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", [key activeSyncRepresentationInContext: context]];
                   [s appendString: @"</SoftDelete>"];
 
                   [syncCache removeObjectForKey: key];
@@ -1307,9 +1307,9 @@ FIXME
                     [s appendString: @"<Delete xmlns=\"AirSync:\">"];
 
                     if (![[theCollection nameInContainer] isEqualToString: @"personal"] && theMergeFolder)
-                      [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@{+}%@</ServerId>", [theCollection nameInContainer], easId];
+                      [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@{+}%@</ServerId>", [theCollection nameInContainer], [easId activeSyncRepresentationInContext: context]];
                     else
-                      [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", easId];
+                      [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", [easId activeSyncRepresentationInContext: context]];
 
                     [s appendString: @"</Delete>"];
 
@@ -1350,9 +1350,9 @@ FIXME
                         [s appendString: @"<Delete xmlns=\"AirSync:\">"];
 
                         if (![[theCollection nameInContainer] isEqualToString: @"personal"] && theMergeFolder)
-                          [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@{+}%@</ServerId>", [theCollection nameInContainer], easId];
+                          [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@{+}%@</ServerId>", [theCollection nameInContainer], [easId activeSyncRepresentationInContext: context]];
                         else
-                          [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", easId];
+                          [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", [easId activeSyncRepresentationInContext: context]];
 
                         [s appendString: @"</Delete>"];
 
@@ -1389,9 +1389,9 @@ FIXME
                   [s appendString: @"<Add xmlns=\"AirSync:\">"];
                 
                 if (![[theCollection nameInContainer] isEqualToString: @"personal"] && theMergeFolder)
-                    [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@{+}%@</ServerId>", [theCollection nameInContainer], easId];
+                    [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@{+}%@</ServerId>", [theCollection nameInContainer], [easId activeSyncRepresentationInContext: context]];
                 else
-                    [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", easId];
+                    [s appendFormat: @"<ServerId xmlns=\"AirSync:\">%@</ServerId>", [easId activeSyncRepresentationInContext: context]];
 
                 [s appendString: @"<ApplicationData xmlns=\"AirSync:\">"];
                 

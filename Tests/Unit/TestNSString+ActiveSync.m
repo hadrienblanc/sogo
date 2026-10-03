@@ -54,4 +54,22 @@
     @" - SOGo initiates the cache cleanup automatically, no administrator action is required");
 }
 
+- (void) test_activeSyncRepresentationEscapesAmpersandInServerId
+{
+  testEquals([@"20250403T201820Z-20250706T180000-Black&White@guest-messaging" activeSyncRepresentationInContext: nil],
+             @"20250403T201820Z-20250706T180000-Black&amp;White@guest-messaging");
+}
+
+- (void) test_activeSyncRepresentationEscapesNonAsciiAndAmpersandInServerId
+{
+  testEquals([@"20250403T201820Z-20250706T180000-F\xC3\xAAteBlanche&BBQ@guest-messaging" activeSyncRepresentationInContext: nil],
+             @"20250403T201820Z-20250706T180000-F&#234;teBlanche&amp;BBQ@guest-messaging");
+}
+
+- (void) test_activeSyncRepresentationKeepsPlainServerIdUnchanged
+{
+  testEquals([@"20250403T201820Z-20250706T180000-52EA9D00-1-A253E70" activeSyncRepresentationInContext: nil],
+             @"20250403T201820Z-20250706T180000-52EA9D00-1-A253E70");
+}
+
 @end
