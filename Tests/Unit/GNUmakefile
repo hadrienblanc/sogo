@@ -40,6 +40,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalEntityObjectAttributes.m \
 	TestiCalEntityObjectResetCreationMetadata.m \
 	TestNSCalendarDateClamping.m \
+	TestGCSChannelManager.m \
 	\
 	TestSBJsonParser.m \
 	\

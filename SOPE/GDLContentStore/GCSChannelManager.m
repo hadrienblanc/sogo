@@ -287,9 +287,10 @@ static NSTimeInterval ChannelCollectionTimer = 5 * 60;
       /* look for cached handles */
 
       handle = [self findAvailChannelHandleForURL: _url];
-      if (handle)
+      if (handle
+          && [[handle channel] isOpen]
+          && [handle age] < ChannelExpireAge)
         {
-          // TODO: check age?
           [busyChannels addObject: handle];
           [availableChannels removeObject: handle];
           ASSIGN (handle->lastAcquireTime, now);
@@ -301,6 +302,15 @@ static NSTimeInterval ChannelCollectionTimer = 5 * 60;
         }
       else
         {
+          if (handle)
+            {
+              [handle retain];
+              [availableChannels removeObject: handle];
+              if ([[handle channel] isOpen])
+                [[handle channel] closeChannel];
+              [handle release];
+            }
+
           url = [NSString stringWithFormat: @"%@://%@%@", [_url scheme], [_url host], [_url path]];
           if (debugPools)
             {
