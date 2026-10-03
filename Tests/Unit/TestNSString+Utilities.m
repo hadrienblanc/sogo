@@ -97,6 +97,30 @@
   testEquals(result, @"kill me");
 }
 
+- (void) test_objectFromJSONString_containers
+{
+  id result;
+
+  result = [@"[1,2,3]" objectFromJSONString];
+  failIf([result count] != 3);
+  testEquals([result objectAtIndex: 0], [NSNumber numberWithInt: 1]);
+  testEquals([result objectAtIndex: 2], [NSNumber numberWithInt: 3]);
+
+  result = [@"{\"a\":1,\"b\":\"two\"}" objectFromJSONString];
+  failIf([result count] != 2);
+  testEquals([result objectForKey: @"a"], [NSNumber numberWithInt: 1]);
+  testEquals([result objectForKey: @"b"], @"two");
+
+  result = [@"{\"ids\":[4,5],\"flag\":true,\"none\":null}" objectFromJSONString];
+  failIf([result count] != 3);
+  testEquals([[result objectForKey: @"ids"] objectAtIndex: 1], [NSNumber numberWithInt: 5]);
+  testEquals([result objectForKey: @"flag"], [NSNumber numberWithBool: YES]);
+  testEquals([result objectForKey: @"none"], [NSNull null]);
+
+  result = [@"\"caf\\u00e9\"" objectFromJSONString];
+  testEquals(result, @"café");
+}
+
 
 - (void) test_stringWithoutHTMLInjection
 {
