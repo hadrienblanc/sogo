@@ -1676,7 +1676,7 @@ void handle_eas_terminate(int signum)
                   else
                     {
                       [s appendFormat: @"<CollectionId xmlns=\"AirSyncBase:\">%@</CollectionId>", collectionId];
-                      [s appendFormat: @"<ServerId xmlns=\"AirSyncBase:\">%@</ServerId>", serverId];
+                      [s appendFormat: @"<ServerId xmlns=\"AirSyncBase:\">%@</ServerId>", [serverId activeSyncRepresentationInContext: context]];
                     }
 
                   [s appendString: @"<Properties>"];
@@ -1755,7 +1755,7 @@ void handle_eas_terminate(int signum)
               else
                 {
                   [s appendFormat: @"<CollectionId xmlns=\"AirSyncBase:\">%@</CollectionId>", collectionId];
-                  [s appendFormat: @"<ServerId xmlns=\"AirSyncBase:\">%@</ServerId>", serverId];
+                  [s appendFormat: @"<ServerId xmlns=\"AirSyncBase:\">%@</ServerId>", [serverId activeSyncRepresentationInContext: context]];
                 }
 
               [s appendString: @"<Properties>"];
