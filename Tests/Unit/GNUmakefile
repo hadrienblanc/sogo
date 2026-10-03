@@ -38,6 +38,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalPerson+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
+	TestiCalEntityObjectResetCreationMetadata.m \
 	TestNSCalendarDateClamping.m \
 	\
 	TestSBJsonParser.m \

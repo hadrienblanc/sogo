@@ -51,6 +51,8 @@ extern NSNumber *iCalDistantFutureNumber;
 
 - (id) itipEntryWithMethod: (NSString *) method;
 
+- (void) resetCreationMetadata;
+
 - (NSArray *) attendeesWithoutUser: (SOGoUser *) user;
 
 - (NSArray *) attachUrlsForEditor;

@@ -1104,7 +1104,7 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
         inRecurrenceExceptionsForEvent: newEvent
                           add: YES];
 
-  if ([changes sequenceShouldBeIncreased])
+  if ([changes sequenceShouldBeIncreased] && [[newEvent attendees] count] > 0)
     {
       [newEvent increaseSequence];
       
