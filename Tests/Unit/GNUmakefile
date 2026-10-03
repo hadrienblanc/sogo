@@ -32,6 +32,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalRepeatableEntityObjectInvitation.m \
+	TestiCalCalendarInvitationUpdate.m \
 	TestiCalEvent+SOGo.m \
 	TestiCalEvent+ActiveSync.m \
 	TestiCalToDo+ActiveSync.m \

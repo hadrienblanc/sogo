@@ -26,7 +26,10 @@
 
 #import <NGCards/iCalEvent.h>
 #import <NGCards/iCalDateTime.h>
+#import <NGCards/iCalPerson.h>
 #import <NGCards/iCalRepeatableEntityObject.h>
+
+#import <SOGo/SOGoUser.h>
 
 #import "iCalCalendar+SOGo.h"
 #import "iCalEntityObject+SOGo.h"
@@ -187,6 +190,74 @@
     }
 
   return allAttendees;
+}
+
+- (BOOL) applyInvitationUpdate: (iCalEvent *) newEvent
+                       forUser: (SOGoUser *) user
+{
+  NSMutableArray *storedExceptions;
+  NSEnumerator *e;
+  iCalEvent *child, *storedMaster;
+  iCalPerson *attendee;
+  NSCalendarDate *oldStartDate, *newStartDate, *recurrenceId;
+  NSString *partStat;
+  NSTimeInterval interval;
+
+  if ([newEvent recurrenceId])
+    return NO;
+
+  storedMaster = nil;
+  e = [[self events] objectEnumerator];
+  while ((child = [e nextObject]))
+    {
+      if (![child recurrenceId])
+        {
+          storedMaster = child;
+          break;
+        }
+    }
+
+  if (!storedMaster)
+    return NO;
+
+  if ([storedMaster compare: newEvent] != NSOrderedAscending)
+    return NO;
+
+  partStat = [[storedMaster userAsAttendee: user] partStat];
+
+  [self removeChild: storedMaster];
+
+  if (![newEvent hasRecurrenceRules])
+    [self addChild: newEvent];
+  else
+    {
+      oldStartDate = [storedMaster startDate];
+      newStartDate = [newEvent startDate];
+      interval = [newStartDate timeIntervalSinceDate: oldStartDate];
+
+      storedExceptions = [NSMutableArray array];
+      e = [[self childrenWithTag: @"vevent"] objectEnumerator];
+      while ((child = [e nextObject]))
+        {
+          [self removeChild: child];
+          recurrenceId = [child recurrenceId];
+          if (recurrenceId)
+            [child setRecurrenceId: [recurrenceId dateByAddingTimeInterval: interval]];
+          [storedExceptions addObject: child];
+        }
+
+      [self addChild: newEvent];
+
+      e = [storedExceptions objectEnumerator];
+      while ((child = [e nextObject]))
+        [self addChild: child];
+    }
+
+  attendee = [newEvent userAsAttendee: user];
+  if (attendee && [partStat length])
+    [attendee setPartStat: partStat];
+
+  return YES;
 }
 
 @end
