@@ -114,4 +114,53 @@
   failIf([userSource objectForKey: @"RefreshViewCheck"] != nil);
 }
 
+- (void) test_calendarAutoAddExternalInvitationsUnset
+{
+  SOGoUserDefaults *defaults;
+
+  defaults = [self _defaultsWithSource: [NSDictionary dictionary]
+                          parentSource: [NSDictionary dictionary]];
+
+  test ([defaults calendarAutoAddExternalInvitations] == NO);
+}
+
+- (void) test_calendarAutoAddExternalInvitationsFallsBackToParentSource
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *parentSource;
+
+  parentSource = [NSDictionary dictionaryWithObject: @"YES"
+                                              forKey: @"SOGoCalendarAutoAddExternalInvitations"];
+  defaults = [self _defaultsWithSource: [NSDictionary dictionary]
+                          parentSource: parentSource];
+
+  test ([defaults calendarAutoAddExternalInvitations] == YES);
+}
+
+- (void) test_calendarAutoAddExternalInvitationsUserSourceWins
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *userSource, *parentSource;
+
+  userSource = [NSDictionary dictionaryWithObject: @"NO"
+                                           forKey: @"SOGoCalendarAutoAddExternalInvitations"];
+  parentSource = [NSDictionary dictionaryWithObject: @"YES"
+                                              forKey: @"SOGoCalendarAutoAddExternalInvitations"];
+  defaults = [self _defaultsWithSource: userSource
+                          parentSource: parentSource];
+
+  test ([defaults calendarAutoAddExternalInvitations] == NO);
+}
+
+- (void) test_setCalendarAutoAddExternalInvitationsStoresBool
+{
+  SOGoUserDefaults *defaults;
+
+  defaults = [self _defaultsWithSource: [NSMutableDictionary dictionary]
+                          parentSource: [NSDictionary dictionary]];
+  [defaults setCalendarAutoAddExternalInvitations: YES];
+
+  test ([defaults calendarAutoAddExternalInvitations] == YES);
+}
+
 @end

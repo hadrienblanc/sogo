@@ -258,6 +258,9 @@ extern NSString *SOGoPasswordRecoverySecondaryEmail;
 - (void) setCalendarDefaultReminder: (NSString *) newValue;
 - (NSString *) calendarDefaultReminder;
 
+- (void) setCalendarAutoAddExternalInvitations: (BOOL) newValue;
+- (BOOL) calendarAutoAddExternalInvitations;
+
 /* contacts */
 - (void) setContactsCategories: (NSArray *) newValues;
 - (NSArray *) contactsCategories;

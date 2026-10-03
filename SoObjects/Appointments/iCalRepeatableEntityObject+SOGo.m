@@ -484,4 +484,21 @@
   return doesOccur;
 }
 
+- (BOOL) isInvitationRequestForUser: (SOGoUser *) user
+{
+  NSString *method;
+
+  method = [[self parent] method];
+  if (!method || [method caseInsensitiveCompare: @"REQUEST"] != NSOrderedSame)
+    return NO;
+
+  if ([self recurrenceId])
+    return NO;
+
+  if ([self userIsOrganizer: user])
+    return NO;
+
+  return [self userIsAttendee: user];
+}
+
 @end

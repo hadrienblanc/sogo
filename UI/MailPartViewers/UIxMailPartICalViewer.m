@@ -47,6 +47,7 @@
 #import <SOGo/SOGoUserManager.h>
 #import <SOGo/NSString+Utilities.h>
 #import <Appointments/iCalEntityObject+SOGo.h>
+#import <Appointments/iCalRepeatableEntityObject+SOGo.h>
 #import <Appointments/SOGoAppointmentFolder.h>
 #import <Appointments/SOGoAppointmentFolders.h>
 #import <Appointments/SOGoAppointmentObject.h>
@@ -581,6 +582,32 @@
 	      != NSOrderedAscending));
 }
 
+- (void) _autoAddInvitationToCalendar
+{
+  SOGoUser *user;
+  SOGoAppointmentFolder *folder;
+  SOGoAppointmentObject *eventObject;
+
+  if (![[[context activeUser] userDefaults] calendarAutoAddExternalInvitations])
+    return;
+
+  if (![self hasCalendarAccess])
+    return;
+
+  user = [context activeUser];
+  if (![[self inEvent] isInvitationRequestForUser: user])
+    return;
+
+  if ([self storedEventObject] != nil)
+    return;
+
+  folder = [user personalCalendarFolderInContext: context];
+  eventObject = [SOGoAppointmentObject objectWithName: [[self inEvent] uid]
+                                          inContainer: folder];
+  [eventObject setIsNew: YES];
+  [eventObject saveCalendar: [self inCalendar]];
+}
+
 - (id) renderedPart
 {
   NSMutableDictionary *d;
@@ -588,6 +615,8 @@
   iCalPerson *person;
   NSMutableArray *a;
   int i;
+
+  [self _autoAddInvitationToCalendar];
 
   d = [NSMutableDictionary dictionaryWithDictionary: [super renderedPart]];
 

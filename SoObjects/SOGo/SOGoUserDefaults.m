@@ -963,6 +963,16 @@ NSString *SOGoPasswordRecoverySecondaryEmail = @"SecondaryEmail";
   return [self stringForKey: @"SOGoCalendarDefaultReminder"];
 }
 
+- (void) setCalendarAutoAddExternalInvitations: (BOOL) newValue
+{
+  [self setBool: newValue forKey: @"SOGoCalendarAutoAddExternalInvitations"];
+}
+
+- (BOOL) calendarAutoAddExternalInvitations
+{
+  return [self boolForKey: @"SOGoCalendarAutoAddExternalInvitations"];
+}
+
 //
 // Dictionary of arrays. Example:
 //
