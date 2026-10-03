@@ -191,6 +191,7 @@ _intValueFromHex (NSString *hexString)
           if (fActiveTasks > 0)
             [calendar setObject: fActiveTasks forKey:@"activeTasks" ];
           [calendar setObject: [NSNumber numberWithBool: [folder includeInFreeBusy]] forKey: @"includeInFreeBusy"];
+          [calendar setObject: [NSNumber numberWithBool: [folder newEventsAsFree]] forKey: @"newEventsAsFree"];
           [calendar setObject: [NSNumber numberWithBool: [folder showCalendarAlarms]] forKey: @"showCalendarAlarms"];
           [calendar setObject: [NSNumber numberWithBool: [folder showCalendarTasks]] forKey: @"showCalendarTasks"];
 

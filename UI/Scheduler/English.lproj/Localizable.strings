@@ -542,6 +542,7 @@ vtodo_class2 = "(Confidential task)";
 /* Properties dialog */
 "Color" = "Color";
 "Include in free-busy" = "Include in free-busy";
+"New events shown as free" = "New events shown as free";
 "Synchronization" = "Synchronization";
 "Synchronize" = "Synchronize";
 "Tag" = "Tag";

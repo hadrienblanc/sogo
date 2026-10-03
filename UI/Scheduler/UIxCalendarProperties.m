@@ -63,6 +63,7 @@
  * @apiParam {String} name                Human readable name
  * @apiParam {String} color               Calendar's hex color code
  * @apiParam {Number} includeInFreeBusy   1 if calendar must be include in freebusy
+ * @apiParam {Number} newEventsAsFree     1 if new events must be shown as free by default
  * @apiParam {Number} showCalendarAlarms  1 if alarms must be enabled
  * @apiParam {Number} showCalendarTasks   1 if tasks must be enabled
  * @apiParam {Number} synchronize         1 if we enable EAS synchronization for this calendar
@@ -97,6 +98,10 @@
       o = [params objectForKey: @"includeInFreeBusy"];
       if ([o isKindOfClass: [NSNumber class]])
         [calendar setIncludeInFreeBusy: [o boolValue]];
+
+      o = [params objectForKey: @"newEventsAsFree"];
+      if ([o isKindOfClass: [NSNumber class]])
+        [calendar setNewEventsAsFree: [o boolValue]];
 
       o = [params objectForKey: @"showCalendarAlarms"];
       if ([o isKindOfClass: [NSNumber class]])
