@@ -588,13 +588,14 @@
   SOGoAppointmentFolder *folder;
   SOGoAppointmentObject *eventObject;
 
-  if (![[[context activeUser] userDefaults] calendarAutoAddExternalInvitations])
+  user = [context activeUser];
+
+  if (![[user userDefaults] calendarAutoAddExternalInvitations])
     return;
 
   if (![self hasCalendarAccess])
     return;
 
-  user = [context activeUser];
   if (![[self inEvent] isInvitationRequestForUser: user])
     return;
 
