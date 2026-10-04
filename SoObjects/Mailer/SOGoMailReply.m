@@ -62,8 +62,9 @@
 
 - (NSString *) citePrefixOpen
 {
-  NSString *rc = @"";
+  NSString *rc;
 
+  rc = @"";
   if (htmlComposition)
     rc = @"<div class=\"moz-cite-prefix\">";
 
@@ -72,8 +73,9 @@
 
 - (NSString *) citePrefixClose
 {
-  NSString *rc = @"";
+  NSString *rc;
 
+  rc = @"";
   if (htmlComposition)
     rc = @"</div>";
 

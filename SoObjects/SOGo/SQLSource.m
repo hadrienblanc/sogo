@@ -954,7 +954,7 @@
           for (j = i; j < i + take; j++)
             {
               theID = [[theIDs objectAtIndex: j]
-                        stringByReplacingString: @"'"  withString: @"''"];
+                        stringByReplacingString: @"'" withString: @"''"];
               uidQualifier = [[EOKeyValueQualifier alloc] initWithKey: @"c_uid"
                                                         operatorSelector: EOQualifierOperatorEqual
                                                                    value: theID];
@@ -966,8 +966,9 @@
                                  @" FROM %@"
                                  @" WHERE ",
                                  [_viewURL gcsTableName]];
-          qualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
-          [qualifier autorelease];
+          idQualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
+          [idQualifier autorelease];
+          qualifier = idQualifier;
           domainQualifier = nil;
           if (_domainField && [domain length])
             domainQualifier = [self visibleDomainsQualifierFromDomain: domain];
@@ -998,8 +999,6 @@
                 {
                   NSArray *authResults;
 
-                  idQualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
-                  [idQualifier autorelease];
                   authResults = [self _authenticatedUIDsForUIDQualifier: idQualifier
                                                                onChannel: channel];
                   authUIDs = [NSSet setWithArray: (authResults
