@@ -30,6 +30,228 @@
 
 @implementation NSData (SOGoMailUtilities)
 
+static unsigned int rangeOfEncodedWord(const char *cData, unsigned int len,
+                                       unsigned int start,
+                                       unsigned int *charsetStart,
+                                       unsigned int *charsetLength,
+                                       BOOL *isQuotedPrintable,
+                                       unsigned int *payloadStart,
+                                       unsigned int *payloadLength)
+{
+  unsigned int i, charsetEnd, payloadEnd;
+
+  i = start + 2;
+  charsetEnd = i;
+  while (charsetEnd < len && cData[charsetEnd] != '?')
+    charsetEnd++;
+
+  if (charsetEnd == i || charsetEnd >= len)
+    return 0;
+
+  if ((charsetEnd + 2) >= len || cData[charsetEnd + 2] != '?')
+    return 0;
+
+  if (cData[charsetEnd + 1] != 'q' && cData[charsetEnd + 1] != 'Q'
+      && cData[charsetEnd + 1] != 'b' && cData[charsetEnd + 1] != 'B')
+    return 0;
+
+  *isQuotedPrintable = (cData[charsetEnd + 1] == 'q'
+                        || cData[charsetEnd + 1] == 'Q');
+
+  i = charsetEnd + 3;
+  payloadEnd = i;
+  while ((payloadEnd + 1) < len
+         && !(cData[payloadEnd] == '?' && cData[payloadEnd + 1] == '='))
+    payloadEnd++;
+
+  if ((payloadEnd + 1) >= len)
+    return 0;
+
+  *charsetStart = start + 2;
+  *charsetLength = charsetEnd - (start + 2);
+  *payloadStart = i;
+  *payloadLength = payloadEnd - i;
+
+  return payloadEnd + 2;
+}
+
+static NSString *literalStringFromData(NSData *data)
+{
+  NSString *result;
+
+  result = [[NSString alloc] initWithData: data
+                                  encoding: NSASCIIStringEncoding];
+  if (!result)
+    result = [[NSString alloc] initWithData: data
+                                   encoding: NSUTF8StringEncoding];
+  if (!result)
+    result = [[NSString alloc] initWithData: data
+                                   encoding: NSISOLatin1StringEncoding];
+  [result autorelease];
+
+  return result;
+}
+
+static void appendDecodedData(NSMutableString *result, NSData *data,
+                              NSString *charset)
+{
+  NSString *chunk;
+
+  chunk = nil;
+  if (charset)
+    chunk = [NSString stringWithData: data usingEncodingNamed: charset];
+  if (!chunk)
+    {
+      chunk = [[NSString alloc] initWithData: data
+                                    encoding: NSUTF8StringEncoding];
+      if (!chunk)
+        chunk = [[NSString alloc] initWithData: data
+                                     encoding: NSISOLatin1StringEncoding];
+      [chunk autorelease];
+    }
+  if (chunk)
+    [result appendString: chunk];
+}
+
+- (NSString *) decodedHeader
+{
+  const char *cData;
+  unsigned int len, i, j, k, end;
+  unsigned int charsetStart, charsetLength, payloadStart, payloadLength;
+  unsigned int nextCharsetStart, nextCharsetLength;
+  unsigned int nextPayloadStart, nextPayloadLength;
+  BOOL isQuotedPrintable, nextIsQuotedPrintable, foundEncodedWord;
+  NSString *decodedString, *enc, *chunk;
+  NSMutableString *result;
+  NSMutableData *pendingData;
+  NSString *pendingCharset;
+  NSData *d;
+
+  cData = [self bytes];
+  len = [self length];
+  decodedString = nil;
+
+  if (len)
+    {
+      if (len > 6)
+        {
+          result = [NSMutableString stringWithCapacity: len];
+          pendingData = [[NSMutableData alloc] initWithCapacity: len];
+          pendingCharset = nil;
+          foundEncodedWord = NO;
+          i = 0;
+
+          while (i < len)
+            {
+              j = i;
+              while ((j + 1) < len
+                     && (*(cData + j) != '=' || *(cData + j + 1) != '?'))
+                j++;
+
+              if ((j + 1) >= len)
+                j = len;
+
+              if (j > i)
+                {
+                  if (pendingCharset)
+                    {
+                      appendDecodedData(result, pendingData, pendingCharset);
+                      [pendingCharset release];
+                      pendingCharset = nil;
+                    }
+                  chunk = literalStringFromData([self subdataWithRange:
+                                                     NSMakeRange(i, j - i)]);
+                  if (chunk)
+                    [result appendString: chunk];
+                }
+
+              if (j >= len)
+                break;
+
+              end = rangeOfEncodedWord(cData, len, j, &charsetStart, &charsetLength,
+                                       &isQuotedPrintable, &payloadStart, &payloadLength);
+              if (end == 0)
+                {
+                  if (pendingCharset)
+                    {
+                      appendDecodedData(result, pendingData, pendingCharset);
+                      [pendingCharset release];
+                      pendingCharset = nil;
+                    }
+                  chunk = literalStringFromData([self subdataWithRange: NSMakeRange(j, 2)]);
+                  if (chunk)
+                    [result appendString: chunk];
+                  i = j + 2;
+                  continue;
+                }
+
+              foundEncodedWord = YES;
+              enc = [[[NSString alloc] initWithData: [self subdataWithRange: NSMakeRange(charsetStart, charsetLength)]
+                                        encoding: NSASCIIStringEncoding] autorelease];
+
+              d = [self subdataWithRange: NSMakeRange(payloadStart, payloadLength)];
+              if (isQuotedPrintable)
+                d = [d dataByDecodingQuotedPrintable];
+              else
+                d = [d dataByDecodingBase64];
+
+              if (!enc)
+                appendDecodedData(result, d, nil);
+              else if (pendingCharset
+                       && [pendingCharset caseInsensitiveCompare: enc] == NSOrderedSame)
+                [pendingData appendData: d];
+              else
+                {
+                  if (pendingCharset)
+                    appendDecodedData(result, pendingData, pendingCharset);
+                  [pendingCharset release];
+                  pendingCharset = [enc retain];
+                  [pendingData setData: d];
+                }
+
+              k = end;
+              while (k < len
+                     && (*(cData + k) == ' ' || *(cData + k) == '\t'
+                         || *(cData + k) == '\r' || *(cData + k) == '\n'))
+                k++;
+
+              if ((k + 1) < len && *(cData + k) == '=' && *(cData + k + 1) == '?'
+                  && rangeOfEncodedWord(cData, len, k, &nextCharsetStart, &nextCharsetLength,
+                                        &nextIsQuotedPrintable, &nextPayloadStart,
+                                        &nextPayloadLength) > 0)
+                i = k;
+              else
+                i = end;
+            }
+
+          if (pendingCharset)
+            {
+              appendDecodedData(result, pendingData, pendingCharset);
+              [pendingCharset release];
+            }
+
+          if (foundEncodedWord)
+            decodedString = result;
+          [pendingData release];
+        }
+      if (!decodedString)
+        {
+          decodedString
+            = [[NSString alloc] initWithData: self
+                                 encoding: NSUTF8StringEncoding];
+          if (!decodedString)
+            decodedString
+              = [[NSString alloc] initWithData: self
+                                  encoding: NSISOLatin1StringEncoding];
+          [decodedString autorelease];
+        }
+    }
+  else
+    decodedString = @"";
+
+  return decodedString;
+}
+
 - (NSData *) bodyDataFromEncoding: (NSString *) encoding
 {
   NSString *realEncoding;
@@ -100,117 +322,6 @@
     }
 
   return bodyString;
-}
-
-/*
- * Excpected form is: "=?charset?encoding?encoded text?=".
- */
-- (NSString *) decodedHeader
-{
-  const char *cData;
-  unsigned int len, i, j;
-  NSString *decodedString;
-
-  cData = [self bytes];
-  len = [self length];
-  decodedString = nil;
-
-  if (len)
-    {
-      if (len > 6)
-	{
-	  // Find beginning of encoded text
-	  i = 1;
-	  while ((*cData != '=' || *(cData+1) != '?') && i < len)
-	    {
-	      cData++;
-	      i++;
-	    }
-
-	  if (*cData == '=' && *(cData+1) == '?')
-	    {
-	      NSString *enc;
-
-	      if (i > 1)
-		decodedString = [[[NSString alloc] initWithData: [self subdataWithRange: NSMakeRange(0, (i-1))]
-							encoding: NSASCIIStringEncoding] autorelease];
-	      cData += 2; // skip "=?"
-	      i++;
-	      j = i;
-	      // Find next "?"
-	      while (*cData != '?' && j < len)
-		{
-		  cData++;
-		  j++;
-		}
-	      enc = [[[NSString alloc] initWithData:[self subdataWithRange: NSMakeRange(i, j-i)]
-				       encoding: NSASCIIStringEncoding] autorelease];
-
-	      i = j + 3; // skip "?q?"
-	      if (i < (len-2))
-		{
-		  NSData *d;
-		  BOOL isQuotedPrintable = NO;
-
-		  cData++;
-		  // We check if we have a QP or Base64 encoding
-		  if (*cData == 'q' || *cData == 'Q')
-		    isQuotedPrintable = YES;
-
-		  // Find end of encoded text
-		  j = i;
-		  cData += 2; // skip "q?"
-		  while ((*cData != '?' || *(cData+1) != '=') && (j+1) < len)
-		    {
-		      cData++;
-		      j++;
-		    }
-
-		  d = [self subdataWithRange: NSMakeRange(i, j-i)];
-		  if (isQuotedPrintable)
-		    d = [d dataByDecodingQuotedPrintable];
-		  else
-		    d = [d dataByDecodingBase64];
-
-		  if (decodedString)
-		    {
-		      decodedString = [NSString stringWithFormat: @"%@%@",
-						decodedString, [NSString stringWithData: d
-								     usingEncodingNamed: enc]];
-		    }
-		  else
-		    decodedString = [NSString stringWithData: d
-					  usingEncodingNamed: enc];
-
-		  j += 2; // skip "?="
-		  if (j < len)
-		    {
-		      // Recursively decode the remaining part
-		      decodedString = [NSString stringWithFormat: @"%@%@",
-						decodedString,
-					 [[self subdataWithRange: NSMakeRange(j, len-j)] decodedHeader]];
-		    }
-		}
-	      else
-		decodedString = nil;
-	    }
-	}
-      if (!decodedString)
-	{
-	  decodedString
-	    = [[NSString alloc] initWithData: self
-				encoding: NSUTF8StringEncoding];
-	  if (!decodedString)
-	    decodedString
-	      = [[NSString alloc] initWithData: self
-				  encoding: NSISOLatin1StringEncoding];
-	  [decodedString autorelease];
-	}
-    }
-  else
-    decodedString = @"";
-
-  return decodedString;
 }
 
 //

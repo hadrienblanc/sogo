@@ -82,7 +82,13 @@
   testEquals([@"=?utf-8?B?Y2Fmw6k=?=" decodedHeader], @"café");
   testEquals([@"=?iso-8859-1?q?caf=E9?=" decodedHeader], @"café");
   testEquals([@"Re: =?utf-8?q?caf=C3=A9?=" decodedHeader], @"Re: café");
-  testEquals([@"=?utf-8?q?a?= =?utf-8?q?b?=" decodedHeader], @"a b");
+  testEquals([@"=?utf-8?q?caf=C3=A9?= tail" decodedHeader], @"café tail");
+  testEquals([@"=?utf-8?q?a?= =?utf-8?q?b?=" decodedHeader], @"ab");
+  testEquals([@"=?utf-8?q?caf?= =?utf-8?q?=C3=A9?=" decodedHeader], @"café");
+  testEquals([@"=?utf-8?B?Y2Fm?==?utf-8?q?=C3=A9?=" decodedHeader], @"café");
+  testEquals([@"=?utf-8?q?caf=C3=A9?= =?iso-8859-1?q?caf=E9?=" decodedHeader], @"cafécafé");
+  testEquals([@"=?utf-8?B?6aG555uu5Lu75YqhIOS4tOacn+aPkOmGkijkuIDmsb3lpKfk?= =?utf-8?B?vJfCt0IxMMK3MuWNh+mZjeezu+e7nyk=?=" decodedHeader],
+             @"项目任务 临期提醒(一汽大众·B10·2升降系统)");
 }
 
 - (void) test_asPreferredFilenameUsingPath
