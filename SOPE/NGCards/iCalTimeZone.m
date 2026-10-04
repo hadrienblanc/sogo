@@ -184,11 +184,11 @@ static NSString *tzOffsetString(int offset)
 
       systemZone = [NSTimeZone timeZoneWithName: theName];
       if (systemZone)
-        {
-          o = [[[_iCalSystemTimeZone alloc] initWithSystemTimeZone: systemZone]
-                autorelease];
-          [cache setObject: o  forKey: theName];
-        }
+	{
+	  o = [[[_iCalSystemTimeZone alloc] initWithSystemTimeZone: systemZone]
+	       autorelease];
+	  [cache setObject: o  forKey: theName];
+	}
     }
 
   return o;
