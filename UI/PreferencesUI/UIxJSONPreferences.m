@@ -436,7 +436,7 @@ static SoProduct *preferencesProduct = nil;
     [[defaults source] setObject: [defaults mailDisplayAttachmentAbove] forKey: @"SOGoMailDisplayAttachmentAbove"];
 
   if (![[defaults source] objectForKey: @"SOGoMailFetchAllUnseenCountFolders"])
-    [[defaults source] setObject: [NSNumber numberWithInt: [defaults mailFetchAllUnseenCountFolders]]  forKey: @"SOGoMailFetchAllUnseenCountFolders"];
+    [[defaults source] setObject: [NSNumber numberWithInt: [defaults mailFetchAllUnseenCountFolders]] forKey: @"SOGoMailFetchAllUnseenCountFolders"];
 
   if ([[defaults source] objectForKey: @"SOGoMailAutoMarkAsReadDelay"] == nil)
     [[defaults source] setObject: [NSNumber numberWithInt: [defaults mailAutoMarkAsReadDelay]] forKey: @"SOGoMailAutoMarkAsReadDelay"];

@@ -1299,7 +1299,7 @@
           [cm releaseChannel: channel];
         }
       else
-        [self errorWithFormat:@"failed to acquire channel for URL: %@",
+        [self errorWithFormat: @"failed to acquire channel for URL: %@",
               [_viewURL absoluteString]];
     }
 
