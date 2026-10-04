@@ -334,6 +334,9 @@ FIXME
 -> lastObject returns the ClientId in Attachments element -> try with objectAtIndex: 0 -> is this correct?
 */
           //clientId = [[(id)[anAddition getElementsByTagName: @"ClientId"] lastObject] textValue];
+          if (![(id)[anAddition getElementsByTagName: @"ClientId"] count])
+            continue;
+
           clientId = [[(id)[anAddition getElementsByTagName: @"ClientId"] objectAtIndex: 0] textValue];
 
           allValues = [NSMutableDictionary dictionaryWithDictionary: [[(id)[anAddition getElementsByTagName: @"ApplicationData"]  lastObject] applicationData]];
@@ -360,8 +363,10 @@ FIXME
                 // the case, let's just update it. This can happen if for example, an iOS based device receives the
                 // invitation email and choses "Add to calendar" BEFORE actually syncing the calendar. That would
                 // create a duplicate on the server.
-                if ([allValues objectForKey: ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0) ? @"ClientUid" : @"UID"])
-                  serverId = [allValues objectForKey: ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0) ? @"ClientUid" : @"UID"];
+                if ((o = [allValues objectForKey: @"ClientUid"]))
+                  serverId = o;
+                else if ((o = [allValues objectForKey: @"UID"]))
+                  serverId = o;
                 else
                   serverId = [theCollection globallyUniqueObjectId];
                                 
@@ -652,7 +657,9 @@ FIXME
             {
               NSString *clientUid, *componentName;
 
-              clientUid = [allChanges objectForKey: ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0) ? @"ClientUid" : @"UID"];
+              clientUid = [allChanges objectForKey: @"ClientUid"];
+              if (!clientUid)
+                clientUid = [allChanges objectForKey: @"UID"];
               componentName = nil;
               if ([clientUid length])
                 componentName = [(SOGoAppointmentFolder *) theCollection resourceNameForEventUID: clientUid];
@@ -2195,6 +2202,8 @@ FIXME
           [commandsBuffer appendFormat: @"<Responses>%@</Responses>", s];
           getChanges = NO;
         }
+      else if (processed)
+        *changeDetected = YES;
     }
 
 

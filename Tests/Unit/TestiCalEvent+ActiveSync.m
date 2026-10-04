@@ -356,4 +356,85 @@
   testEquals([event uid], @"test-6156-attendee");
 }
 
+- (void) test_takeActiveSyncValuesRebindsClientUidOnOlderProtocols
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  changes = [NSDictionary dictionaryWithObject: @"BAAAAIIA4AB0xbcQGoLjAI2AAI2AAIwAA"
+                                        forKey: @"ClientUid"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event uid], @"BAAAAIIA4AB0xbcQGoLjAI2AAI2AAIwAA");
+}
+
+- (void) test_takeActiveSyncValuesRebindsUidOnProtocol16
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  changes = [NSDictionary dictionaryWithObject: @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01"
+                                        forKey: @"UID"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event uid], @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01");
+}
+
+- (void) test_takeActiveSyncValuesHandlesStructuredLocationOnOlderProtocols
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  changes = [NSDictionary dictionaryWithObject: [NSDictionary dictionaryWithObject: @"Konferenzraum 4"
+                                                                            forKey: @"DisplayName"]
+                                        forKey: @"Location"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event location], @"Konferenzraum 4");
+}
+
+- (void) test_takeActiveSyncValuesHandlesPlainTextLocationOnProtocol16
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  changes = [NSDictionary dictionaryWithObject: @"Konferenzraum 4"
+                                        forKey: @"Location"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event location], @"Konferenzraum 4");
+}
+
+- (void) test_takeActiveSyncValuesKeepsLocationWithoutDisplayName
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  changes = [NSDictionary dictionaryWithObject: [NSDictionary dictionary]
+                                        forKey: @"Location"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event location], @"");
+}
+
 @end
