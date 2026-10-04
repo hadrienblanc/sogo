@@ -616,6 +616,18 @@
   return nil;
 }
 
++ (NSCalendarDate *) conflictCheckStartDateForEvent: (iCalEvent *) theEvent
+{
+  NSCalendarDate *startDate, *now;
+
+  now = [[NSCalendarDate date] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
+  startDate = [[theEvent startDate] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
+  if ([startDate compare: now] == NSOrderedAscending)
+    startDate = now;
+
+  return startDate;
+}
+
 //
 // This methods scans the list of attendees. If they are
 // considered as resource, it checks for conflicting
@@ -630,18 +642,6 @@
 // Note that it doesn't matter if it changes the participation
 // status since in case of an error, nothing will get saved.
 //
-+ (NSCalendarDate *) conflictCheckStartDateForEvent: (iCalEvent *) theEvent
-{
-  NSCalendarDate *startDate, *now;
-
-  now = [[NSCalendarDate date] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
-  startDate = [[theEvent startDate] dateByAddingYears: 0  months: 0  days: 0  hours: 0  minutes: 0  seconds: 1];
-  if ([startDate compare: now] == NSOrderedAscending)
-    startDate = now;
-
-  return startDate;
-}
-
 - (NSException *) _handleAttendeesConflicts: (NSArray *) theAttendees
                                    forEvent: (iCalEvent *) theEvent
                                       force: (BOOL) forceSave
