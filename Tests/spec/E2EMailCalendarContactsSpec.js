@@ -91,7 +91,7 @@ describe('E2E Calendar: PUT, QUERY, GET, DELETE via CalDAV', function() {
         </C:filter>
       </C:calendar-query>`
     const res = await dav('REPORT',
-      `/dav/${config.username}/Calendar/personal/`, query, {},)
+      `/dav/${config.username}/Calendar/personal/`, query)
     expect(res.status).withContext('REPORT must return 207').toBe(207)
     expect(res.text).withContext('must find the event').toContain(filename)
   })
