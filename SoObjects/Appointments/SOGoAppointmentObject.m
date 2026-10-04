@@ -616,20 +616,6 @@
   return nil;
 }
 
-//
-// This methods scans the list of attendees. If they are
-// considered as resource, it checks for conflicting
-// dates for the event and potentially auto-accept/decline
-// the invitation.
-//
-// For normal attendees, it'll return an exception with
-// conflicting dates, unless we force the save.//
-// We check for between startDate + 1 second and
-// endDate - 1 second
-//
-// Note that it doesn't matter if it changes the participation
-// status since in case of an error, nothing will get saved.
-//
 + (NSCalendarDate *) conflictCheckStartDateForEvent: (iCalEvent *) theEvent
 {
   NSCalendarDate *startDate, *now;
@@ -642,6 +628,21 @@
   return startDate;
 }
 
+//
+// This method scans the list of attendees. If they are
+// considered as resource, it checks for conflicting
+// dates for the event and potentially auto-accept/decline
+// the invitation.
+//
+// For normal attendees, it'll return an exception with
+// conflicting dates, unless we force the save.
+//
+// We check for between max(startDate, now) + 1 second and
+// endDate - 1 second
+//
+// Note that it doesn't matter if it changes the participation
+// status since in case of an error, nothing will get saved.
+//
 - (NSException *) _handleAttendeesConflicts: (NSArray *) theAttendees
                                    forEvent: (iCalEvent *) theEvent
                                       force: (BOOL) forceSave
