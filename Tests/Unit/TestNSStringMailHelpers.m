@@ -236,7 +236,9 @@
   result = [@"<img src=\"data:img/x,,DATA\" />" htmlByExtractingImages: images];
   testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
   testEquals([[images objectAtIndex: 0] headerForKey: @"content-transfer-encoding"], @"mg/x");
-  testEquals([[images objectAtIndex: 0] headerForKey: @"content-length"], [NSNumber numberWithInt: 5]);
+  testWithMessage([images objectAtIndex: 0] != nil
+                  && [[images objectAtIndex: 0] headerForKey: @"content-length"] == nil,
+                  @"inline image parts must not carry a content-length header (bug 5926)");
   testWithMessage([result rangeOfString: @"\" type=\"image/jpeg\"/>"].location != NSNotFound, result);
 
   images = [NSMutableArray array];
@@ -258,7 +260,9 @@
   images = [NSMutableArray array];
   [@"<img src=\"data:image/png;base64,AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ==\" />" htmlByExtractingImages: images];
   testEquals([NSNumber numberWithInt: [images count]], [NSNumber numberWithInt: 1]);
-  testEquals([[images objectAtIndex: 0] headerForKey: @"content-length"], [NSNumber numberWithInt: 117]);
+  testWithMessage([images objectAtIndex: 0] != nil
+                  && [[images objectAtIndex: 0] headerForKey: @"content-length"] == nil,
+                  @"folded inline image parts must not carry a content-length header (bug 5926)");
 }
 
 - (void) test_decodedHeader_brokenInput

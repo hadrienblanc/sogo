@@ -537,7 +537,6 @@ DomainByDecodingIDNLabels (NSString *domain)
 
               map = [[[NGMutableHashMap alloc] initWithCapacity: 5] autorelease];
               [map setObject: encoding forKey: @"content-transfer-encoding"];
-              [map setObject:[NSNumber numberWithInt: [data length]] forKey: @"content-length"];
               [map setObject: [NSString stringWithFormat: @"inline; filename=\"%@\"", uniqueId]  forKey: @"content-disposition"];
               [map setObject: [NSString stringWithFormat: @"%@; name=\"%@\"", mimeType, uniqueId]  forKey: @"content-type"];
               [map setObject: [NSString stringWithFormat: @"<%@>", uniqueId]  forKey: @"content-id"];
