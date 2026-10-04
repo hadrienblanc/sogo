@@ -273,7 +273,7 @@
  * @apiSuccess (Success 200) {Object[]} [urls]             URLs
  * @apiSuccess (Success 200) {String} urls.type            Type (e.g., personal or work)
  * @apiSuccess (Success 200) {String} urls.value           URL
- * @apiSuccess (Success 200) {Object[]} customFields       Custom fields from Thunderbird
+ * @apiSuccess (Success 200) {Object} [customFields]       Custom fields, keyed "1" to "4" (X-CUSTOMn vCard properties)
  */
 - (id <WOActionResults>) dataAction
 {

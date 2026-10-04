@@ -440,6 +440,7 @@ static Class SOGoContactGCSEntryK = Nil;
  * @apiParam {Object[]} urls               URLs
  * @apiParam {String} urls.type            Type (e.g., personal or work)
  * @apiParam {String} urls.value           URL
+ * @apiParam {Object} [customFields]       Custom fields, keyed "1" to "4" (stored as X-CUSTOMn)
  * @apiParam {Boolean} ignoreDuplicate     Don't check for similar cards
  */
 - (id <WOActionResults>) saveAction
