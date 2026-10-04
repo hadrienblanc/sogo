@@ -82,6 +82,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestContactsLDIF.m \
 	TestServerCore.m \
 	TestNGVList.m \
+	TestNGVList+SOGo.m \
+	TestUIxListEditor.m \
 	TestSOGoDraftObject.m \
 	TestSOGoDraftObjectIDNFrom.m \
 	TestSOGoDraftObjectQuoteSpecials.m \
@@ -116,6 +118,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../UI/SOGoUI/SOGoDirectAction.m \
 	../../UI/MailPartViewers/UIxMailSizeFormatter.m \
 	../../UI/MailerUI/UIxMailListActions.m \
+	../../UI/Contacts/UIxListEditor.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/iCalToDo+ActiveSync.m \
 	../../ActiveSync/NSString+ActiveSync.m \

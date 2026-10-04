@@ -102,7 +102,9 @@
   fields = [NSMutableDictionary dictionaryWithCapacity: 1];
 
   value = [self fn];
-  if (value)
+  if (![value length])
+    value = [self nickname];
+  if ([value length])
     [fields setObject: value forKey: @"c_cn"];
   [fields setObject: @"vlist" forKey: @"c_component"];
 
