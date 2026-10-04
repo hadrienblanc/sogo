@@ -67,6 +67,36 @@
 				       @"19971222T090000Z",
 				       @"19971224T090000Z",
 				       nil],
+		      // Every other week on Sunday and Monday, starting on
+		      // Sunday, February 11 2024, with the RFC 5545 default
+		      // week start (WKST=MO) - bug 5923
+		      [NSArray arrayWithObjects: @"20240211T110000Z",
+				       @"FREQ=WEEKLY;INTERVAL=2;UNTIL=20240320T230000Z;BYDAY=SU,MO",
+				       @"20240211T110000Z",
+				       @"20240219T110000Z",
+				       @"20240225T110000Z",
+				       @"20240304T110000Z",
+				       @"20240310T110000Z",
+				       @"20240318T110000Z",
+				       nil],
+		      // Every other week on Tuesday and Sunday for four
+		      // occurrences, weeks starting on Monday
+		      [NSArray arrayWithObjects: @"19970805T090000Z",
+				       @"FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=MO",
+				       @"19970805T090000Z",
+				       @"19970810T090000Z",
+				       @"19970819T090000Z",
+				       @"19970824T090000Z",
+				       nil],
+		      // Every other week on Tuesday and Sunday for four
+		      // occurrences, weeks starting on Sunday
+		      [NSArray arrayWithObjects: @"19970805T090000Z",
+				       @"FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=SU",
+				       @"19970805T090000Z",
+				       @"19970817T090000Z",
+				       @"19970819T090000Z",
+				       @"19970831T090000Z",
+				       nil],
 			    nil];
   NSString *dateFormat = @"%a %Y-%m-%d %H:%M";
   NSString *error;

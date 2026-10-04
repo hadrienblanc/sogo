@@ -57,7 +57,6 @@
  *   BYMONTHDAY
  *   BYHOUR
  *   BYMINUTE
- *   WKST
  *
  * There's no GUI to defined such conditions, so there's no
  * problem for now.
@@ -165,7 +164,8 @@
     {
       NGCalendarDateRange *r;
 
-      i = [currentStartDate dayOfWeek]; // Set the first day of the week as Sunday and ignore WKST
+      i = ([currentStartDate dayOfWeek] + 7
+           - [self offsetFromSundayForCurrentWeekStart]) % 7;
       while ([currentStartDate compare: endDate] == NSOrderedAscending ||
              [currentStartDate compare: endDate] == NSOrderedSame)
         {
