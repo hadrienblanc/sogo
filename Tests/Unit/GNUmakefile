@@ -81,6 +81,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSURL+misc.m \
 	TestNSURL+GCS.m \
 	TestNGMailAddressParser.m \
+	TestNGImap4ConnectionDelimiter.m \
 	TestNGInternetSocketAddress.m \
 	\
 	TestRTFHandler.m \
