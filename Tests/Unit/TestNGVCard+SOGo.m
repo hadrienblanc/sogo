@@ -423,4 +423,184 @@ LoadContactsBundle ()
   test ([[card flattenedCustomFields] count] == 0);
 }
 
+- (void) test_vCardStringWithMandatoryPropertiesFixesOrgOnlyCard
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"UID:42-6624FD00-1-7C69540.vcf\r\n"
+           @"VERSION:3.0\r\n"
+           @"CLASS:PUBLIC\r\n"
+           @"PROFILE:VCARD\r\n"
+           @"ORG:STARS\r\n"
+           @"EMAIL:valentine@stars.gov\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result,
+             @"BEGIN:VCARD\r\n"
+             @"UID:42-6624FD00-1-7C69540.vcf\r\n"
+             @"VERSION:3.0\r\n"
+             @"CLASS:PUBLIC\r\n"
+             @"PROFILE:VCARD\r\n"
+             @"ORG:STARS\r\n"
+             @"EMAIL:valentine@stars.gov\r\n"
+             @"FN:STARS\r\n"
+             @"N:;;;;\r\n"
+             @"END:VCARD\r\n");
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesDerivesFnFromEmailOnlyCard
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\n"
+           @"UID:test-5958-mail\n"
+           @"VERSION:3.0\n"
+           @"EMAIL:valentine@stars.gov\n"
+           @"END:VCARD\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result,
+             @"BEGIN:VCARD\n"
+             @"UID:test-5958-mail\n"
+             @"VERSION:3.0\n"
+             @"EMAIL:valentine@stars.gov\n"
+             @"FN:valentine@stars.gov\n"
+             @"N:;;;;\n"
+             @"END:VCARD\n");
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesDerivesFnFromN
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:Last;First;;;\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result,
+             @"BEGIN:VCARD\r\n"
+             @"VERSION:3.0\r\n"
+             @"N:Last;First;;;\r\n"
+             @"FN:First Last\r\n"
+             @"END:VCARD\r\n");
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesOnlyAddsMissingN
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"FN:John Doe\r\n"
+           @"ORG:acme\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result,
+             @"BEGIN:VCARD\r\n"
+             @"VERSION:3.0\r\n"
+             @"FN:John Doe\r\n"
+             @"ORG:acme\r\n"
+             @"N:;;;;\r\n"
+             @"END:VCARD\r\n");
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesLeavesCompleteCardUntouched
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:Last;First;;;\r\n"
+           @"FN:First Last\r\n"
+           @"EMAIL:first.last@x.y\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result, source);
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesLeavesLowercasePropertiesUntouched
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"n:Last;First;;;\r\n"
+           @"fn:First Last\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result, source);
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesLeavesParameterizedNTouched
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N;LANGUAGE=fr:Dernier;Premier;;;\r\n"
+           @"FN:Premier Dernier\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testEquals(result, source);
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesLeavesNonVCardDataUntouched
+{
+  testEquals([NGVCard vCardStringWithMandatoryProperties: @"REAKTJRIEKL"],
+             @"REAKTJRIEKL");
+  testEquals([NGVCard vCardStringWithMandatoryProperties: @""], @"");
+  testEquals([NGVCard vCardStringWithMandatoryProperties: nil], nil);
+}
+
+- (void) test_vCardStringWithMandatoryPropertiesEscapesDerivedFn
+{
+  NSString *source, *result;
+
+  source = @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"ORG:acme\\, inc\r\n"
+           @"END:VCARD\r\n";
+
+  result = [NGVCard vCardStringWithMandatoryProperties: source];
+
+  testWithMessage ([result rangeOfString: @"FN:acme\\, inc\r\n"].location
+                     != NSNotFound,
+                   @"derived FN not escaped (bug 5958)");
+}
+
+- (void) test_fullNameFallsBackOnPreferredEmail
+{
+  NGVCard *card;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\nVERSION:3.0\r\nORG:acme\r\n"
+           @"EMAIL:valentine@stars.gov\r\nEND:VCARD\r\n"];
+  testEquals([card fullName], @"acme");
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\nVERSION:3.0\r\n"
+           @"EMAIL;TYPE=WORK:jane@stars.gov\r\n"
+           @"EMAIL:valentine@stars.gov\r\nEND:VCARD\r\n"];
+  testEquals([card fullName], @"jane@stars.gov");
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\nVERSION:3.0\r\nEND:VCARD\r\n"];
+  test([[card fullName] length] == 0);
+}
+
 @end

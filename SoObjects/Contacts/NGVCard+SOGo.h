@@ -46,6 +46,8 @@
 - (NSArray *) emails;
 - (NSArray *) secondaryEmails;
 
++ (NSString *) vCardStringWithMandatoryProperties: (NSString *) vCardContent;
+
 - (void) setOrganizations: (NSArray *) newOrganizations;
 - (NSArray *) organizations;
 

@@ -72,6 +72,11 @@
   return card;
 }
 
+- (NSString *) contentAsString
+{
+  return [NGVCard vCardStringWithMandatoryProperties: [super contentAsString]];
+}
+
 - (void) setLDIFRecord: (NSDictionary *) newLDIFRecord
 {
   [[self vCard] updateFromLDIFRecord: newLDIFRecord];

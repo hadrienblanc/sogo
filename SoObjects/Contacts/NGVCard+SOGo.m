@@ -959,8 +959,61 @@ static NSArray *customFieldKeys()
           fn = org;
         }
     }
+  if ([fn length] == 0)
+    fn = [self preferredEMail];
 
   return fn;
+}
+
++ (NSString *) vCardStringWithMandatoryProperties: (NSString *) vCardContent
+{
+  NSMutableString *additions;
+  NGVCard *card;
+  NSString *lowercaseContent, *lineEnding, *fn;
+  NSRange endRange;
+  BOOL hasFN, hasN;
+
+  if (![vCardContent length])
+    return vCardContent;
+
+  endRange = [vCardContent rangeOfString: @"\nEND:VCARD"
+                                  options: (NSCaseInsensitiveSearch
+                                            | NSBackwardsSearch)];
+  if (endRange.location == NSNotFound)
+    return vCardContent;
+
+  lowercaseContent = [vCardContent lowercaseString];
+  hasFN = (([lowercaseContent rangeOfString: @"\nfn:"].location != NSNotFound)
+           || ([lowercaseContent rangeOfString: @"\nfn;"].location != NSNotFound));
+  hasN = (([lowercaseContent rangeOfString: @"\nn:"].location != NSNotFound)
+          || ([lowercaseContent rangeOfString: @"\nn;"].location != NSNotFound));
+  if (hasFN && hasN)
+    return vCardContent;
+
+  lineEnding = (([vCardContent rangeOfString: @"\r\n"].location != NSNotFound)
+                ? @"\r\n" : @"\n");
+
+  additions = [NSMutableString string];
+  if (!hasFN)
+    {
+      card = [NGVCard parseSingleFromSource: vCardContent];
+      fn = [card fullName];
+      if ([fn length])
+        [additions appendFormat: @"%@%@",
+                [[NSString stringWithFormat: @"FN:%@",
+                   [fn escapedForCardsAsAttributes: NO]] foldedForVersitCards],
+                lineEnding];
+    }
+  if (!hasN)
+    [additions appendFormat: @"N:;;;;%@", lineEnding];
+
+  if (![additions length])
+    return vCardContent;
+
+  return [NSString stringWithFormat: @"%@%@%@",
+                    [vCardContent substringToIndex: endRange.location + 1],
+                    additions,
+                    [vCardContent substringFromIndex: endRange.location + 1]];
 }
 
 - (NSArray *) emails
