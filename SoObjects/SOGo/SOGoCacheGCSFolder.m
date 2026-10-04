@@ -20,7 +20,6 @@
 
 #import <Foundation/NSDictionary.h>
 
-#import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NSNull+misc.h>
 
 #import <SOGo/NSArray+Utilities.h>
@@ -304,40 +303,6 @@ Class SOGoCacheGCSObjectK = Nil;
   if ([self doesRetainContainer])
     [container retain];
 }
-
-// - (NSArray *) toOneRelationshipKeysMatchingQualifier: (EOQualifier *) qualifier
-//                                     andSortOrderings: (NSArray *) sortOrderings
-// {
-//   NSArray *allKeys;
-//   NSMutableArray *keys;
-//   NSUInteger count, max;
-//   NSString *messageKey;
-//   SOGoMAPIDBMessage *message;
-
-//   if (sortOrderings)
-//     [self warnWithFormat: @"sorting is not handled yet"];
-
-//   allKeys = [self toOneRelationshipKeys];
-//   if (qualifier)
-//     {
-//       [self logWithFormat: @"%s: getting restricted FAI keys", __PRETTY_FUNCTION__];
-//       max = [allKeys count];
-//       keys = [NSMutableArray arrayWithCapacity: max];
-//       for (count = 0; count < max; count++)
-//         {
-//           messageKey = [allKeys objectAtIndex: count];
-//           message = [self lookupName: messageKey
-//                            inContext: nil
-//                              acquire: NO];
-//           if ([qualifier evaluateMAPIVolatileMessage: message])
-//             [keys addObject: messageKey];
-// 	}
-//     }
-//   else
-//     keys = (NSMutableArray *) allKeys;
-
-//   return keys;
-// }
 
 - (id) lookupName: (NSString *) childName
 	inContext: (WOContext *) woContext
