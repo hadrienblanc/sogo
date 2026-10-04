@@ -67,7 +67,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Mail.m \
 	TestNSStringMailHelpers.m \
 	TestNSDataMail.m \
- 	TestNSCalendarDateSOGo.m \
+	TestNSCalendarDateSOGo.m \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
 	TestNSArray+Utilities.m \
@@ -105,7 +105,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
 	TestSOGoUserManagerSources.m \
- 	TestSQLSourcePasswordCheck.m \
+	TestSQLSourcePasswordCheck.m \
  	TestSQLSourceLookupContactEntries.m \
 	TestSOGoUserProfile.m \
 	TestSOGoWebDAVAclManager.m \
