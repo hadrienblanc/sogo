@@ -172,7 +172,6 @@
 			  if (reverse)
 			    order = order << 5;
 			  days[day] |= order;
-			  //NSLog(@"*** iCalByDayMask [%i] %@ : day = %i, order = %i, result = %i", count, byDayRule, day, order, days[day]);
 			}
 		      else
 			{
@@ -289,7 +288,6 @@
                       if (reverse)
                         order = order << 5;
                       days[day] |= order;
-                      //NSLog(@"*** iCalByDayMask [%i] %@ : day = %i, order = %i, result = %i", count, byDayRule, day, order, days[day]);
                     }
                   else
                     {
