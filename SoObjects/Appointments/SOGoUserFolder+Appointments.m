@@ -87,6 +87,15 @@
         }
     }
 
+  if ([addresses count] > 1)
+    {
+      NSArray *primaryAddress;
+
+      primaryAddress = [addresses objectAtIndex: 0];
+      [addresses removeObjectAtIndex: 0];
+      [addresses addObject: primaryAddress];
+    }
+
   tag = [NSArray arrayWithObjects: @"href", XMLNS_WEBDAV, @"D",
                  [NSString stringWithFormat: @"/SOGo/dav/%@/", nameInContainer],
                  nil];
