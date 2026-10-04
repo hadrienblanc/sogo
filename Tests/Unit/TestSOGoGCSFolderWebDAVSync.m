@@ -289,8 +289,8 @@
       subQualifiers = [[(EOAndQualifier *) qualifier qualifiers] objectEnumerator];
       while (!value && (subQualifier = [subQualifiers nextObject]))
         value = [self _syncValueForQualifier: subQualifier
-                                          key: key
-                                     operator: operatorSelector];
+                                         key: key
+                                    operator: operatorSelector];
     }
   else if ([qualifier isKindOfClass: [EOKeyValueQualifier class]]
            && [[(EOKeyValueQualifier *) qualifier key] isEqualToString: key]
@@ -361,11 +361,11 @@
   liveFetch = [[ocsFolder recordedFetches] objectAtIndex: 0];
   qualifier = [liveFetch objectForKey: @"qualifier"];
   test([[self _syncValueForQualifier: qualifier
-                                  key: @"c_lastmodified"
-                             operator: EOQualifierOperatorGreaterThan] intValue] == 100);
+                                 key: @"c_lastmodified"
+                            operator: EOQualifierOperatorGreaterThan] intValue] == 100);
   upperBound = [self _syncValueForQualifier: qualifier
-                                         key: @"c_lastmodified"
-                                    operator: EOQualifierOperatorLessThan];
+                                        key: @"c_lastmodified"
+                                   operator: EOQualifierOperatorLessThan];
   test(upperBound != nil);
   test([upperBound intValue] >= before);
   test([upperBound intValue] <= after);
@@ -373,17 +373,17 @@
   tombstoneFetch = [[ocsFolder recordedFetches] objectAtIndex: 1];
   qualifier = [tombstoneFetch objectForKey: @"qualifier"];
   test([[self _syncValueForQualifier: qualifier
-                                  key: @"c_lastmodified"
-                             operator: EOQualifierOperatorGreaterThan] intValue] == 100);
+                                 key: @"c_lastmodified"
+                            operator: EOQualifierOperatorGreaterThan] intValue] == 100);
   upperBound = [self _syncValueForQualifier: qualifier
-                                         key: @"c_lastmodified"
-                                    operator: EOQualifierOperatorLessThan];
+                                        key: @"c_lastmodified"
+                                   operator: EOQualifierOperatorLessThan];
   test(upperBound != nil);
   test([upperBound intValue] >= before);
   test([upperBound intValue] <= after);
   test([[self _syncValueForQualifier: qualifier
-                                  key: @"c_deleted"
-                             operator: EOQualifierOperatorEqual] intValue] == 1);
+                                 key: @"c_deleted"
+                            operator: EOQualifierOperatorEqual] intValue] == 1);
 }
 
 - (void) test_initialLoadFetchExcludesCurrentSecond
@@ -405,8 +405,8 @@
                                 key: @"c_lastmodified"
                            operator: EOQualifierOperatorGreaterThan] == nil);
   upperBound = [self _syncValueForQualifier: qualifier
-                                         key: @"c_lastmodified"
-                                    operator: EOQualifierOperatorLessThan];
+                                        key: @"c_lastmodified"
+                                   operator: EOQualifierOperatorLessThan];
   test(upperBound != nil);
   test([upperBound intValue] >= before);
   test([upperBound intValue] <= after);
