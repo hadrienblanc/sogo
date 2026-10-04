@@ -458,8 +458,8 @@
 "Set as Junk" = "Отбелязано като Спам";
 
 "Sort" = "Сортиране";
-"Order Received" = "Поръчката приета";
-"Descending Order" = "Обратен азбучен ред";
+"Order Received" = "Ред на получаване";
+"Descending Order" = "Низходящ ред";
 "Back" = "Назад";
 "Copy messages" = "Копиране съобщения";
 "More messages options" = "Още опции за съобщения";

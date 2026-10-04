@@ -113,6 +113,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxMailRenderingContext.m \
 	TestUIxMailListActionsChanges.m \
 	TestMailerUnseenCountReset.m \
+	TestMailerSortListLocalization.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\
