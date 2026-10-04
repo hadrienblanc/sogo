@@ -48,6 +48,11 @@
           actionClass = "UIxMailPartICalActions";
           actionName  = "addToCalendar";
         };
+        updateEvent = {
+          protectedBy = "View";
+          actionClass = "UIxMailPartICalActions";
+          actionName  = "updateEvent";
+        };
         deleteFromCalendar = {
           protectedBy = "View";
           actionClass = "UIxMailPartICalActions";

@@ -42,6 +42,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
 	TestiCalEntityObjectResetCreationMetadata.m \
+	TestiCalEntityObjectVersionCompare.m \
 	TestNSCalendarDateClamping.m \
 	TestGCSChannelManager.m \
 	\

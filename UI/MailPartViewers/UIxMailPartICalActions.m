@@ -35,6 +35,7 @@
 #import <NGImap4/NGImap4EnvelopeAddress.h>
 
 #import <Appointments/iCalEvent+SOGo.h>
+#import <Appointments/iCalCalendar+SOGo.h>
 #import <Appointments/iCalEntityObject+SOGo.h>
 #import <Appointments/iCalPerson+SOGo.h>
 #import <Appointments/SOGoAppointmentObject.h>
@@ -396,6 +397,41 @@
       [response setStatus: 409];
       response = [self responseWithStatus: 404];
     }
+
+  return response;
+}
+
+- (WOResponse *) updateEventAction
+{
+  SOGoAppointmentObject *eventObject;
+  iCalCalendar *storedCalendar;
+  iCalEvent *emailEvent;
+  WOResponse *response;
+
+  emailEvent = [self _emailEvent];
+  if (emailEvent)
+    {
+      eventObject = [self _eventObjectWithUID: [emailEvent uid]];
+      if ([eventObject isNew])
+        response = [self responseWithStatus: 404
+                                  andString: @"Local event not found."];
+      else
+        {
+          storedCalendar = [eventObject calendar: NO  secure: NO];
+          if (storedCalendar
+              && [storedCalendar applyInvitationUpdate: emailEvent
+                                              forUser: [context activeUser]])
+            {
+              [eventObject saveCalendar: storedCalendar];
+              [eventObject flush];
+              response = [self responseWith204];
+            }
+          else
+            response = [self responseWithStatus: 409];
+        }
+    }
+  else
+    response = [self responseWithStatus: 409];
 
   return response;
 }
