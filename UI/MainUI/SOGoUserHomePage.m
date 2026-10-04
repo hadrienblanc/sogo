@@ -69,7 +69,6 @@
   SOGoUserDefaults *ud;
   BOOL moduleIsValid;
   NSArray *filters;
-  NSURL *moduleURL;
 
   sd = [SOGoSystemDefaults sharedSystemDefaults];
   dd = [[context activeUser] domainDefaults];
@@ -109,10 +108,9 @@
     }
 
   co = [self clientObject];
-  moduleURL = [NSURL URLWithString: loginModule
-		     relativeToURL: [co soURL]];
 
-  return [self redirectToLocation: [moduleURL absoluteString]];
+  return [self redirectToLocation: [[co relativeSoURLToModule: loginModule]
+				   absoluteString]];
 }
 
 - (NSDictionary *) _freeBusyFromStartDate: (NSCalendarDate *) startDate

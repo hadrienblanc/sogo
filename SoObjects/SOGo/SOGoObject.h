@@ -101,8 +101,10 @@
 
 - (NSURL *) davURL;
 - (NSURL *) soURL;
+- (NSURL *) relativeSoURLToModule: (NSString *) module;
 - (NSURL *) soURLToBaseContainerForUser: (NSString *) uid;
 - (NSURL *) soURLToBaseContainerForCurrentUser;
+- (NSURL *) relativeSoURLToBaseContainerForCurrentUser;
 - (NSString *) davURLAsString;
 
 /* ownership */

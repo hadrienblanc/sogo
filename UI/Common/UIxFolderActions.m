@@ -96,7 +96,8 @@
 
       if (isMailInvitation)
         {
-          mailInvitationURL = [clientObject soURLToBaseContainerForCurrentUser];
+          mailInvitationURL
+            = [clientObject relativeSoURLToBaseContainerForCurrentUser];
           response = [self responseWithStatus: 302];
           [response setHeader: [mailInvitationURL absoluteString]
                        forKey: @"location"];

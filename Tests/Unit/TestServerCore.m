@@ -1380,6 +1380,59 @@
 	     @"http://sogo.example/SOGo/so/bob/personal");
 }
 
+- (void) test_relativeSoURLToBaseContainerForCurrentUser
+{
+  StubServerCoreContainer *container;
+  StubServerCoreContext *context;
+  StubServerCoreObject *object;
+
+  container = [StubServerCoreContainer containerWithName: @"Calendar"
+						   owner: @"bob"];
+  context = [self contextWithLogin: @"bob" method: @"GET"];
+  [context setServerURL: [NSURL URLWithString: @"http://attacker.invalid"]];
+  object = [StubServerCoreObject objectWithName: @"personal"
+				  inContainer: container];
+  [object setContext: (WOContext *) context];
+  testEquals([[object relativeSoURLToBaseContainerForCurrentUser]
+	      absoluteString],
+	     @"/SOGo/so/bob/personal");
+}
+
+- (void) test_relativeSoURLToModule
+{
+  StubServerCoreContainer *container;
+  StubServerCoreContext *context;
+  StubServerCoreObject *object;
+
+  container = [StubServerCoreContainer containerWithName: @"Calendar"
+						   owner: @"bob"];
+  context = [self contextWithLogin: @"bob" method: @"GET"];
+  object = [StubServerCoreObject objectWithName: @"personal"
+				  inContainer: container];
+  [object setContext: (WOContext *) context];
+  testEquals([[object relativeSoURLToModule: @"Mail"] absoluteString],
+	     @"/SOGo/so/Calendar/personal/Mail");
+}
+
+- (void) test_relativeSoURLToModuleWithPoisonedHostHeader
+{
+  StubServerCoreContainer *container;
+  StubServerCoreContext *context;
+  StubServerCoreObject *object;
+
+  container = [StubServerCoreContainer containerWithName: @"Calendar"
+						   owner: @"bob"];
+  context = [self contextWithLogin: @"bob" method: @"GET"];
+  [context setServerURL: [NSURL URLWithString: @"http://attacker.invalid"]];
+  object = [StubServerCoreObject objectWithName: @"personal"
+				  inContainer: container];
+  [object setContext: (WOContext *) context];
+  testEquals([[object soURL] absoluteString],
+	     @"http://attacker.invalid/SOGo/so/Calendar/personal");
+  testEquals([[object relativeSoURLToModule: @"Mail"] absoluteString],
+	     @"/SOGo/so/Calendar/personal/Mail");
+}
+
 - (void) test_davURLAsString
 {
   StubServerCoreContainer *container;
