@@ -71,6 +71,7 @@ $(TEST_TOOL)_OBJC_FILES += \
  	TestNSCalendarDateSOGo.m \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
+	TestSOGoAppointmentObjectParticipationStatus.m \
 	TestNSArray+Utilities.m \
 	TestNSArray+SyncCache.m \
 	TestNSString+CKEditorUserAgentOverride.m \
