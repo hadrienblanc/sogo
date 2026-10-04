@@ -969,7 +969,7 @@ static NSArray *customFieldKeys()
 {
   NSMutableString *additions;
   NGVCard *card;
-  NSString *lowercaseContent, *lineEnding, *fn;
+  NSString *lowercaseContent, *lineEnding, *fn, *fnLine;
   NSRange endRange;
   BOOL hasFN, hasN;
 
@@ -999,10 +999,13 @@ static NSArray *customFieldKeys()
       card = [NGVCard parseSingleFromSource: vCardContent];
       fn = [card fullName];
       if ([fn length])
-        [additions appendFormat: @"%@%@",
-                [[NSString stringWithFormat: @"FN:%@",
-                   [fn escapedForCardsAsAttributes: NO]] foldedForVersitCards],
-                lineEnding];
+        {
+          fnLine = [[NSString stringWithFormat: @"FN:%@",
+                              [fn escapedForCardsAsAttributes: NO]]
+                    foldedForVersitCards];
+          [additions appendString: fnLine];
+          [additions appendString: lineEnding];
+        }
     }
   if (!hasN)
     [additions appendFormat: @"N:;;;;%@", lineEnding];
