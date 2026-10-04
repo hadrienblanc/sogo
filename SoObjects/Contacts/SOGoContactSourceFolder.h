@@ -26,7 +26,6 @@
 #import <SOGo/SOGoSource.h>
 
 @class NSMutableDictionary;
-@class NSEnumerator;
 @class SOGoContactLDIFEntry;
 
 @interface SOGoContactSourceFolder : SOGoFolder <SOGoContactFolder>
@@ -43,7 +42,6 @@
      andDisplayName: (NSString *) newDisplayName
 	inContainer: (id) newContainer;
 - (void) setSource: (id <SOGoSource>) newSource;
-- (NSEnumerator *) davChildKeysInContext: (id) aContext;
 
 - (NSException *) saveLDIFEntry: (SOGoContactLDIFEntry *) ldifEntry;
 - (NSException *) deleteLDIFEntry: (SOGoContactLDIFEntry *) ldifEntry;
