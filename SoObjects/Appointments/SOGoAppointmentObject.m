@@ -1196,7 +1196,7 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 // _removeEventFromUID:owner:withRecurrenceId:  [changeParticipationStatus:withDelegate:forRecurrenceId:]   |                    
 //                     |                                          |                                         |
 //                     |                                          v                                         |
-//                     +------------------------> _handleAttendee:withDelegate:ownerUser:statusChange:inEvent: ---> [sendResponseToOrganizer:from:]
+//                     +------------------------> _handleAttendee:withDelegate:ownerUser:statusChange:inEvent: ---> [sendResponseToOrganizer:from:] once the event is saved
 //                                                  |
 //                                                  v
 //  _updateAttendee:withDelegate:ownerUser:forEventUID:withRecurrenceId:withSequence:forUID:shouldAddSentBy:      
@@ -1436,12 +1436,6 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 }
 
 
-//
-// This method is invoked from the SOGo Web interface or from the DAV interface.
-//
-// - theOwnerUser is owner of the calendar where the attendee
-//   participation state has changed.
-//
 - (void) dealloc
 {
   [_pendingResponseEvent release];
@@ -1462,6 +1456,12 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
     }
 }
 
+//
+// This method is invoked from the SOGo Web interface or from the DAV interface.
+//
+// - theOwnerUser is owner of the calendar where the attendee
+//   participation state has changed.
+//
 - (NSException *) _handleAttendee: (iCalPerson *) attendee
                      withDelegate: (iCalPerson *) delegate
                         ownerUser: (SOGoUser *) theOwnerUser
