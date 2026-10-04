@@ -153,8 +153,6 @@ static NSArray *reminderValues = nil;
 
       mailCustomFromEnabled = [dd mailCustomFromEnabled];
       forwardEnabled = [dd forwardEnabled];
-
-      hasChanged = NO;
     }
 
   return self;
@@ -192,16 +190,6 @@ static NSArray *reminderValues = nil;
 {
   return @"Preferences";
 }
-
-// - (void) setHasChanged: (BOOL) newHasChanged
-// {
-//   hasChanged = newHasChanged;
-// }
-
-// - (BOOL) hasChanged
-// {
-//   return hasChanged;
-// }
 
 - (void) setItem: (NSString *) newItem
 {
