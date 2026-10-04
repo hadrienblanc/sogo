@@ -125,7 +125,7 @@ int main(int argc, char *argv[], char *env[])
   reportFormat = ParseArguments ([[NSProcessInfo processInfo] arguments]);
 
   rc = [[SOGoTestRunner testRunnerWithFormat: reportFormat] run];
-  [pool release];
-
-  return rc;
+  fflush(stdout);
+  fflush(stderr);
+  _exit(rc);
 }
