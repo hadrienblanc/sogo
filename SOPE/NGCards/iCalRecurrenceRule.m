@@ -897,14 +897,6 @@ NSString *iCalWeekDayString[] = { @"SU", @"MO", @"TU", @"WE", @"TH", @"FR",
 
   if ([rrule isKindOfClass: [iCalRecurrenceRule class]])
     {
-      /*
-      NSLog(@"*** iCalRecurrenceRule comparison ***");      
-      NSLog(@"Event 1 : repeat %i, interval %i, frequency %i, until %@",
-	    [self repeatCount], [self repeatInterval], [self frequency], [self untilDate]);
-      NSLog(@"Event 2 : repeat %i, interval %i, frequency %i, until %@",
-	    [rrule repeatCount], [rrule repeatInterval], [rrule frequency], [rrule untilDate]);
-      */
-
       if ([self untilDate] && [rrule untilDate])
 	isEqual = [[self untilDate] isEqual: [rrule untilDate]];
       else if ([self untilDate] || [self untilDate])
