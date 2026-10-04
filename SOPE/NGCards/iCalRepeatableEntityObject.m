@@ -92,20 +92,6 @@
   [self removeChildren: [self childrenWithTag: @"rdate"]];
 }
 
-- (void) addToRecurrenceDates: (NSCalendarDate *) _rdate
-{
-  iCalDateTime *dateTime;
-
-  dateTime = [iCalDateTime new];
-  [dateTime setTag: @"rdate"];
-  if ([self isKindOfClass: [iCalEvent class]] && [(iCalEvent *)self isAllDay])
-    [dateTime setDate: _rdate];
-  else
-    [dateTime setDateTime: _rdate];
-  [self addChild: dateTime];
-  [dateTime release];
-}
-
 - (BOOL) hasRecurrenceDates
 {
   return ([[self childrenWithTag: @"rdate"] count] > 0);

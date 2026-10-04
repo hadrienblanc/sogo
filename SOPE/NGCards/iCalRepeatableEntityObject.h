@@ -45,7 +45,6 @@
 - (NSArray *)recurrenceRulesWithTimeZone: (id) timezone;
 
 - (void) removeAllRecurrenceDates;
-- (void) addToRecurrenceDates: (NSCalendarDate *) _rdate;
 - (BOOL) hasRecurrenceDates;
 - (NSArray *) recurrenceDates;
 - (NSArray *) recurrenceDatesWithTimeZone: (id) theTimeZone;
