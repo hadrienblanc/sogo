@@ -36,6 +36,7 @@
 
 @interface iCalRecurrenceCalculator (PrivateAPI)
 - (NSCalendarDate *) lastInstanceStartDate;
+- (NSCalendarDate *) inclusiveUntilDate;
 @end
 
 @implementation iCalYearlyRecurrenceCalculator
@@ -74,7 +75,7 @@
     {
       lastStartDate = nil;
       lastEndDate = nil;
-      until = [rrule untilDate];
+      until = [self inclusiveUntilDate];
       repeatCount = [rrule repeatCount];
 
       if (until)

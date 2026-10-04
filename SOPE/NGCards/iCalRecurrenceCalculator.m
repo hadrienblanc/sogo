@@ -37,6 +37,7 @@
 
 @interface iCalRecurrenceCalculator (PrivateAPI)
 - (NSCalendarDate *)lastInstanceStartDate;
+- (NSCalendarDate *)inclusiveUntilDate;
 
 - (unsigned)offsetFromSundayForJulianNumber:(long)_jn;
 - (unsigned)offsetFromSundayForWeekDay:(iCalWeekDay)_weekDay;
@@ -376,13 +377,28 @@ static Class yearlyCalcClass  = Nil;
   return range;
 }
 
+- (NSCalendarDate *) inclusiveUntilDate
+{
+  NSCalendarDate *until;
+  NSString *untilString;
+
+  untilString = [rrule flattenedValuesForKey: @"until"];
+  until = [untilString asCalendarDate];
+  if (until && [untilString length] > 8)
+    until = [NSCalendarDate dateWithYear: [until yearOfCommonEra]
+                                   month: [until monthOfYear]
+                                     day: [until dayOfMonth]
+                                    hour: 23
+                                  minute: 59
+                                  second: 59
+                                timeZone: [until timeZone]];
+
+  return until;
+}
+
 - (NSCalendarDate *) lastInstanceStartDate
 {
-  /* 
-     NOTE: this is horribly inaccurate and doesn't even consider the use
-           of repeatCount. It MUST be implemented by subclasses properly!
-  */
-  return [rrule untilDate];
+  return [self inclusiveUntilDate];
 }
 
 @end /* iCalRecurrenceCalculator */

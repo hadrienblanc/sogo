@@ -36,6 +36,7 @@
 @interface iCalRecurrenceCalculator (PrivateAPI)
 
 - (NSCalendarDate *) lastInstanceStartDate;
+- (NSCalendarDate *) inclusiveUntilDate;
 
 @end
 
@@ -229,8 +230,8 @@ static inline unsigned iCalDoWForNSDoW (int dow)
 	}
       else
 	{
-	  untilStart = [rrule untilDate];
-    untilEnd = [rrule untilDate];
+	  untilStart = [self inclusiveUntilDate];
+    untilEnd = [self inclusiveUntilDate];
 	}
     }
 

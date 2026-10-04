@@ -35,6 +35,7 @@
 @interface iCalRecurrenceCalculator (PrivateAPI)
 
 - (NSCalendarDate *) lastInstanceStartDate;
+- (NSCalendarDate *) inclusiveUntilDate;
 
 - (unsigned) offsetFromSundayForJulianNumber: (long) _jn;
 - (unsigned) offsetFromSundayForWeekDay: (iCalWeekDay) _weekDay;
@@ -100,7 +101,7 @@
 
       lastStartDate = nil;
       lastEndDate = nil;
-      until = [rrule untilDate];
+      until = [self inclusiveUntilDate];
       if (until)
       {
         lastStartDate = until;

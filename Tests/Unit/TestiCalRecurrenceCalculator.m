@@ -65,9 +65,9 @@
 				       @"19971210T090000Z",
 				       @"19971212T090000Z",
 				       @"19971222T090000Z",
+				       @"19971224T090000Z",
 				       nil],
 			    nil];
-
   NSString *dateFormat = @"%a %Y-%m-%d %H:%M";
   NSString *error;
   NGCalendarDateRange *firRange, *range;
