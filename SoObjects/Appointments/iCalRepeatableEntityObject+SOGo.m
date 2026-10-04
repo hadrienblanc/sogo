@@ -263,11 +263,11 @@
                 }
               else if ([o caseInsensitiveCompare: @"CUSTOM"] == NSOrderedSame)
                 {
-                  BOOL allDayDates;
+                  BOOL allDayDates, isEvent;
 
+                  isEvent = [self isKindOfClass: [iCalEvent class]];
                   allDayDates = isAllDay
-                    || ([self isKindOfClass: [iCalEvent class]]
-                        && [(iCalEvent *) self isAllDay]);
+                    || (isEvent && [(iCalEvent *) self isAllDay]);
                   [self removeAllRecurrenceRules];
                   [self removeAllRecurrenceDates];
                   o = [repeat objectForKey: @"dates"];
@@ -288,8 +288,7 @@
                                                        seconds: [[date timeZone] secondsFromGMTForDate: date]];
                               rdateTime = [iCalDateTime new];
                               [rdateTime setTag: @"rdate"];
-                              if (allDayDates
-                                  && [self isKindOfClass: [iCalEvent class]])
+                              if (allDayDates && isEvent)
                                 [rdateTime setDate: date];
                               else
                                 [rdateTime setDateTime: date];
