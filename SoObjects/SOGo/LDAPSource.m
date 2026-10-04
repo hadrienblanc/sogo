@@ -2060,6 +2060,20 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
   return ([_abOU length] > 0);
 }
 
+- (NSString *) _userDNForLogin: (NSString *) theLogin
+{
+  NSString *userDN;
+
+  userDN = [[SOGoCache sharedCache] distinguishedNameForLogin: theLogin];
+  if (!userDN && _bindFields)
+    userDN = [self _fetchUserDNForLogin: theLogin];
+  if (!userDN)
+    userDN = [NSString stringWithFormat: @"%@=%@,%@",
+                       _IDField, [theLogin escapedForLDAPDN], _baseDN];
+
+  return userDN;
+}
+
 - (NSArray *) addressBookSourcesForUser: (NSString *) theUser
 {
   NGLdapConnection *ldapConnection;
@@ -2078,9 +2092,9 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
       sources = [NSMutableArray array];
 
       ldapConnection = [self _ldapConnection];
-      abBaseDN = [NSString stringWithFormat: @"ou=%@,%@=%@,%@",
-                           [_abOU escapedForLDAPDN], _IDField,
-                           [theUser escapedForLDAPDN], _baseDN];
+      abBaseDN = [NSString stringWithFormat: @"ou=%@,%@",
+                           [_abOU escapedForLDAPDN],
+                           [self _userDNForLogin: theUser]];
 
       /* test ou=addressbooks entry */
       attributes = [NSArray arrayWithObject: @"*"];
@@ -2168,9 +2182,9 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
 
   if ([self hasUserAddressBooks])
     {
-      abDN = [NSString stringWithFormat: @"ou=%@,ou=%@,%@=%@,%@",
+      abDN = [NSString stringWithFormat: @"ou=%@,ou=%@,%@",
                        [newId escapedForLDAPDN], [_abOU escapedForLDAPDN],
-                       _IDField, [user escapedForLDAPDN], _baseDN];
+                       [self _userDNForLogin: user]];
       entryRecord = [NSMutableDictionary dictionary];
       [entryRecord setObject: @"organizationalUnit" forKey: @"objectclass"];
       [entryRecord setObject: newId forKey: @"ou"];
@@ -2217,9 +2231,9 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
 
   if ([self hasUserAddressBooks])
     {
-      abDN = [NSString stringWithFormat: @"ou=%@,ou=%@,%@=%@,%@",
+      abDN = [NSString stringWithFormat: @"ou=%@,ou=%@,%@",
                        [newId escapedForLDAPDN], [_abOU escapedForLDAPDN],
-                       _IDField, [user escapedForLDAPDN], _baseDN];
+                       [self _userDNForLogin: user]];
       entryRecord = [NSMutableDictionary dictionary];
       [entryRecord setObject: @"organizationalUnit" forKey: @"objectclass"];
       [entryRecord setObject: newId forKey: @"ou"];
@@ -2264,9 +2278,9 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
 
   if ([self hasUserAddressBooks])
     {
-      abDN = [NSString stringWithFormat: @"ou=%@,ou=%@,%@=%@,%@",
+      abDN = [NSString stringWithFormat: @"ou=%@,ou=%@,%@",
                        [newId escapedForLDAPDN], [_abOU escapedForLDAPDN],
-                       _IDField, [user escapedForLDAPDN], _baseDN];
+                       [self _userDNForLogin: user]];
       ldapConnection = [self _ldapConnection];
       NS_DURING
         {
