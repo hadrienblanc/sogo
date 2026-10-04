@@ -12,6 +12,7 @@
     "jasmine": "^5.6.0",
     "telnet-client": "^1.4.10",
     "tsdav": "^1.1.5",
+    "xml-js": "^1.6.11",
     "jasmine-xml-reporter": "^1.2.1"
   },
   "type": "module"
