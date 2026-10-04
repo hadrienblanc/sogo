@@ -331,13 +331,14 @@
  */
 - (void) setAttributes: (NSDictionary *) attributes
 {
-  NSString *cn;
+  NSString *cn, *nickname;
 
+  nickname = [attributes objectForKey: @"nickname"];
   cn = [attributes objectForKey: @"c_cn"];
   if (![cn length])
-    cn = [attributes objectForKey: @"nickname"];
+    cn = nickname;
 
-  [list setNickname: [attributes objectForKey: @"nickname"]];
+  [list setNickname: nickname];
   [list setFn: cn];
   [list setDescription: [attributes objectForKey: @"description"]];
 }

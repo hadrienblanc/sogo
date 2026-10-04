@@ -1436,12 +1436,6 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 }
 
 
-//
-// This method is invoked from the SOGo Web interface or from the DAV interface.
-//
-// - theOwnerUser is owner of the calendar where the attendee
-//   participation state has changed.
-//
 - (void) dealloc
 {
   [_pendingResponseEvent release];
@@ -1457,11 +1451,16 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
       ownerUser = [SOGoUser userWithLogin: owner];
       [self sendResponseToOrganizer: _pendingResponseEvent
                                from: ownerUser];
-      [_pendingResponseEvent release];
-      _pendingResponseEvent = nil;
+      ASSIGN (_pendingResponseEvent, nil);
     }
 }
 
+//
+// This method is invoked from the SOGo Web interface or from the DAV interface.
+//
+// - theOwnerUser is owner of the calendar where the attendee
+//   participation state has changed.
+//
 - (NSException *) _handleAttendee: (iCalPerson *) attendee
                      withDelegate: (iCalPerson *) delegate
                         ownerUser: (SOGoUser *) theOwnerUser

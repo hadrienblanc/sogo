@@ -83,6 +83,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../SoObjects/SOGo/SOGoDateFormatter.m \
 	TestContactsLDIF.m \
 	TestServerCore.m \
+	TestLDAPSourceUserAddressBooks.m \
 	TestNGVList.m \
 	TestNGVList+SOGo.m \
 	TestSOGoDraftObject.m \
@@ -96,7 +97,6 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
 	TestSOGoUserManagerSources.m \
-	TestLDAPSourceUserAddressBooks.m \
 	TestSOGoUserProfile.m \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \
