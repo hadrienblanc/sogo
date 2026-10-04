@@ -33,7 +33,87 @@
 #import "iCalTimeZone.h"
 
 static NSMutableDictionary *cache;
+static NSMutableDictionary *systemPeriods;
 static NSArray *knownTimeZones;
+
+static NSString *tzOffsetString(int offset)
+{
+  int absoluteOffset, hours, minutes, seconds;
+  char sign;
+
+  sign = (offset < 0) ? '-' : '+';
+  absoluteOffset = (offset < 0) ? -offset : offset;
+  hours = absoluteOffset / 3600;
+  minutes = (absoluteOffset % 3600) / 60;
+  seconds = absoluteOffset % 60;
+
+  if (seconds)
+    return [NSString stringWithFormat: @"%c%02d%02d%02d",
+                     sign, hours, minutes, seconds];
+
+  return [NSString stringWithFormat: @"%c%02d%02d", sign, hours, minutes];
+}
+
+@interface _iCalSystemTimeZone : iCalTimeZone
+{
+@private
+  NSTimeZone *systemTimeZone;
+}
+
+- (id) initWithSystemTimeZone: (NSTimeZone *) aTimeZone;
+
+@end
+
+@implementation _iCalSystemTimeZone
+
+- (id) initWithSystemTimeZone: (NSTimeZone *) aTimeZone
+{
+  if ((self = [super init]))
+    {
+      systemTimeZone = [aTimeZone retain];
+      [self setTzId: [aTimeZone name]];
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  [systemTimeZone release];
+  [super dealloc];
+}
+
+- (iCalTimeZonePeriod *) periodForDate: (NSCalendarDate *) date
+{
+  NSString *key, *offsetAsString;
+  iCalTimeZonePeriod *period;
+  int offset;
+
+  offset = [systemTimeZone secondsFromGMTForDate: date];
+  key = [NSString stringWithFormat: @"%@|%d", [systemTimeZone name], offset];
+
+  period = [systemPeriods objectForKey: key];
+  if (!period)
+    {
+      offsetAsString = tzOffsetString(offset);
+      period = [iCalTimeZonePeriod parseSingleFromSource:
+                          [NSString stringWithFormat:
+                                     @"BEGIN:STANDARD\r\n"
+                                     @"DTSTART:19700101T000000\r\n"
+                                     @"TZOFFSETFROM:%@\r\n"
+                                     @"TZOFFSETTO:%@\r\n"
+                                     @"TZNAME:%@\r\n"
+                                     @"END:STANDARD\r\n",
+                                     offsetAsString, offsetAsString,
+                                     [systemTimeZone name]]];
+      if (period)
+        [systemPeriods setObject: period  forKey: key];
+    }
+
+  return period;
+}
+
+@end
 
 
 @implementation iCalTimeZone
@@ -41,13 +121,15 @@ static NSArray *knownTimeZones;
 + (void) initialize
 {
   cache = [[NSMutableDictionary alloc] init];
+  systemPeriods = [[NSMutableDictionary alloc] init];
   knownTimeZones = nil;
 }
 
 + (iCalTimeZone *) timeZoneForName: (NSString *) theName
 {
   iCalTimeZone *o;
-  
+  NSTimeZone *systemZone;
+
   o = [cache objectForKey: theName];
 
   if (!o)
@@ -79,22 +161,34 @@ static NSArray *knownTimeZones;
 		  s = [NSString stringWithFormat: @"%@/%@.ics", path, theName];
 		  
 		  d = [NSData dataWithContentsOfFile: s];
-		  s = [[NSString alloc] initWithData: d
+		  if (d)
+		    {
+		      s = [[NSString alloc] initWithData: d
 					encoding: NSUTF8StringEncoding];
-		  AUTORELEASE(s);
+		      AUTORELEASE(s);
 
-  
-		  calendar = [iCalCalendar parseSingleFromSource: s];
-		  o = [[calendar timezones] lastObject];
+		      calendar = [iCalCalendar parseSingleFromSource: s];
+		      o = [[calendar timezones] lastObject];
 
-		  if (o)
-		    [cache setObject: o  forKey: theName];
+		      if (o)
+			{
+			  [cache setObject: o  forKey: theName];
 
-		  return o;
+			  return o;
+			}
+		    }
 		}
 
 	    }
 	}
+
+      systemZone = [NSTimeZone timeZoneWithName: theName];
+      if (systemZone)
+        {
+          o = [[[_iCalSystemTimeZone alloc] initWithSystemTimeZone: systemZone]
+                autorelease];
+          [cache setObject: o  forKey: theName];
+        }
     }
 
   return o;

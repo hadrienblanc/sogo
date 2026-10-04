@@ -69,7 +69,13 @@ LoadAppointmentsBundle ()
 
 - (NSString *) _wallClock: (NSCalendarDate *) theDate
 {
-  return [theDate descriptionWithCalendarFormat: @"%Y-%m-%d %H:%M:%S"];
+  NSCalendarDate *parisDate;
+
+  parisDate = [theDate copy];
+  [parisDate autorelease];
+  [parisDate setTimeZone: [NSTimeZone timeZoneWithName: @"Europe/Paris"]];
+
+  return [parisDate descriptionWithCalendarFormat: @"%Y-%m-%d %H:%M:%S"];
 }
 
 - (void) test_futureEventStartsAtItsOwnStartDate
