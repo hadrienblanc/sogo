@@ -38,6 +38,7 @@
 @interface SOGoAppointmentObject : SOGoCalendarComponent
 {
   BOOL _resourceHasAutoAccepted;
+  iCalRepeatableEntityObject *_pendingResponseEvent;
 }
 
 - (NSException *) changeParticipationStatus: (NSString *) status

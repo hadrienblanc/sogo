@@ -1281,10 +1281,10 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
           return ex;
     }
       
-  [super saveComponent: newEvent];
+  ex = [super saveComponent: newEvent];
   [self flush];
 
-  return nil;
+  return ex;
 }
 
 //
@@ -1442,6 +1442,26 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 // - theOwnerUser is owner of the calendar where the attendee
 //   participation state has changed.
 //
+- (void) dealloc
+{
+  [_pendingResponseEvent release];
+  [super dealloc];
+}
+
+- (void) _sendPendingResponseToOrganizer
+{
+  SOGoUser *ownerUser;
+
+  if (_pendingResponseEvent)
+    {
+      ownerUser = [SOGoUser userWithLogin: owner];
+      [self sendResponseToOrganizer: _pendingResponseEvent
+                               from: ownerUser];
+      [_pendingResponseEvent release];
+      _pendingResponseEvent = nil;
+    }
+}
+
 - (NSException *) _handleAttendee: (iCalPerson *) attendee
                      withDelegate: (iCalPerson *) delegate
                         ownerUser: (SOGoUser *) theOwnerUser
@@ -1584,13 +1604,13 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
       
       // If the current user isn't the organizer of the event
       // that has just been updated, we update the event and
-      // send a notification
+      // send a notification once the new participation status
+      // has been durably saved
       ownerUser = [SOGoUser userWithLogin: owner];
       if (!(ex || [event userIsOrganizer: ownerUser]))
         {
           if ([event isStillRelevant])
-            [self sendResponseToOrganizer: event
-                                     from: ownerUser];
+            ASSIGN (_pendingResponseEvent, event);
           
           organizerUID = [[event organizer] uidInContext: context];
           
@@ -1833,6 +1853,8 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 
                   [event setLastModified: [NSCalendarDate calendarDate]];
                   ex = [self saveCalendar: [event parent]];
+                  if (ex == nil)
+                    [self _sendPendingResponseToOrganizer];
                 }
             }
         }
@@ -2205,8 +2227,14 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 //
 - (id) DELETEAction: (WOContext *) _ctx
 {
+  id response;
+
   [self prepareDelete];
-  return [super DELETEAction: _ctx];
+  response = [super DELETEAction: _ctx];
+  if (![response isKindOfClass: [NSException class]])
+    [self _sendPendingResponseToOrganizer];
+
+  return response;
 }
 
 //
@@ -2319,12 +2347,11 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
       // we receive an external invitation (IMIP/ITIP) and we accept it
       // from a CUA - it gets added to a specific CalDAV calendar using a PUT
       //
-      else if ([event userIsAttendee: ownerUser] 
+      else if ([event userIsAttendee: ownerUser]
                 && [self _shouldScheduleEvent: [event userAsAttendee: ownerUser]]
                 && iCalPersonPartStatNeedsAction != [[event userAsAttendee: ownerUser] participationStatus])
-        { 
-          [self sendResponseToOrganizer: event
-                                   from: ownerUser];
+        {
+          ASSIGN (_pendingResponseEvent, event);
         }
       	      
       [self sendReceiptEmailForObject: event
@@ -2609,10 +2636,11 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
   baseVersion = (isNew ? 0 : version);
     
   ex = [self saveComponent: calendar
-          baseVersion: baseVersion];
-    
-      
-      
+               baseVersion: baseVersion];
+
+  if (ex == nil)
+    [self _sendPendingResponseToOrganizer];
+
   return ex;
 }
 
