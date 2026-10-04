@@ -31,6 +31,7 @@
 #import "SOGoPermissions.h"
 #import "SOGoSystemDefaults.h"
 #import "SOGoUser.h"
+#import "SOGoUserManager.h"
 
 #import "SOGoProxyAuthenticator.h"
 
@@ -52,6 +53,27 @@
   return YES;
 }
 
+- (BOOL) _checkBasicCredentialsForUser: (NSString *) user
+                             inContext: (WOContext *) context
+{
+  SOGoUserManager *userManager;
+  NSString *authorization, *pair, *pairStart;
+
+  authorization = [[context request] headerForKey: @"authorization"];
+  if (![authorization hasPrefix: @"Basic "])
+    return YES;
+
+  pair = [[authorization substringFromIndex: 6] stringByDecodingBase64];
+  pairStart = [NSString stringWithFormat: @"%@:", user];
+  if (![pair hasPrefix: pairStart])
+    return YES;
+
+  userManager = [SOGoUserManager sharedUserManager];
+
+  return [userManager checkProxyLogin: user
+                              password: [pair substringFromIndex: [pairStart length]]];
+}
+
 /* create SOGoUser */
 
 - (NSString *) checkCredentialsInContext: (WOContext *) context
@@ -62,12 +84,15 @@
   /* If such a header is not provided by the proxy, SOPE will attempt to
      deduce it from the "Authorization" header. */
   remoteUser = [[context request] headerForKey: @"x-webobjects-remote-user"];
-   
+
   if ([remoteUser length] == 0 && [[SOGoSystemDefaults sharedSystemDefaults] trustProxyAuthentication])
     {
       remoteUser = @"anonymous";
     }
-  
+  else if ([remoteUser length] > 0
+           && ![self _checkBasicCredentialsForUser: remoteUser inContext: context])
+    remoteUser = nil;
+
   return remoteUser;
 }
 

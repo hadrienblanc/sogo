@@ -98,6 +98,9 @@
               grace: (int *) _grace
            useCache: (BOOL) _useCache;
 
+- (BOOL) checkProxyLogin: (NSString *) _login
+                password: (NSString *) _pwd;
+
 - (BOOL) changePasswordForLogin: (NSString *) login
                        inDomain: (NSString *) domain
                     oldPassword: (NSString *) oldPassword
