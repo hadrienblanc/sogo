@@ -88,6 +88,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestContactsLDIF.m \
 	TestServerCore.m \
 	TestLDAPSourceUserAddressBooks.m \
+	TestNSDictionary+Utilities.m \
+	TestLDAPSourceUserSearchFilter.m \
 	TestNGVList.m \
 	TestNGVList+SOGo.m \
 	TestSOGoDraftObject.m \
