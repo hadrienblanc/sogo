@@ -20,6 +20,7 @@
   02111-1307, USA.
 */
 
+#import <Foundation/NSSet.h>
 #import <Foundation/NSTimeZone.h>
 
 #import <NGExtensions/NGCalendarDateRange.h>
@@ -298,7 +299,23 @@
 
 - (void) addToExceptionDates: (NSCalendarDate *) _rdate
 {
-  iCalDateTime *dateTime;
+  NSArray *exdateChildren, *currentDates;
+  iCalDateTime *currentChild, *dateTime;
+  unsigned int i, count, max;
+
+  if (_rdate)
+    {
+      exdateChildren = [self childrenWithTag: @"exdate"];
+      max = [exdateChildren count];
+      for (count = 0; count < max; count++)
+        {
+          currentChild = [exdateChildren objectAtIndex: count];
+          currentDates = [currentChild dateTimes];
+          for (i = 0; i < [currentDates count]; i++)
+            if ([[currentDates objectAtIndex: i] compare: _rdate] == NSOrderedSame)
+              return;
+        }
+    }
 
   dateTime = [iCalDateTime new];
   [dateTime setTag: @"exdate"];
@@ -329,12 +346,14 @@
 {
   NSArray *exDates;
   NSMutableArray *dates;
+  NSMutableSet *seenDates;
   NSEnumerator *dateList;
   NSCalendarDate *exDate;
   NSString *dateString;
   unsigned i;
 
   dates = [NSMutableArray array];
+  seenDates = [NSMutableSet set];
   dateList = [[self childrenWithTag: @"exdate"] objectEnumerator];
   
   while ((dateString = [dateList nextObject]))
@@ -345,7 +364,11 @@
 	  exDate = [exDates objectAtIndex: i];
 	  dateString = [NSString stringWithFormat: @"%@Z",
 				 [exDate iCalFormattedDateTimeString]];
-	  [dates addObject: dateString];
+	  if (![seenDates containsObject: dateString])
+	    {
+	      [seenDates addObject: dateString];
+	      [dates addObject: dateString];
+	    }
 	}
     }
 
