@@ -426,9 +426,11 @@ static NSString *Test5912Unquote(NSString *quoted)
 {
   NSEnumerator *enumerator;
   NSString *recorded;
+  NSArray *selects;
 
-  test ([[server recordedSelects] count] > 0);
-  enumerator = [[server recordedSelects] objectEnumerator];
+  selects = [server recordedSelects];
+  test ([selects count] > 0);
+  enumerator = [selects objectEnumerator];
   while ((recorded = [enumerator nextObject]))
     testEquals (recorded, wireName);
 }
