@@ -44,6 +44,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (NSDictionary *) dictionaryValue;
 
+- (BOOL) syncKeyAdvancesAfterIndex: (int) theIndex;
+
 @end
 
 #endif

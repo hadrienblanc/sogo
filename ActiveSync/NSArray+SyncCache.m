@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import "NSArray+SyncCache.h"
 
 #import <Foundation/NSDictionary.h>
+#import <Foundation/NSString.h>
 
 #include "SOGoSyncCacheObject.h"
 
@@ -79,6 +80,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     }
 
   return d;
+}
+
+- (BOOL) syncKeyAdvancesAfterIndex: (int) theIndex
+{
+  if (theIndex < 0 || theIndex + 1 >= (int) [self count])
+    return YES;
+
+  return ([[[self objectAtIndex: theIndex] objectForKey: @"c_lastmodified"] intValue]
+          != [[[self objectAtIndex: theIndex + 1] objectForKey: @"c_lastmodified"] intValue]);
 }
 
 @end
