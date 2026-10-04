@@ -48,3 +48,4 @@ reply_info = "Ovo je odgovor na event koji ste vi kreirali.";
 "Comment" = "Komentar";
 "Description" = "Opis";
 "Location" = "Location";
+"Repeat" = "Ponoviti";

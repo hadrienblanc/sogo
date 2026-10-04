@@ -48,6 +48,7 @@
 #import <SOGo/NSString+Utilities.h>
 #import <Appointments/iCalCalendar+SOGo.h>
 #import <Appointments/iCalEntityObject+SOGo.h>
+#import <Appointments/iCalRecurrenceRule+SOGo.h>
 #import <Appointments/iCalRepeatableEntityObject+SOGo.h>
 #import <Appointments/SOGoAppointmentFolder.h>
 #import <Appointments/SOGoAppointmentFolders.h>
@@ -255,6 +256,37 @@
     return [self duration] <= 86400;
 
   return [[self startCalendarDate] isDateOnSameDay: [self endCalendarDate]];
+}
+
+- (BOOL) isRecurrent
+{
+  return [[self inEvent] isRecurrent];
+}
+
+- (NSString *) repeatDescription
+{
+  NSArray *rules;
+  iCalRecurrenceRule *rule;
+  NSString *description;
+  NSCalendarDate *untilDate;
+
+  rules = [[self inEvent] recurrenceRules];
+  if (![rules count])
+    return [self labelForKey: @"repeat_CUSTOM"];
+
+  rule = [rules objectAtIndex: 0];
+  description = [self labelForKey: [rule repeatLabelKey]];
+
+  if ((untilDate = [rule untilDate]))
+    {
+      [untilDate setTimeZone: [[[context activeUser] userDefaults] timeZone]];
+      description = [NSString stringWithFormat: @"%@, %@ %@",
+                             description,
+                             [self labelForKey: @"until"],
+                             [[self dateFormatter] formattedDate: untilDate]];
+    }
+
+  return description;
 }
 
 /* calendar folder support */

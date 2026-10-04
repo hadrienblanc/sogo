@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "You are about to permanently delete some messages. Are you sure you want to proceed with this action?";
 "Apply" = "Apply";
 "%{0} message(s) deleted" = "%{0} message(s) deleted";
+"repeat_DAILY" = "Ikdienas";
+"repeat_WEEKLY" = "Iknedēļas";
+"repeat_BI-WEEKLY" = "Ik pēc divām nedēļām";
+"repeat_MONTHLY" = "Ikmēneša";
+"repeat_YEARLY" = "Ik gadu";
+"repeat_CUSTOM" = "Pielāgots...";
+"until" = "līdz";

@@ -44,6 +44,8 @@
 - (NSString *) startDate;
 - (NSString *) startTime;
 - (BOOL) isEndDateOnSameDay;
+- (BOOL) isRecurrent;
+- (NSString *) repeatDescription;
 - (BOOL) hasLocation;
 - (NSString *)location;
 - (NSString *) organizerHref;

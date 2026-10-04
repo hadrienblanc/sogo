@@ -13,6 +13,7 @@ Appointments_OBJC_FILES = \
 	iCalCalendar+SOGo.m 	\
 	iCalEntityObject+SOGo.m 	\
 	iCalRepeatableEntityObject+SOGo.m	\
+	iCalRecurrenceRule+SOGo.m	\
 	iCalEvent+SOGo.m	 	\
 	iCalEventChanges+SOGo.m 	\
 	iCalPerson+SOGo.m	 	\

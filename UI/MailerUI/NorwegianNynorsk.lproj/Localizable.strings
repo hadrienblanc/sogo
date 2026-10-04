@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "You are about to permanently delete some messages. Are you sure you want to proceed with this action?";
 "Apply" = "Apply";
 "%{0} message(s) deleted" = "%{0} message(s) deleted";
+"repeat_DAILY" = "Daglig";
+"repeat_WEEKLY" = "Ukentlig";
+"repeat_BI-WEEKLY" = "Annenhver uke";
+"repeat_MONTHLY" = "Månedlig";
+"repeat_YEARLY" = "Hvert år";
+"repeat_CUSTOM" = "Valgfri...";
+"until" = "til";

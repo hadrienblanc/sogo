@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "Tǐmto navždy smažete zprávy. Chcete pokračovat?";
 "Apply" = "Použít";
 "%{0} message(s) deleted" = "%{0} zpráv smazáno";
+"repeat_DAILY" = "Denně";
+"repeat_WEEKLY" = "Týdně";
+"repeat_BI-WEEKLY" = "Každý druhý týden";
+"repeat_MONTHLY" = "Měsíčně";
+"repeat_YEARLY" = "Ročně";
+"repeat_CUSTOM" = "Vlastní...";
+"until" = "do";

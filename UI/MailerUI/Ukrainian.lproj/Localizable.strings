@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "You are about to permanently delete some messages. Are you sure you want to proceed with this action?";
 "Apply" = "Apply";
 "%{0} message(s) deleted" = "%{0} message(s) deleted";
+"repeat_DAILY" = "щодня";
+"repeat_WEEKLY" = "щотижня";
+"repeat_BI-WEEKLY" = "щодругий тиждень";
+"repeat_MONTHLY" = "щомісяця";
+"repeat_YEARLY" = "щороку";
+"repeat_CUSTOM" = "власне...";
+"until" = "до";

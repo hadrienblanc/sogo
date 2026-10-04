@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "일부 메시지를 영구 삭제하려고 합니다. 이 작업을 계속 진행하시겠습니까?";
 "Apply" = "적용";
 "%{0} message(s) deleted" = "%{0} 메시지 삭제됨";
+"repeat_DAILY" = "매일";
+"repeat_WEEKLY" = "매주";
+"repeat_BI-WEEKLY" = "격주";
+"repeat_MONTHLY" = "매월";
+"repeat_YEARLY" = "매년";
+"repeat_CUSTOM" = "사용자 지정...";
+"until" = "까지";
