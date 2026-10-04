@@ -94,6 +94,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoMailFolder.m \
 	TestSOGoMailFolderSortOrder.m \
 	TestSOGoMailForward.m \
+	TestSOGoMailerAccountSelection.m \
 	TestSOGoSieveClientLifecycle.m \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
