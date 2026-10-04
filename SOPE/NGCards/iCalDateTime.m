@@ -21,8 +21,6 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSTimeZone.h>
 
-#import <NGExtensions/NSObject+Logs.h>
-
 #import "NSCalendarDate+NGCards.h"
 #import "NSString+NGCards.h"
 
@@ -93,8 +91,6 @@
         calendar = (iCalCalendar *) [self searchParentOfClass: [iCalCalendar class]];
         timeZone = [calendar timeZoneWithId: tzId];
       }
-      //if (!timeZone)
-      //[self logWithFormat: @"timezone '%@' not found in calendar", tzId];
   }
 
   return timeZone;
