@@ -298,7 +298,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 {
   NSMutableDictionary *folderMetadata, *dateCache, *syncCache, *uidCache, *allValues;
   NSString *clientId, *serverId, *easId;
-  NSArray *additions, *roles;
+  NSArray *additions, *clientIds, *roles;
   SOGoUser *ownerUser;
   
   id anAddition, sogoObject, o;
@@ -334,10 +334,11 @@ FIXME
 -> lastObject returns the ClientId in Attachments element -> try with objectAtIndex: 0 -> is this correct?
 */
           //clientId = [[(id)[anAddition getElementsByTagName: @"ClientId"] lastObject] textValue];
-          if (![(id)[anAddition getElementsByTagName: @"ClientId"] count])
+          clientIds = (id)[anAddition getElementsByTagName: @"ClientId"];
+          if (![clientIds count])
             continue;
 
-          clientId = [[(id)[anAddition getElementsByTagName: @"ClientId"] objectAtIndex: 0] textValue];
+          clientId = [[clientIds objectAtIndex: 0] textValue];
 
           allValues = [NSMutableDictionary dictionaryWithDictionary: [[(id)[anAddition getElementsByTagName: @"ApplicationData"]  lastObject] applicationData]];
 

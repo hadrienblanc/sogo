@@ -241,9 +241,7 @@
 					  inDomain: [[context activeUser] domain]
 				   usingConnection: connection];
       [source releaseConnection: connection];
-      e = [records keyEnumerator];
-      while ((key = [e nextObject]))
-        [childRecords setObject: [records objectForKey: key] forKey: key];
+      [childRecords addEntriesFromDictionary: records];
     }
 
   return [keys objectEnumerator];
