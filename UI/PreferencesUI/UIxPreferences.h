@@ -46,7 +46,6 @@
 
   BOOL mailCustomFromEnabled;
   BOOL forwardEnabled;
-  BOOL hasChanged;
 }
 
 - (BOOL) _isSieveServerAvailable;

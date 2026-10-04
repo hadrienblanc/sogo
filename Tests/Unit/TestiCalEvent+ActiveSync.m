@@ -305,7 +305,7 @@
 
   testWithMessage ([[self _allDayAttendeeEvent] hasActiveSyncScheduleChange: changes
                                                                  inContext: context],
-                    @"a moved all-day event must be detected");
+                   @"a moved all-day event must be detected");
 }
 
 - (void) test_takeActiveSyncValuesRebindsUidOnOlderProtocols
