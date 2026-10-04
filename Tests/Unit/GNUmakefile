@@ -74,6 +74,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSArray+SyncCache.m \
 	TestNSString+CKEditorUserAgentOverride.m \
 	TestNSURL+misc.m \
+	TestNSURL+GCS.m \
 	TestNGMailAddressParser.m \
 	TestNGInternetSocketAddress.m \
 	\

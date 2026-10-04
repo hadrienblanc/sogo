@@ -65,4 +65,69 @@
                    [self user], [self gcsDatabaseName]];
 }
 
+- (NSURL *) gcsURLWithoutCredentials
+{
+  NSString *urlString, *prefix, *rest;
+  NSRange schemeRange, atRange, slashRange;
+
+  urlString = [self absoluteString];
+  schemeRange = [urlString rangeOfString: @"://"];
+  if (schemeRange.location == NSNotFound)
+    return self;
+
+  rest = [urlString substringFromIndex: NSMaxRange (schemeRange)];
+  atRange = [rest rangeOfString: @"@"];
+  if (atRange.location == NSNotFound)
+    return self;
+
+  slashRange = [rest rangeOfString: @"/"];
+  if (slashRange.location != NSNotFound
+      && slashRange.location < atRange.location)
+    return self;
+
+  prefix = [urlString substringToIndex: NSMaxRange (schemeRange)];
+
+  return [NSURL URLWithString:
+                   [prefix stringByAppendingString:
+                            [rest substringFromIndex: NSMaxRange (atRange)]]];
+}
+
+- (NSURL *) gcsURLWithCredentialsFromURL: (NSURL *) _url
+{
+  NSString *urlString, *credentials, *otherString;
+  NSRange schemeRange, atRange, slashRange;
+
+  if (_url == nil || [self user] != nil)
+    return self;
+
+  otherString = [_url absoluteString];
+  schemeRange = [otherString rangeOfString: @"://"];
+  if (schemeRange.location == NSNotFound)
+    return self;
+
+  otherString = [otherString substringFromIndex: NSMaxRange (schemeRange)];
+  atRange = [otherString rangeOfString: @"@"];
+  if (atRange.location == NSNotFound)
+    return self;
+
+  slashRange = [otherString rangeOfString: @"/"];
+  if (slashRange.location != NSNotFound
+      && slashRange.location < atRange.location)
+    return self;
+
+  credentials = [otherString substringToIndex: NSMaxRange (atRange)];
+
+  urlString = [self absoluteString];
+  schemeRange = [urlString rangeOfString: @"://"];
+  if (schemeRange.location == NSNotFound)
+    return self;
+
+  return [NSURL URLWithString:
+                  [[urlString substringToIndex: NSMaxRange (schemeRange)]
+                    stringByAppendingString:
+                    [credentials stringByAppendingString:
+                              [urlString substringFromIndex:
+                                             NSMaxRange (schemeRange)]]]];
+}
+
 @end /* NSURL(GCS) */

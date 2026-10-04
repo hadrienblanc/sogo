@@ -443,7 +443,8 @@ static BOOL       _singleStoreMode           = NO;
   if (!_singleStoreMode) {
     locationString = [_record objectForKey:@"c_location"];
     location = [locationString isNotNull] 
-      ? [NSURL URLWithString:locationString]
+      ? [[NSURL URLWithString:locationString]
+          gcsURLWithCredentialsFromURL: folderInfoLocation]
       : nil;
     if (location == nil) {
       [self logWithFormat:@"ERROR(%s): missing folder location in record: %@",
@@ -453,7 +454,8 @@ static BOOL       _singleStoreMode           = NO;
 
     locationString = [_record objectForKey:@"c_quick_location"];
     quickLocation = [locationString isNotNull] 
-      ? [NSURL URLWithString:locationString]
+      ? [[NSURL URLWithString:locationString]
+          gcsURLWithCredentialsFromURL: folderInfoLocation]
       : nil;
 
     if (quickLocation == nil) {
@@ -463,7 +465,8 @@ static BOOL       _singleStoreMode           = NO;
 
     locationString = [_record objectForKey:@"c_acl_location"];
     acl_location = [locationString isNotNull]
-      ? [NSURL URLWithString:locationString]
+      ? [[NSURL URLWithString:locationString]
+          gcsURLWithCredentialsFromURL: folderInfoLocation]
       : nil;
   } else {
     location = nil;
@@ -1064,7 +1067,7 @@ static BOOL       _singleStoreMode           = NO;
   quickTableName = [tableName stringByAppendingString: @"_quick"];
   aclTableName = [tableName stringByAppendingString: @"_acl"];
 
-  baseURL = [folderInfoLocation absoluteString];
+  baseURL = [[folderInfoLocation gcsURLWithoutCredentials] absoluteString];
   range = [baseURL rangeOfString: @"/" options: NSBackwardsSearch];
   if (range.location != NSNotFound)
     baseURL = [baseURL substringToIndex: range.location];

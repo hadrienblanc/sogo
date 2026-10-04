@@ -38,6 +38,10 @@
 
 - (NSString *) gcsURLId;
 
+- (NSURL *) gcsURLWithoutCredentials;
+
+- (NSURL *) gcsURLWithCredentialsFromURL: (NSURL *) _url;
+
 @end
 
 #endif /* __GDLContentStore_NSURL_GCS_H__ */
