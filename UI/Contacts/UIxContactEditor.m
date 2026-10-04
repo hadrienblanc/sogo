@@ -389,35 +389,7 @@ static Class SOGoContactGCSEntryK = Nil;
 
   customFields = [attributes objectForKey: @"customFields"];
   if (customFields && [customFields isKindOfClass: [NSDictionary class]])
-    {
-      if ((o = [customFields objectForKey: @"1"]))
-        {
-          elements = [card childrenWithTag: @"custom1"];
-          [card removeChildren: elements];
-          [card addElementWithTag: @"custom1"  ofType: nil  withValue: o];
-        }
-
-      if ((o = [customFields objectForKey: @"2"]))
-        {
-          elements = [card childrenWithTag: @"custom2"];
-          [card removeChildren: elements];
-          [card addElementWithTag: @"custom2"  ofType: nil  withValue: o];
-        }
-
-      if ((o = [customFields objectForKey: @"3"]))
-        {
-          elements = [card childrenWithTag: @"custom3"];
-          [card removeChildren: elements];
-          [card addElementWithTag: @"custom3"  ofType: nil  withValue: o];
-        }
-
-      if ((o = [customFields objectForKey: @"4"]))
-        {
-          elements = [card childrenWithTag: @"custom4"];
-          [card removeChildren: elements];
-          [card addElementWithTag: @"custom4"  ofType: nil  withValue: o];
-        }
-    }
+    [card setCustomFields: customFields];
 
   hasCertificate = [[attributes objectForKey: @"hasCertificate"] boolValue];
   if (!hasCertificate)

@@ -218,6 +218,69 @@ convention:
     }
 }
 
+- (NSString *) _flattenedValueForCustomTag: (NSString *) aTag
+{
+  NSArray *elements;
+  NSString *value;
+
+  value = nil;
+  elements = [self childrenWithTag: aTag];
+  if ([elements count] > 0)
+    {
+      value = [[elements objectAtIndex: 0] flattenedValuesForKey: @""];
+      if (![value length])
+        value = nil;
+    }
+
+  return value;
+}
+
+- (NSDictionary *) flattenedCustomFields
+{
+  NSArray *keys;
+  NSMutableDictionary *customFields;
+  NSString *key, *value;
+  unsigned int i;
+
+  keys = [NSArray arrayWithObjects: @"1", @"2", @"3", @"4", nil];
+  customFields = [NSMutableDictionary dictionaryWithCapacity: [keys count]];
+  for (i = 0; i < [keys count]; i++)
+    {
+      key = [keys objectAtIndex: i];
+      value = [self _flattenedValueForCustomTag:
+                          [NSString stringWithFormat: @"x-custom%@", key]];
+      if (!value)
+        value = [self _flattenedValueForCustomTag:
+                          [NSString stringWithFormat: @"custom%@", key]];
+      if (value)
+        [customFields setObject: value  forKey: key];
+    }
+
+  return customFields;
+}
+
+- (void) setCustomFields: (NSDictionary *) customFields
+{
+  NSArray *keys, *elements;
+  NSString *key, *tag, *value;
+  unsigned int i;
+
+  keys = [NSArray arrayWithObjects: @"1", @"2", @"3", @"4", nil];
+  for (i = 0; i < [keys count]; i++)
+    {
+      key = [keys objectAtIndex: i];
+      tag = [NSString stringWithFormat: @"custom%@", key];
+      elements = [self childrenWithTag: tag];
+      [self removeChildren: elements];
+      tag = [NSString stringWithFormat: @"x-custom%@", key];
+      elements = [self childrenWithTag: tag];
+      [self removeChildren: elements];
+      value = [customFields objectForKey: key];
+      if ([value isKindOfClass: [NSString class]] && [value length])
+        [self addElementWithTag: tag  ofType: nil  withValue: value];
+    }
+}
+
 - (void) _setPhoneValues: (NSDictionary *) ldifRecord
 {
   [self addElementWithTag: @"tel"

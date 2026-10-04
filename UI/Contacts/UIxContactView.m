@@ -277,7 +277,8 @@
  */
 - (id <WOActionResults>) dataAction
 {
-  NSMutableDictionary *customFields, *data;
+  NSDictionary *customFields;
+  NSMutableDictionary *data;
   SOGoObject <SOGoContactObject> *contact;
   id <WOActionResults> result;
   NSArray *values;
@@ -358,20 +359,7 @@
   if ([contact hasPhoto])
     [data setObject: [self photoURL] forKey: @"photoURL"];
 
-  // Custom fields from Thunderbird
-  customFields = [NSMutableDictionary dictionary];
-  if ((o = [[card uniqueChildWithTag: @"custom1"] flattenedValuesForKey: @""]) && [o length])
-    [customFields setObject: o  forKey: @"1"];
-
-  if ((o = [[card uniqueChildWithTag: @"custom2"] flattenedValuesForKey: @""]) && [o length])
-    [customFields setObject: o  forKey: @"2"];
-
-  if ((o = [[card uniqueChildWithTag: @"custom3"] flattenedValuesForKey: @""]) && [o length])
-    [customFields setObject: o  forKey: @"3"];
-
-  if ((o = [[card uniqueChildWithTag: @"custom4"] flattenedValuesForKey: @""]) && [o length])
-    [customFields setObject: o  forKey: @"4"];
-
+  customFields = [card flattenedCustomFields];
   if ([customFields count])
     [data setObject: customFields  forKey: @"customFields"];
 
