@@ -218,6 +218,16 @@ convention:
     }
 }
 
+static NSArray *customFieldKeys()
+{
+  static NSArray *keys = nil;
+
+  if (!keys)
+    keys = [[NSArray alloc] initWithObjects: @"1", @"2", @"3", @"4", nil];
+
+  return keys;
+}
+
 - (NSString *) _flattenedValueForCustomTag: (NSString *) aTag
 {
   NSArray *elements;
@@ -242,7 +252,7 @@ convention:
   NSString *key, *value;
   unsigned int i;
 
-  keys = [NSArray arrayWithObjects: @"1", @"2", @"3", @"4", nil];
+  keys = customFieldKeys();
   customFields = [NSMutableDictionary dictionaryWithCapacity: [keys count]];
   for (i = 0; i < [keys count]; i++)
     {
@@ -262,22 +272,22 @@ convention:
 - (void) setCustomFields: (NSDictionary *) customFields
 {
   NSArray *keys, *elements;
-  NSString *key, *tag, *value;
+  NSString *key, *fieldTag, *value;
   unsigned int i;
 
-  keys = [NSArray arrayWithObjects: @"1", @"2", @"3", @"4", nil];
+  keys = customFieldKeys();
   for (i = 0; i < [keys count]; i++)
     {
       key = [keys objectAtIndex: i];
-      tag = [NSString stringWithFormat: @"custom%@", key];
-      elements = [self childrenWithTag: tag];
+      fieldTag = [NSString stringWithFormat: @"custom%@", key];
+      elements = [self childrenWithTag: fieldTag];
       [self removeChildren: elements];
-      tag = [NSString stringWithFormat: @"x-custom%@", key];
-      elements = [self childrenWithTag: tag];
+      fieldTag = [NSString stringWithFormat: @"x-custom%@", key];
+      elements = [self childrenWithTag: fieldTag];
       [self removeChildren: elements];
       value = [customFields objectForKey: key];
       if ([value isKindOfClass: [NSString class]] && [value length])
-        [self addElementWithTag: tag  ofType: nil  withValue: value];
+        [self addElementWithTag: fieldTag  ofType: nil  withValue: value];
     }
 }
 
