@@ -823,6 +823,32 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
 //
 //
 //
+- (BOOL) checkProxyLogin: (NSString *) _login
+                password: (NSString *) _pwd
+{
+  SOGoPasswordPolicyError perr;
+  NSString *domain;
+  int expire, grace;
+
+  if ([[self authenticationSourceIDsInDomain: nil] count] == 0)
+    return YES;
+
+  domain = nil;
+  perr = PolicyNoError;
+
+  return ([self checkLogin: _login
+                  password: _pwd
+                    domain: &domain
+                      perr: &perr
+                    expire: &expire
+                     grace: &grace
+             additionalInfo: nil]
+          && perr == PolicyNoError);
+}
+
+//
+//
+//
 - (BOOL) changePasswordForLogin: (NSString *) login
                        inDomain: (NSString *) domain
                     oldPassword: (NSString *) oldPassword
