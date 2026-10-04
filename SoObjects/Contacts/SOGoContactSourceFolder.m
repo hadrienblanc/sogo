@@ -22,6 +22,7 @@
 #import <Foundation/NSValue.h>
 
 #import <NGObjWeb/NSException+HTTP.h>
+#import <NGObjWeb/SoObject+SoDAV.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NSString+misc.h>
@@ -217,6 +218,35 @@
 
   userDomain = [[context activeUser] domain];
   return [source allEntryIDsVisibleFromDomain: userDomain];
+}
+
+- (NSEnumerator *) davChildKeysInContext: (id) aContext
+{
+  NSMutableArray *keys;
+  NSEnumerator *e;
+  NSString *key;
+  NSDictionary *records;
+  id connection;
+
+  keys = [NSMutableArray array];
+  e = [super davChildKeysInContext: aContext];
+  while ((key = [e nextObject]))
+    [keys addObject: key];
+
+  if ([keys count] > 0
+      && [source respondsToSelector: @selector(lookupContactEntriesForIDs:inDomain:usingConnection:)])
+    {
+      connection = [source connection];
+      records = [source lookupContactEntriesForIDs: keys
+					  inDomain: [[context activeUser] domain]
+				   usingConnection: connection];
+      [source releaseConnection: connection];
+      e = [records keyEnumerator];
+      while ((key = [e nextObject]))
+        [childRecords setObject: [records objectForKey: key] forKey: key];
+    }
+
+  return [keys objectEnumerator];
 }
 
 - (NSException *) saveLDIFEntry: (SOGoContactLDIFEntry *) ldifEntry
@@ -703,7 +733,8 @@
   NSString *url, *baseURL, *cname, *domain;
   NSString **propertiesArray;
   NSMutableString *buffer;
-  NSDictionary *object;
+  NSDictionary *object, *records;
+  NSMutableArray *cnames;
   id connection;
 
   unsigned int count, max, propertiesCount;
@@ -720,15 +751,43 @@
   buffer = [[NSMutableString alloc] initWithCapacity: max*512];
   domain = [[context activeUser] domain];
   connection = [source connection];
+  cnames = [[NSMutableArray alloc] initWithCapacity: max];
   pool = [[NSAutoreleasePool alloc] init];
   for (count = 0; count < max; count++)
     {
       element = [refs objectAtIndex: count];
       url = [[[element firstChild] nodeValue] stringByUnescapingURL];
       cname = [self _deduceObjectNameFromURL: url fromBaseURL: baseURL];
-      object = [source lookupContactEntry: cname
-				 inDomain: domain
-			  usingConnection: connection];
+      if (![cname length])
+        cname = @"";
+      [cnames addObject: cname];
+      if (count > 0 && count % 10 == 0)
+	{
+	  RELEASE(pool);
+	  pool = [[NSAutoreleasePool alloc] init];
+	}
+    }
+
+  records = nil;
+  if ([source respondsToSelector: @selector(lookupContactEntriesForIDs:inDomain:usingConnection:)])
+    {
+      records = [[source lookupContactEntriesForIDs: cnames
+					   inDomain: domain
+			    usingConnection: connection] retain];
+    }
+  RELEASE(pool);
+
+  pool = [[NSAutoreleasePool alloc] init];
+  for (count = 0; count < max; count++)
+    {
+      element = [refs objectAtIndex: count];
+      url = [[[element firstChild] nodeValue] stringByUnescapingURL];
+      cname = [cnames objectAtIndex: count];
+      object = (records
+                ? [records objectForKey: cname]
+                : [source lookupContactEntry: cname
+				    inDomain: domain
+			     usingConnection: connection]);
       if (object)
         [self appendObject: object
                 properties: propertiesArray
@@ -748,6 +807,8 @@
   [response appendContentString: buffer];
   RELEASE(buffer);
   [source releaseConnection: connection];
+  [records release];
+  [cnames release];
 //   NSLog (@"/adding properties with url");
 
   NSZoneFree (NULL, propertiesArray);

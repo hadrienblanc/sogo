@@ -45,6 +45,8 @@ static Class NSStringK;
                                  stringByReplacingString: @"'" withString: @"\\'"] \
                                  stringByReplacingString: @"%" withString: @"%%"]
 
+#define LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE 100
+
 @implementation LDAPSource
 
 + (void) initialize
@@ -1513,8 +1515,8 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
   return contacts;
 }
 
-- (NGLdapEntry *) _lookupLDAPEntry: (EOQualifier *) theQualifier
-		   usingConnection: (id) connection
+- (NSEnumerator *) _searchLDAPEntriesWithQualifier: (EOQualifier *) theQualifier
+                                    usingConnection: (id) connection
 {
   NGLdapConnection *ldapConnection;
   NSEnumerator *entries;
@@ -1534,7 +1536,71 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
                                        qualifier: theQualifier
                                       attributes: _lookupFields];
 
-  return [entries nextObject];
+  return entries;
+}
+
+- (NGLdapEntry *) _lookupLDAPEntry: (EOQualifier *) theQualifier
+		   usingConnection: (id) connection
+{
+  return [[self _searchLDAPEntriesWithQualifier: theQualifier
+                                 usingConnection: connection] nextObject];
+}
+
+- (NSDictionary *) lookupContactEntriesForIDs: (NSArray *) theIDs
+                                     inDomain: (NSString *) theDomain
+                              usingConnection: (id) connection
+{
+  NSMutableDictionary *results;
+  NSMutableString *qs;
+  NSEnumerator *entries;
+  NGLdapEntry *currentEntry;
+  NSDictionary *record;
+  NSString *theID, *c_name;
+  unsigned int i, j, max, remaining, take, terms;
+
+  results = [NSMutableDictionary dictionary];
+
+  if (connection)
+    {
+      max = [theIDs count];
+      for (i = 0; i < max; i += LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE)
+        {
+          remaining = max - i;
+          take = ((remaining > LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE)
+                  ? LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE
+                  : remaining);
+
+          qs = [NSMutableString stringWithString: @"(|"];
+          terms = 0;
+          for (j = i; j < i + take; j++)
+            {
+              theID = [theIDs objectAtIndex: j];
+              if ([theID length] > 0)
+                {
+                  [qs appendFormat: @"(%@='%@')",
+                              _IDField, SafeLDAPCriteria(theID)];
+                  terms++;
+                }
+            }
+          [qs appendString: @")"];
+
+          if (terms > 0)
+            {
+              entries = [self _searchLDAPEntriesWithQualifier:
+                           [EOQualifier qualifierWithQualifierFormat: qs]
+                                                usingConnection: connection];
+              while ((currentEntry = [entries nextObject]))
+                {
+                  record = [self _convertLDAPEntryToContact: currentEntry];
+                  c_name = [record objectForKey: @"c_name"];
+                  if ([c_name length] > 0 && ![results objectForKey: c_name])
+                    [results setObject: record forKey: c_name];
+                }
+            }
+        }
+    }
+
+  return results;
 }
 
 - (NGLdapEntry *) _lookupLDAPEntry: (EOQualifier *) theQualifier
