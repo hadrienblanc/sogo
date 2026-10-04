@@ -214,16 +214,16 @@
       idParameters = [self _preLoginIDParameters];
 
       newConnection = [manager connectionForURL: imap4URL
-                                      password: password
-                          preLoginIDParameters: idParameters];
+                                       password: password
+                           preLoginIDParameters: idParameters];
       if (!newConnection)
         {
           [self logWithFormat: @"renewing imap4 password"];
           password = [self imap4PasswordRenewed: YES];
           if (password)
             newConnection = [manager connectionForURL: imap4URL
-                                            password: password
-                                preLoginIDParameters: idParameters];
+                                             password: password
+                                 preLoginIDParameters: idParameters];
         }
     }
   else
