@@ -277,7 +277,12 @@
   rule = [rules objectAtIndex: 0];
   description = [self labelForKey: [rule repeatLabelKey]];
 
-  if ((untilDate = [rule untilDate]))
+  if ([rule hasRepeatCount])
+    description = [NSString stringWithFormat: @"%@, %d %@",
+                           description,
+                           [rule repeatCount],
+                           [self labelForKey: @"times"]];
+  else if ((untilDate = [rule untilDate]))
     {
       [untilDate setTimeZone: [[[context activeUser] userDefaults] timeZone]];
       description = [NSString stringWithFormat: @"%@, %@ %@",
