@@ -468,8 +468,6 @@
                                            inDomain: [self domain]];
       [_defaults retain];
     }
-  //else
-  //  NSLog(@"User defaults cache hit for %@", login);
 
   return _defaults;
 }
@@ -485,17 +483,12 @@
         {
           _domainDefaults = [SOGoDomainDefaults defaultsForDomain: domain];
           if (!_domainDefaults)
-            {
-              //[self errorWithFormat: @"domain '%@' does not exist!", domain];
-              _domainDefaults = [SOGoSystemDefaults sharedSystemDefaults];
-            }
+            _domainDefaults = [SOGoSystemDefaults sharedSystemDefaults];
         }
       else
         _domainDefaults = [SOGoSystemDefaults sharedSystemDefaults];
       [_domainDefaults retain];
     }
-  //else
-  //  NSLog(@"User defaults cache hit for %@", login);
 
   return _domainDefaults;
 }

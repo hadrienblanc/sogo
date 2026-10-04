@@ -202,8 +202,7 @@
                                                    grace: _grace
                                           additionalInfo: _additionalInfo
                                                 useCache: _useCache];
-  //[self logWithFormat: @"Checked login with ppolicy enabled: %d %d %d", *_perr, *_expire, *_grace];
-  
+
   // It's important to return the real value here. The callee will handle
   // the return code and check for the _perr value.
   return rc;

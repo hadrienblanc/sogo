@@ -440,10 +440,7 @@
             match = [password rangeOfString: regex options: NSRegularExpressionSearch];
             isPolicyOk = isPolicyOk && match.length > 0;
             if (match.length == 0)
-              {
-                // [self errorWithFormat: @"Password not conform to policy %@ (%@)", regex, [policy objectForKey: @"label"]];
-                *perr = PolicyInsufficientPasswordQuality;
-              }
+              *perr = PolicyInsufficientPasswordQuality;
           }
         else
           [self errorWithFormat: @"Invalid password policy (missing regex): %@", policy];
