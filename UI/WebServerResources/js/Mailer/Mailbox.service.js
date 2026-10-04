@@ -1042,10 +1042,6 @@
     angular.extend(this, this.$shadowData);
     this.$shadowData = this.$omit();
     this.account = account;
-    if (options && options.unseenCount) {
-      this.unseenCount = options.unseenCount;
-      delete options["unseenCount"];
-    }
     if (options && options.filter) {
       this.$messages = [];
       this.$visibleMessages = [];
@@ -1075,6 +1071,7 @@
           key != 'headers' &&
           key != 'uids' &&
           key != 'uidsMap' &&
+          key != 'unseenCount' &&
           key[0] != '$') {
         mailbox[key] = value;
       }
