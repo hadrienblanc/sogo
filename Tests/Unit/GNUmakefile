@@ -68,6 +68,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSStringMailFilename.m \
 	TestNGCardsGeo.m \
 	TestNSArray+Utilities.m \
+	TestNSArray+SyncCache.m \
 	TestNSString+CKEditorUserAgentOverride.m \
 	TestNSURL+misc.m \
 	TestNGMailAddressParser.m \
@@ -123,6 +124,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../UI/Contacts/UIxListEditor.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/iCalToDo+ActiveSync.m \
+	../../ActiveSync/NSArray+SyncCache.m \
+	../../ActiveSync/SOGoSyncCacheObject.m \
 	../../ActiveSync/NSString+ActiveSync.m \
 	../../ActiveSync/NSDate+ActiveSync.m \
 	\

@@ -66,6 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <Mailer/SOGoMailFolder.h>
 #import <Mailer/SOGoMailNamespace.h>
 
+#include "NSArray+SyncCache.h"
 #include "iCalEvent+ActiveSync.h"
 #include "iCalToDo+ActiveSync.h"
 #include "NGDOMElement+ActiveSync.h"
@@ -1291,7 +1292,8 @@ FIXME
             pool = [[NSAutoreleasePool alloc] init];
 
             // Check for the WindowSize and slice accordingly
-            if (return_count >= theWindowSize || (theMaxSyncResponseSize > 0 && [s length] >= theMaxSyncResponseSize))
+            if ((return_count >= theWindowSize || (theMaxSyncResponseSize > 0 && [s length] >= theMaxSyncResponseSize))
+                && [allComponents syncKeyAdvancesAfterIndex: (i - 1)])
               {
                 more_available = YES;
 
