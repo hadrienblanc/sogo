@@ -27,12 +27,12 @@ $(TEST_TOOL)_OBJC_FILES += \
 	\
 	TestVersit.m \
 	TestNGCardsCore.m \
+	TestiCalCalendarInvitationUpdate.m \
 	TestiCalTimeZonePeriod.m \
 	TestiCalTimeZoneFallback.m \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalRepeatableEntityObjectInvitation.m \
-	TestiCalCalendarInvitationUpdate.m \
 	TestiCalEvent+SOGo.m \
 	TestiCalEvent+ActiveSync.m \
 	TestiCalToDo+ActiveSync.m \
@@ -83,7 +83,6 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestServerCore.m \
 	TestNGVList.m \
 	TestNGVList+SOGo.m \
-	TestUIxListEditor.m \
 	TestSOGoDraftObject.m \
 	TestSOGoDraftObjectIDNFrom.m \
 	TestSOGoDraftObjectQuoteSpecials.m \
@@ -91,6 +90,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoMailFolder.m \
 	TestSOGoMailFolderSortOrder.m \
 	TestSOGoMailForward.m \
+	TestSOGoSieveClientLifecycle.m \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
 	TestSOGoUserManagerSources.m \
@@ -105,10 +105,10 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
 	TestSOGoCacheLifecycle.m \
+	TestUIxListEditor.m \
 	TestUIxMailRenderingContext.m \
 	TestUIxMailListActionsChanges.m \
 	TestMailerUnseenCountReset.m \
-	TestSOGoSieveClientLifecycle.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\

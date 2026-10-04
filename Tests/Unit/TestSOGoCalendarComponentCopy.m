@@ -88,9 +88,8 @@ LoadAppointmentsBundle ()
                                                 inContainer: nil] retain];
   sourceEvent = [[Test6070CalendarComponent objectWithName: @"test-6070-event.ics"
                                              inContainer: sourceFolder] retain];
-  test6070SavedCalendar = nil;
-  [test6070SavedName release];
-  test6070SavedName = nil;
+  ASSIGN (test6070SavedCalendar, nil);
+  ASSIGN (test6070SavedName, nil);
 }
 
 - (void) tearDown
