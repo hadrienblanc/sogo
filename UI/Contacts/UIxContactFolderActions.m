@@ -54,6 +54,8 @@
 
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoMobileProvision.h>
+#import <SOGo/SOGoUser.h>
+#import <SOGo/SOGoUserFolder.h>
 
 #import "UIxContactFolderActions.h"
 
@@ -485,7 +487,7 @@ static NSArray *photoTags = nil;
   WOResponse *response;
 
   folder = [self clientObject];
-  davURL = [folder davURLAsString];
+  davURL = [[[context activeUser] homeFolderInContext: context] davURLAsString];
   plistContent = [SOGoMobileProvision plistForContactsWithContext: context andPath: davURL andName: [NSString stringWithFormat: @"%@ - %@", [folder owner], [folder realNameInContainer]]];
  
   if (nil != plistContent) {

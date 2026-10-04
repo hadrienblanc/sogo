@@ -119,6 +119,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoCacheACLs.m \
 	TestSOGoCacheLifecycle.m \
 	TestUIxListEditor.m \
+	TestUIxContactFolderActionsMobileconfig.m \
 	TestUIxMailRenderingContext.m \
 	TestUIxMailListActionsChanges.m \
 	TestMailerUnseenCountReset.m \
@@ -134,6 +135,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../UI/MailPartViewers/UIxMailSizeFormatter.m \
 	../../UI/MailerUI/UIxMailListActions.m \
 	../../UI/Contacts/UIxListEditor.m \
+	../../UI/Contacts/UIxContactFolderActions.m \
+	../../UI/SOGoUI/UIxComponent.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/iCalToDo+ActiveSync.m \
 	../../ActiveSync/NSArray+SyncCache.m \
