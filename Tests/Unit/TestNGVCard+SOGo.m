@@ -276,4 +276,151 @@ LoadContactsBundle ()
                    @"second WORK number lost during LDIF round-trip");
 }
 
+- (void) test_flattenedCustomFieldsReadsThunderbirdXTags
+{
+  NGVCard *card;
+  NSDictionary *customFields;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:;AAAAAAA;;;\r\n"
+           @"FN:AAAAAAA\r\n"
+           @"X-CUSTOM1;VALUE=TEXT:tb custom value\r\n"
+           @"X-CUSTOM4:tb fourth\r\n"
+           @"END:VCARD\r\n"];
+
+  customFields = [card flattenedCustomFields];
+
+  test ([customFields count] == 2);
+  testEquals([customFields objectForKey: @"1"], @"tb custom value");
+  testEquals([customFields objectForKey: @"4"], @"tb fourth");
+}
+
+- (void) test_flattenedCustomFieldsReadsLegacyCustomTags
+{
+  NGVCard *card;
+  NSDictionary *customFields;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:;AAAAAAA;;;\r\n"
+           @"FN:AAAAAAA\r\n"
+           @"CUSTOM1:legacy one\r\n"
+           @"CUSTOM3:legacy three\r\n"
+           @"END:VCARD\r\n"];
+
+  customFields = [card flattenedCustomFields];
+
+  test ([customFields count] == 2);
+  testEquals([customFields objectForKey: @"1"], @"legacy one");
+  testEquals([customFields objectForKey: @"3"], @"legacy three");
+}
+
+- (void) test_flattenedCustomFieldsPrefersXCustomTags
+{
+  NGVCard *card;
+  NSDictionary *customFields;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:;AAAAAAA;;;\r\n"
+           @"FN:AAAAAAA\r\n"
+           @"CUSTOM1:legacy one\r\n"
+           @"X-CUSTOM1:canonical one\r\n"
+           @"END:VCARD\r\n"];
+
+  customFields = [card flattenedCustomFields];
+
+  test ([customFields count] == 1);
+  testEquals([customFields objectForKey: @"1"], @"canonical one");
+}
+
+- (void) test_setCustomFieldsRendersXTags
+{
+  NGVCard *card;
+  NSString *versitString;
+
+  card = [NGVCard cardWithUid: @"5980-render"];
+  [card setFn: @"John Doe"];
+  [card setCustomFields: [NSDictionary dictionaryWithObjectsAndKeys:
+                                        @"first", @"1",
+                                        @"fourth", @"4",
+                                        nil]];
+
+  versitString = [card versitString];
+
+  test ([[card childrenWithTag: @"x-custom1"] count] == 1);
+  test ([[card childrenWithTag: @"custom1"] count] == 0);
+  testWithMessage ([versitString rangeOfString: @"X-CUSTOM1:first\r\n"].location
+                     != NSNotFound,
+                   @"custom field 1 not rendered as X-CUSTOM1 (bug 5980)");
+  testWithMessage ([versitString rangeOfString: @"X-CUSTOM4:fourth\r\n"].location
+                     != NSNotFound,
+                   @"custom field 4 not rendered as X-CUSTOM4 (bug 5980)");
+  testWithMessage ([versitString rangeOfString: @"\r\nCUSTOM"].location
+                     == NSNotFound,
+                   @"custom field rendered without the X- prefix (bug 5980)");
+}
+
+- (void) test_setCustomFieldsReplacesLegacyCustomTags
+{
+  NGVCard *card;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:;AAAAAAA;;;\r\n"
+           @"FN:AAAAAAA\r\n"
+           @"CUSTOM1:legacy one\r\n"
+           @"X-CUSTOM1:canonical one\r\n"
+           @"CUSTOM2:legacy two\r\n"
+           @"END:VCARD\r\n"];
+
+  [card setCustomFields: [NSDictionary dictionaryWithObject: @"new one"
+                                                     forKey: @"1"]];
+
+  testEquals([[card flattenedCustomFields] objectForKey: @"1"], @"new one");
+  test ([[card childrenWithTag: @"custom1"] count] == 0);
+  test ([[card childrenWithTag: @"custom2"] count] == 0);
+  test ([[card childrenWithTag: @"x-custom2"] count] == 0);
+  testWithMessage ([[card versitString] rangeOfString: @"\r\nCUSTOM"].location
+                     == NSNotFound,
+                   @"legacy CUSTOM tag survived an editor save (bug 5980)");
+}
+
+- (void) test_setCustomFieldsRemovesAllCustomFieldsWhenDictEmpty
+{
+  NGVCard *card;
+
+  card = [self _cardWithSource:
+           @"BEGIN:VCARD\r\n"
+           @"VERSION:3.0\r\n"
+           @"N:;AAAAAAA;;;\r\n"
+           @"FN:AAAAAAA\r\n"
+           @"CUSTOM1:legacy one\r\n"
+           @"X-CUSTOM2:canonical two\r\n"
+           @"END:VCARD\r\n"];
+
+  [card setCustomFields: [NSDictionary dictionary]];
+
+  test ([[card childrenWithTag: @"custom1"] count] == 0);
+  test ([[card childrenWithTag: @"x-custom2"] count] == 0);
+  test ([[card flattenedCustomFields] count] == 0);
+}
+
+- (void) test_setCustomFieldsIgnoresEmptyValues
+{
+  NGVCard *card;
+
+  card = [NGVCard cardWithUid: @"5980-empty"];
+  [card setFn: @"John Doe"];
+  [card setCustomFields: [NSDictionary dictionaryWithObject: @"" forKey: @"1"]];
+
+  test ([[card childrenWithTag: @"x-custom1"] count] == 0);
+  test ([[card flattenedCustomFields] count] == 0);
+}
+
 @end

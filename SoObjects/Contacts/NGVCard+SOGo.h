@@ -35,6 +35,9 @@
                     ofType: (NSString *) type
                  withValue: (id) value;
 
+- (void) setCustomFields: (NSDictionary *) customFields;
+- (NSDictionary *) flattenedCustomFields;
+
 - (void) updateFromLDIFRecord: (NSDictionary *) ldifRecord;
 - (NSMutableDictionary *) asLDIFRecord;
 
