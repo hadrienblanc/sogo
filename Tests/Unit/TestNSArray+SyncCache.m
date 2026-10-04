@@ -33,7 +33,7 @@
 - (NSArray *) _componentsWithLastModified: (NSArray *) theTimestamps
 {
   NSMutableArray *components;
-  int i;
+  unsigned int i;
 
   components = [NSMutableArray array];
 
