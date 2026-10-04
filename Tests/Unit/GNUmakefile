@@ -93,6 +93,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestContactsLDIF.m \
 	TestServerCore.m \
 	TestLDAPSourceUserAddressBooks.m \
+	TestLDAPSourceEncryption.m \
 	TestNSDictionary+Utilities.m \
 	TestLDAPSourceUserSearchFilter.m \
 	TestNGVList.m \
