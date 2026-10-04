@@ -130,6 +130,12 @@
                   </md-button>
                 </var:if>
 
+                <var:if condition="canStoredEventBeUpdated">
+                  <md-button class="md-raised md-primary" type="button" ng-click="iCalendarAction('updateEvent')">
+                    <var:string label:value="Update event" />
+                  </md-button>
+                </var:if>
+
                 <md-divider><!-- divider --></md-divider>
               </div>
 
@@ -157,6 +163,13 @@
 	          <div layout="row" layout-align="start center">
                     <md-button class="md-raised" type="button" ng-click="iCalendarAction('addToCalendar')">
                       <var:string label:value="Add to calendar" />
+                    </md-button>
+                  </div>
+                </var:if>
+                <var:if condition="canStoredEventBeUpdated">
+                  <div layout="row" layout-align="start center">
+                    <md-button class="md-raised md-primary" type="button" ng-click="iCalendarAction('updateEvent')">
+                      <var:string label:value="Update event" />
                     </md-button>
                   </div>
                 </var:if>

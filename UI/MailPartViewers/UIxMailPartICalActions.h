@@ -34,6 +34,7 @@
 - (WOResponse *) tentativeAction;
 - (WOResponse *) delegateAction;
 - (WOResponse *) addToCalendarAction;
+- (WOResponse *) updateEventAction;
 - (WOResponse *) deleteFromCalendarAction;
 
 @end

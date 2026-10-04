@@ -363,6 +363,17 @@
   return storedEvent;
 }
 
+- (BOOL) canStoredEventBeUpdated
+{
+  if ([[self inEvent] recurrenceId])
+    return NO;
+
+  if (![self isEventStoredInCalendar])
+    return NO;
+
+  return ([[self storedEvent] compare: [self inEvent]] == NSOrderedAscending);
+}
+
 /* organizer tracking */
 
 - (NSString *) loggedInUserEMail
