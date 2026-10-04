@@ -225,8 +225,6 @@
               events = [calendar events];
               masterOccurence = [events objectAtIndex: 0];
 
-              if ([masterOccurence hasAlarms])
-                [masterOccurence removeAllAlarms];
               if ([masterOccurence hasRecurrenceRules])
                 {
                   [masterOccurence removeAllExceptionRules];
