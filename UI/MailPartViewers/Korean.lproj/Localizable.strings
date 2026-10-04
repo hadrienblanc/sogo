@@ -48,3 +48,4 @@ reply_info = "이것은 귀하가 보낸 이벤트 초대에 대한 회신입니
 "Comment" = "설명";
 "Description" = "설명";
 "Location" = "장소";
+"Repeat" = "반복";

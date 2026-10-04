@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "You are about to permanently delete some messages. Are you sure you want to proceed with this action?";
 "Apply" = "Apply";
 "%{0} message(s) deleted" = "%{0} message(s) deleted";
+"repeat_DAILY" = "Dyddiol";
+"repeat_WEEKLY" = "Wythnosol";
+"repeat_BI-WEEKLY" = "Bob dwy wythnos";
+"repeat_MONTHLY" = "Misol";
+"repeat_YEARLY" = "Blynyddol";
+"repeat_CUSTOM" = "Personol...";
+"until" = "nes";

@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "Bazı iletileri kalıcı olarak silmek üzeresiniz. Bunu yapmak istediğinize emin misiniz?";
 "Apply" = "Uygula";
 "%{0} message(s) deleted" = "%{0} ileti silindi";
+"repeat_DAILY" = "Günlük";
+"repeat_WEEKLY" = "Haftalık";
+"repeat_BI-WEEKLY" = "İki-haftada-bir";
+"repeat_MONTHLY" = "Aylık";
+"repeat_YEARLY" = "Yıllık";
+"repeat_CUSTOM" = "Özel...";
+"until" = "kadar";

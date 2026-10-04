@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "Véglegesen törölni kíván néhány üzenetet. Biztosan végrehajtja a műveletet?";
 "Apply" = "Alkalmaz";
 "%{0} message(s) deleted" = "%{0} üzenet törölve";
+"repeat_DAILY" = "Naponta";
+"repeat_WEEKLY" = "Hetente";
+"repeat_BI-WEEKLY" = "Kéthetente";
+"repeat_MONTHLY" = "Havonta";
+"repeat_YEARLY" = "Évente";
+"repeat_CUSTOM" = "Egyéni...";
+"until" = "ig";

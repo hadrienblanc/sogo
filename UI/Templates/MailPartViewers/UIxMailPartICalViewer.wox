@@ -277,6 +277,15 @@
           </div>
         </div>
 
+        <var:if condition="isRecurrent">
+          <div class="pseudo-input-container">
+            <label class="pseudo-input-label"><var:string label:value="Repeat"/></label>
+            <div>
+              <var:string value="repeatDescription"/>
+            </div>
+          </div>
+        </var:if>
+
 
         <var:if condition="hasLocation">
           <div class="pseudo-input-container">

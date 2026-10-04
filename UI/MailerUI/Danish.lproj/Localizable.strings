@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "Du er ved at slette nogle beskeder permanent. Er du sikker på, at du vil fortsætte med denne handling?";
 "Apply" = "Anvend";
 "%{0} message(s) deleted" = "%{0} besked(er) slettet";
+"repeat_DAILY" = "Dagligt";
+"repeat_WEEKLY" = "Ugentligt";
+"repeat_BI-WEEKLY" = "En gang om ugen";
+"repeat_MONTHLY" = "Månedligt";
+"repeat_YEARLY" = "Årligt";
+"repeat_CUSTOM" = "Tilpasset ...";
+"until" = "til";

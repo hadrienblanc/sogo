@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "U staat op het punt om enkele berichten definitief te verwijderen. Weet u zeker dat u hiermee wilt doorgaan?";
 "Apply" = "Toepassen";
 "%{0} message(s) deleted" = "%{0} bericht(en) verwijderd";
+"repeat_DAILY" = "dagelijks";
+"repeat_WEEKLY" = "wekelijks";
+"repeat_BI-WEEKLY" = "tweewekelijks";
+"repeat_MONTHLY" = "maandelijks";
+"repeat_YEARLY" = "jaarlijks";
+"repeat_CUSTOM" = "aangepast...";
+"until" = "tot";

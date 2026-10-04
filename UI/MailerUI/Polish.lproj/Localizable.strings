@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "Za chwilę trwale usuniesz część wiadomości. Na pewno chcesz to zrobić?";
 "Apply" = "Wykonaj";
 "%{0} message(s) deleted" = "usunięto %{0} wiadomości";
+"repeat_DAILY" = "Codziennie";
+"repeat_WEEKLY" = "Co tydzień";
+"repeat_BI-WEEKLY" = "Co dwa tygodnie";
+"repeat_MONTHLY" = "Co miesiąc";
+"repeat_YEARLY" = "Co rok";
+"repeat_CUSTOM" = "Inaczej";
+"until" = "do";

@@ -33,6 +33,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalTimeZoneSystemFallback.m \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
+	TestiCalRecurrenceRule+SOGo.m \
 	TestiCalRepeatableEntityObjectExceptionDates.m \
 	TestiCalRepeatableEntityObjectInvitation.m \
 	TestiCalEvent+SOGo.m \

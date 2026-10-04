@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "You are about to permanently delete some messages. Are you sure you want to proceed with this action?";
 "Apply" = "Apply";
 "%{0} message(s) deleted" = "%{0} message(s) deleted";
+"repeat_DAILY" = "Quotidianamente";
+"repeat_WEEKLY" = "Settimanalmente";
+"repeat_BI-WEEKLY" = "Bisettimanalmente";
+"repeat_MONTHLY" = "Mensilmente";
+"repeat_YEARLY" = "Annualmente";
+"repeat_CUSTOM" = "Personalizza...";
+"until" = "fino al";

@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "メッセージを完全に消去しようとしています。本当に実行しますか？";
 "Apply" = "適用";
 "%{0} message(s) deleted" = "メッセージ %{0} 通が削除されました";
+"repeat_DAILY" = "毎日";
+"repeat_WEEKLY" = "毎週";
+"repeat_BI-WEEKLY" = "隔週";
+"repeat_MONTHLY" = "毎月";
+"repeat_YEARLY" = "毎年";
+"repeat_CUSTOM" = "カスタム設定...";
+"until" = "まで";

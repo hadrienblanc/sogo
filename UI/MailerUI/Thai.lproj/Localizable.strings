@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "คุณกำลังจะลบข้อความบางส่วนอย่างถาวร คุณแน่ใจหรือไม่ว่าต้องการดำเนินการ?";
 "Apply" = "นำไปใช้";
 "%{0} message(s) deleted" = "ลบ %{0} ข้อความแล้ว";
+"repeat_DAILY" = "ทุกวัน";
+"repeat_WEEKLY" = "สัปดาห์ละครั้ง";
+"repeat_BI-WEEKLY" = "สองสัปดาห์";
+"repeat_MONTHLY" = "รายเดือน";
+"repeat_YEARLY" = "รายปี";
+"repeat_CUSTOM" = "กำหนดเอง...";
+"until" = "ถึง";

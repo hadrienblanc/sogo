@@ -530,3 +530,10 @@
 "You are about to permanently delete some messages. Are you sure you want to proceed with this action?" = "Esteu a punt d'esborrar permanentment alguns missatges. Esteu segur que voleu continuar amb aquesta acció?";
 "Apply" = "Aplicar";
 "%{0} message(s) deleted" = "%{0} missatge(s) esborrat(s)";
+"repeat_DAILY" = "diàriament";
+"repeat_WEEKLY" = "setmanalment";
+"repeat_BI-WEEKLY" = "bisetmanalment";
+"repeat_MONTHLY" = "mensualment";
+"repeat_YEARLY" = "anualment";
+"repeat_CUSTOM" = "personalitzar...";
+"until" = "fins";
