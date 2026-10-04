@@ -102,4 +102,39 @@
              @"290B-677FE580-31-122BB540.vcf");
 }
 
+- (void) test_syncKeyCappedBelowSecondKeepsTagOlderThanReferenceSecond
+{
+  testEquals([@"1708881307" syncKeyCappedBelowSecond: 1708881440],
+             @"1708881307");
+}
+
+- (void) test_syncKeyCappedBelowSecondCapsTagFromReferenceSecond
+{
+  testEquals([@"1708881440" syncKeyCappedBelowSecond: 1708881440],
+             @"1708881439");
+}
+
+- (void) test_syncKeyCappedBelowSecondCapsNewerTagToPreviousSecond
+{
+  testEquals([@"1708881445" syncKeyCappedBelowSecond: 1708881440],
+             @"1708881439");
+}
+
+- (void) test_syncKeyCappedBelowSecondKeepsEmptyFolderTag
+{
+  testEquals([@"-1" syncKeyCappedBelowSecond: 1708881440],
+             @"-1");
+}
+
+- (void) test_syncKeyCappedBelowCurrentSecondCapsFutureTags
+{
+  NSString *capped;
+  int now;
+
+  capped = [@"9999999999" syncKeyCappedBelowCurrentSecond];
+  now = (int) [[NSDate date] timeIntervalSince1970];
+
+  test([capped intValue] < now);
+}
+
 @end

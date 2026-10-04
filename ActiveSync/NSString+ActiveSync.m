@@ -74,6 +74,19 @@ static NSArray *easCommandParameters = nil;
   return [self safeStringByEscapingXMLString: YES];
 }
 
+- (NSString *) syncKeyCappedBelowCurrentSecond
+{
+  return [self syncKeyCappedBelowSecond: (int) [[NSDate date] timeIntervalSince1970]];
+}
+
+- (NSString *) syncKeyCappedBelowSecond: (int) aSecond
+{
+  if ([self intValue] >= aSecond)
+    return [NSString stringWithFormat: @"%d", aSecond - 1];
+
+  return self;
+}
+
 - (int) activeSyncFolderType
 {
   if ([self isEqualToString: @"inbox"])

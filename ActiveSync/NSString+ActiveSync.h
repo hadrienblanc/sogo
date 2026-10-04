@@ -46,6 +46,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (NSString *) sanitizedServerIdWithType: (SOGoMicrosoftActiveSyncFolderType) folderType;
 - (NSString *) activeSyncRepresentationInContext: (WOContext *) context;
+- (NSString *) syncKeyCappedBelowCurrentSecond;
+- (NSString *) syncKeyCappedBelowSecond: (int) aSecond;
 - (int) activeSyncFolderType;
 - (NSString *) realCollectionIdWithFolderType: (SOGoMicrosoftActiveSyncFolderType *) folderType;
 - (NSCalendarDate *) calendarDate;
