@@ -130,9 +130,31 @@ LoadAppointmentsBundle ()
               [NSNumber numberWithInt: INT_MAX]);
 }
 
-- (void) test_cycleEndDateForYearlyRuleEndingBeyond2038
+- (iCalEvent *) _yearlyEventWithUID: (NSString *) uid
+                               rule: (NSString *) rule
 {
   iCalCalendar *calendar;
+
+  calendar = [iCalCalendar parseSingleFromSource:
+                          [NSString stringWithFormat:
+                                     @"BEGIN:VCALENDAR\r\n"
+                                     @"VERSION:2.0\r\n"
+                                     @"BEGIN:VEVENT\r\n"
+                                     @"UID:%@\r\n"
+                                     @"SUMMARY:Test\r\n"
+                                     @"DTSTART;VALUE=DATE:20240910\r\n"
+                                     @"DTEND;VALUE=DATE:20240911\r\n"
+                                     @"RRULE:FREQ=YEARLY;%@\r\n"
+                                     @"END:VEVENT\r\n"
+                                     @"END:VCALENDAR\r\n",
+                                     uid, rule]];
+  testWithMessage (calendar != nil, @"could not parse iCalendar content");
+
+  return [[calendar events] objectAtIndex: 0];
+}
+
+- (void) test_cycleEndDateForYearlyRuleEndingBeyond2038
+{
   iCalEvent *event;
   NSCalendarDate *lastStart;
 
@@ -142,19 +164,8 @@ LoadAppointmentsBundle ()
       return;
     }
 
-  calendar = [iCalCalendar parseSingleFromSource:
-                          @"BEGIN:VCALENDAR\r\n"
-                          @"VERSION:2.0\r\n"
-                          @"BEGIN:VEVENT\r\n"
-                          @"UID:test-6032-yearly-until-2054\r\n"
-                          @"SUMMARY:Test\r\n"
-                          @"DTSTART;VALUE=DATE:20240910\r\n"
-                          @"DTEND;VALUE=DATE:20240911\r\n"
-                          @"RRULE:FREQ=YEARLY;UNTIL=20540910\r\n"
-                          @"END:VEVENT\r\n"
-                          @"END:VCALENDAR\r\n"];
-  testWithMessage (calendar != nil, @"could not parse iCalendar content");
-  event = [[calendar events] objectAtIndex: 0];
+  event = [self _yearlyEventWithUID: @"test-6032-yearly-until-2054"
+                               rule: @"UNTIL=20540910"];
 
   lastStart = [event lastPossibleRecurrenceStartDate];
   testWithMessage (lastStart != nil, @"yearly rule with UNTIL must expose a last start date");
@@ -169,7 +180,6 @@ LoadAppointmentsBundle ()
 
 - (void) test_cycleEndDateForYearlyCountRuleEndingBeyond2038
 {
-  iCalCalendar *calendar;
   iCalEvent *event;
   NSCalendarDate *lastStart;
 
@@ -179,19 +189,8 @@ LoadAppointmentsBundle ()
       return;
     }
 
-  calendar = [iCalCalendar parseSingleFromSource:
-                          @"BEGIN:VCALENDAR\r\n"
-                          @"VERSION:2.0\r\n"
-                          @"BEGIN:VEVENT\r\n"
-                          @"UID:test-6032-yearly-count-31\r\n"
-                          @"SUMMARY:Test\r\n"
-                          @"DTSTART;VALUE=DATE:20240910\r\n"
-                          @"DTEND;VALUE=DATE:20240911\r\n"
-                          @"RRULE:FREQ=YEARLY;COUNT=31\r\n"
-                          @"END:VEVENT\r\n"
-                          @"END:VCALENDAR\r\n"];
-  testWithMessage (calendar != nil, @"could not parse iCalendar content");
-  event = [[calendar events] objectAtIndex: 0];
+  event = [self _yearlyEventWithUID: @"test-6032-yearly-count-31"
+                               rule: @"COUNT=31"];
 
   lastStart = [event lastPossibleRecurrenceStartDate];
   testWithMessage (lastStart != nil, @"yearly rule with COUNT must expose a last start date");

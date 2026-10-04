@@ -219,10 +219,7 @@
       if (!dummyPassword)
         dummyPassword = @"";
       [dummyPassword retain];
-      if (!_dummyCryptedPassword)
-        _dummyCryptedPassword = dummyPassword;
-      else
-        [dummyPassword release];
+      _dummyCryptedPassword = dummyPassword;
     }
 
   return _dummyCryptedPassword;
@@ -231,13 +228,13 @@
 - (BOOL) _isPassword: (NSString *) plainPassword
              equalTo: (NSString *) encryptedPassword
 {
+  NSString *dummyPassword;
+
   if (!plainPassword)
     return NO;
 
   if (!encryptedPassword)
     {
-      NSString *dummyPassword;
-
       dummyPassword = [self _dummyCryptedPassword];
       if ([dummyPassword length])
         [plainPassword isEqualToCrypted: dummyPassword
