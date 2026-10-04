@@ -104,6 +104,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoCacheLifecycle.m \
 	TestUIxMailRenderingContext.m \
 	TestUIxMailListActionsChanges.m \
+	TestSOGoSieveClientLifecycle.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\

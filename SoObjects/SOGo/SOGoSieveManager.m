@@ -818,7 +818,7 @@ static NSString *sieveScriptName = @"sogo";
     }
   }
 
-  client = [[NGSieveClient alloc] initWithURL: url andAuthMech: imapAuthMech];
+  client = [[[NGSieveClient alloc] initWithURL: url andAuthMech: imapAuthMech] autorelease];
 
   if (!client) {
     [self errorWithFormat: @"Sieve connection failed on %@", [url description]];
@@ -842,6 +842,7 @@ static NSString *sieveScriptName = @"sogo";
 
   if (!connected)
     {
+      [client closeConnection];
       [self errorWithFormat: @"Sieve connection failed on %@", [url description]];
       return nil;
     }
@@ -859,7 +860,7 @@ static NSString *sieveScriptName = @"sogo";
     return nil;
   }
 
-  return [client autorelease];
+  return client;
 }
 
 - (BOOL) hasActiveExternalSieveScripts: (NGSieveClient *) client
