@@ -596,23 +596,33 @@ static NSArray *childRecordFields = nil;
   // We just fetch our displayName since our table will use it!
   [self displayName];
   
-  if ([nameInContainer isEqualToString: @"personal"])
-    error = [self exceptionWithHTTPStatus: 403
-                                   reason: @"folder 'personal' cannot be deleted"];
-  else
-    error = [[self folderManager] deleteFolderAtPath: ocsPath];
-
-  if (!error)
+  if ([self isSubscription])
     {
-      us = [[SOGoUser userWithLogin: owner] userSettings];
-      moduleSettings = [us objectForKey: [container nameInContainer]];
-      [self removeFolderSettings: moduleSettings
-                   withReference: [self folderReference]];
-      [us synchronize];
-      [[SOGoCache sharedCache] removeValueForKey: ocsPath];
+      [self subscribeUserOrGroup: [[context activeUser] login]
+                        reallyDo: NO
+                         response: nil];
+      error = nil;
+    }
+  else
+    {
+      if ([nameInContainer isEqualToString: @"personal"])
+        error = [self exceptionWithHTTPStatus: 403
+                                       reason: @"folder 'personal' cannot be deleted"];
+      else
+        error = [[self folderManager] deleteFolderAtPath: ocsPath];
 
-      if ([[context request] handledByDefaultHandler])
-        [self sendFolderAdvisoryTemplate: @"Removal"];
+      if (!error)
+        {
+          us = [[SOGoUser userWithLogin: owner] userSettings];
+          moduleSettings = [us objectForKey: [container nameInContainer]];
+          [self removeFolderSettings: moduleSettings
+                       withReference: [self folderReference]];
+          [us synchronize];
+          [[SOGoCache sharedCache] removeValueForKey: ocsPath];
+
+          if ([[context request] handledByDefaultHandler])
+            [self sendFolderAdvisoryTemplate: @"Removal"];
+        }
     }
 
   return error;
