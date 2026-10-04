@@ -231,7 +231,7 @@ static inline unsigned iCalDoWForNSDoW (int dow)
       else
 	{
 	  untilStart = [self inclusiveUntilDate];
-    untilEnd = [self inclusiveUntilDate];
+	  untilEnd = untilStart;
 	}
     }
 
