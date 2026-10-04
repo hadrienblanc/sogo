@@ -70,8 +70,6 @@
   iCalByDayMask *dayMask;
   BOOL hasRepeatCount;
 
-  //[self logWithFormat: @"Recurrence rule is %@", rrule];
-
   firStart = [firstRange startDate];
   firEnd = [firstRange endDate];
   startDate = [_r startDate];
@@ -201,10 +199,7 @@
                   r = [NGCalendarDateRange calendarDateRangeWithStartDate: currentStartDate
                                                                   endDate: currentEndDate];
                   if ([_r doesIntersectWithDateRange: r])
-                    {
-                      [ranges addObject: r];
-                      // [self logWithFormat: @"Add range %@ - %@", [r startDate], [r endDate]];
-                    }
+                    [ranges addObject: r];
                 }
             }
           currentStartDate = [currentStartDate dateByAddingYears: 0
