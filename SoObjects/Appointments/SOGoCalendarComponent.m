@@ -616,7 +616,7 @@ static NSArray *allowed_tags = nil;
   NSArray *components, *dates;
   NSMutableArray *newDates;
   unsigned int count, max;
-  NSCalendarDate *recID, *newDate;
+  NSCalendarDate *recID;
 
   // Compute time interval from previous event definition.
   if (!originalCalendar)
@@ -654,14 +654,20 @@ static NSArray *allowed_tags = nil;
       max = [dates count];
       if (max > 0)
 	{
+	  NSArray *currentDates;
+	  unsigned int i, maxDates;
+
 	  newDates = [NSMutableArray arrayWithCapacity: max];
 	  for (count = 0; count < max; count++)
 	    {
 	      currentDate = [dates objectAtIndex: count];
-	      newDate = [[currentDate dateTime] addTimeInterval: deltaSecs];
-	      [newDates addObject: newDate];
+	      currentDates = [currentDate dateTimes];
+	      maxDates = [currentDates count];
+	      for (i = 0; i < maxDates; i++)
+		[newDates addObject: [[currentDates objectAtIndex: i] addTimeInterval: deltaSecs]];
 	    }
 	  [currentComponent removeAllExceptionDates];
+	  max = [newDates count];
 	  for (count = 0; count < max; count++)
 	    [currentComponent addToExceptionDates: [newDates objectAtIndex: count]];
 	}
