@@ -95,17 +95,6 @@
   return ((negative) ? -seconds : seconds);
 }
 
-// - (unsigned int) dayOfWeekFromRruleDay: (iCalWeekDay) day
-// {
-//   unsigned int dayOfWeek;
-
-//   dayOfWeek = 0;
-//   while (day >> (dayOfWeek + 1))
-//     dayOfWeek++;
-
-//   return dayOfWeek;
-// }
-
 - (void) dealloc
 {
   [startDate release];

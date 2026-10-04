@@ -242,31 +242,6 @@
   return @"vevent";
 }
 
-/* descriptions */
-
-// - (NSString *) description {
-//   NSMutableString *ms;
-
-//   ms = [NSMutableString stringWithCapacity:128];
-//   [ms appendFormat:@"<0x%p[%@]:", self, NSStringFromClass([self class])];
-
-//   if (uid)       [ms appendFormat:@" uid=%@", uid];
-//   if (startDate) [ms appendFormat:@" from=%@", startDate];
-//   if (endDate)   [ms appendFormat:@" to=%@", endDate];
-//   if (summary)   [ms appendFormat:@" summary=%@", summary];
-  
-//   if (organizer)
-//     [ms appendFormat:@" organizer=%@", organizer];
-//   if (attendees)
-//     [ms appendFormat:@" attendees=%@", attendees];
-  
-//   if ([self hasAlarms])
-//     [ms appendFormat:@" alarms=%@", alarms];
-  
-//   [ms appendString:@">"];
-//   return ms;
-// }
-
 /* changes */
 
 - (iCalEventChanges *) getChangesRelativeToEvent: (iCalEvent *) _event

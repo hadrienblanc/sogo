@@ -132,13 +132,6 @@
   return [[self value: 0 ofAttribute: @"rsvp"] lowercaseString];
 }
 
-// - (void)setXuid:(NSString *)_s {
-//   ASSIGNCOPY(self->xuid, _s);
-// }
-// - (NSString *)xuid {
-//   return self->xuid;
-// }
-
 - (void)setRole:(NSString *)_s
 {
   [self setValue: 0 ofAttribute: @"role" to: _s];

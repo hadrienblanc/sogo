@@ -131,31 +131,6 @@ typedef enum
 - (NSData *) certificate;
 - (void) setCertificate: (NSData *) theCertificate;
 
-
-// - (void) setN: (NGVCardName *) _v;
-// - (NGVCardName *) n;
-// - (void) setOrg: (NGVCardOrg *) _v;
-// - (NGVCardOrg *) org;
-
-// - (void) setTel: (NSArray *) _tel;
-// - (NSArray *) tel;
-// - (void) setAdr: (NSArray *) _adr;
-// - (NSArray *) adr;
-// - (void) setEmail: (NSArray *) _array;
-// - (NSArray *) email;
-// - (void) setLabel: (NSArray *) _array;
-// - (NSArray *) label;
-// - (void) setUrl: (NSArray *) _url;
-// - (NSArray *) url;
-
-// - (void) setFreeBusyURL: (NSArray *) _v;
-// - (NSArray *) freeBusyURL;
-// - (void) setCalURI: (NSArray *) _calURI;
-// - (NSArray *) calURI;
-
-// - (void) setX: (NSDictionary *) _dict;
-// - (NSDictionary *) x;
-
 /* convenience */
 
 - (NSString *) preferredEMail;
