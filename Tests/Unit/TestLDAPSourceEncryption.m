@@ -82,8 +82,8 @@
   LDAPSource *source;
 
   source = [self _sourceWithHostname: @"ldaps://ad.example.com"
-                                 port: nil
-                           encryption: @"SSL"];
+                                port: nil
+                          encryption: @"SSL"];
 
   testEqualsWithMessage(@"ldaps://ad.example.com", [source test_hostname],
                         @"hostname 'ldaps://ad.example.com' -> kept verbatim"
@@ -99,8 +99,8 @@
   LDAPSource *source;
 
   source = [self _sourceWithHostname: @"ad.example.com"
-                                 port: nil
-                           encryption: @"SSL"];
+                                port: nil
+                          encryption: @"SSL"];
 
   testWithMessage([source test_port] == 636,
                   @"bare host, encryption SSL without port -> 636");
@@ -111,8 +111,8 @@
   LDAPSource *source;
 
   source = [self _sourceWithHostname: @"ad.example.com"
-                                 port: nil
-                           encryption: @"STARTTLS"];
+                                port: nil
+                          encryption: @"STARTTLS"];
 
   testWithMessage([source test_port] == 389,
                   @"encryption STARTTLS without port -> 389");
@@ -125,8 +125,8 @@
   LDAPSource *source;
 
   source = [self _sourceWithHostname: @"ldap://ad.example.com"
-                                 port: nil
-                           encryption: nil];
+                                port: nil
+                          encryption: nil];
 
   testWithMessage([source test_port] == 389,
                   @"no encryption without port -> 389");
@@ -139,8 +139,8 @@
   LDAPSource *source;
 
   source = [self _sourceWithHostname: @"ldaps://ad.example.com"
-                                 port: @"1636"
-                           encryption: @"SSL"];
+                                port: @"1636"
+                          encryption: @"SSL"];
 
   testWithMessage([source test_port] == 1636,
                   @"explicit port 1636 with encryption SSL -> 1636");
@@ -151,8 +151,8 @@
   LDAPSource *source;
 
   source = [self _sourceWithHostname: @"ad.example.com"
-                                 port: nil
-                           encryption: @"ssl"];
+                                port: nil
+                          encryption: @"ssl"];
 
   testEqualsWithMessage(@"SSL", [source test_encryption],
                         @"encryption 'ssl' -> 'SSL'");
@@ -160,8 +160,8 @@
                   @"encryption 'ssl' without port -> 636");
 
   source = [self _sourceWithHostname: @"ad.example.com"
-                                 port: nil
-                           encryption: @"StartTLS"];
+                                port: nil
+                          encryption: @"StartTLS"];
 
   testEqualsWithMessage(@"STARTTLS", [source test_encryption],
                         @"encryption 'StartTLS' -> 'STARTTLS'");

@@ -236,7 +236,7 @@ static NSString *Test5912Unquote(NSString *quoted)
         : @"";
 
       if ([command isEqualToString: @"SELECT"]
-          || [command isEqualToString: @"EXAMINE"])
+       || [command isEqualToString: @"EXAMINE"])
         {
           [self _recordSelect: arguments];
           [self _writeTo: fd string:
@@ -248,7 +248,7 @@ static NSString *Test5912Unquote(NSString *quoted)
                      [NSString stringWithFormat: @"%@ OK [READ-WRITE] SELECT completed\r\n", tag]];
         }
       else if ([command isEqualToString: @"LIST"]
-               || [command isEqualToString: @"LSUB"])
+            || [command isEqualToString: @"LSUB"])
         {
           if ([arguments isEqualToString: @"\"\" \"\""])
             [self _writeTo: fd string: @"* LIST (\\Noselect) \".\" \"\"\r\n"];
@@ -258,7 +258,7 @@ static NSString *Test5912Unquote(NSString *quoted)
                      [NSString stringWithFormat: @"%@ OK LIST completed\r\n", tag]];
         }
       else if ([command isEqualToString: @"LOGIN"]
-               || [command isEqualToString: @"AUTHENTICATE"])
+            || [command isEqualToString: @"AUTHENTICATE"])
         [self _writeTo: fd string:
                    [NSString stringWithFormat: @"%@ OK LOGIN completed\r\n", tag]];
       else if ([command isEqualToString: @"CAPABILITY"])
@@ -323,7 +323,7 @@ static NSString *Test5912Unquote(NSString *quoted)
   listenerFd = socket (AF_INET, SOCK_STREAM, 0);
   if (listenerFd < 0)
     [NSException raise: @"TestNGImap4ConnectionDelimiter"
-                 format: @"could not create listening socket"];
+                format: @"could not create listening socket"];
 
   memset (&address, 0, sizeof (address));
   address.sin_family = AF_INET;
@@ -332,22 +332,22 @@ static NSString *Test5912Unquote(NSString *quoted)
 
   if (bind (listenerFd, (struct sockaddr *) &address, sizeof (address)) < 0)
     [NSException raise: @"TestNGImap4ConnectionDelimiter"
-                 format: @"could not bind listening socket"];
+                format: @"could not bind listening socket"];
   if (listen (listenerFd, 8) < 0)
     [NSException raise: @"TestNGImap4ConnectionDelimiter"
-                 format: @"could not listen on socket"];
+                format: @"could not listen on socket"];
 
   addressLength = sizeof (address);
   if (getsockname (listenerFd, (struct sockaddr *) &address,
                    &addressLength) < 0)
     [NSException raise: @"TestNGImap4ConnectionDelimiter"
-                 format: @"could not resolve listening port"];
+                format: @"could not resolve listening port"];
   port = ntohs (address.sin_port);
 
   running = YES;
   thread = [[NSThread alloc] initWithTarget: self
-                                    selector: @selector (_serve)
-                                        object: nil];
+                                   selector: @selector (_serve)
+                                       object: nil];
   [thread start];
 }
 
@@ -405,9 +405,10 @@ static NSString *Test5912Unquote(NSString *quoted)
   NGImap4Client *client;
   NSDictionary *login;
 
-  client = [NGImap4Client clientWithURL: [NSURL URLWithString:
-    [NSString stringWithFormat: @"imap://user@127.0.0.1:%u/?tls=NO",
-                                   [server port]]]];
+  client = [NGImap4Client clientWithURL:
+                      [NSURL URLWithString:
+                                [NSString stringWithFormat: @"imap://user@127.0.0.1:%u/?tls=NO",
+                                          [server port]]]];
   login = [client login: @"user" password: @"pass"];
   failIf (![[login objectForKey: @"result"] boolValue]);
 

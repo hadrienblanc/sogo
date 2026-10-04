@@ -56,7 +56,7 @@
 }
 
 - (NSArray *) _recurrenceDateTimesOfEvent: (iCalEvent *) event
-                            withTimeZone: (id) timeZone
+                             withTimeZone: (id) timeZone
 {
   NSMutableArray *dateTimes;
   NSEnumerator *e;
@@ -216,7 +216,7 @@
                                 @"20241218T091500",
                                 nil];
   testEquals ([self _recurrenceDateTimesOfEvent: event
-                                  withTimeZone: [dtstart timeZone]],
+                                   withTimeZone: [dtstart timeZone]],
               expectedDateTimes);
 }
 
