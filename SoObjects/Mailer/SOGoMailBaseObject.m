@@ -168,8 +168,8 @@
                                          @"0123456789abcdefABCDEF.:"];
 
   if (![address length]
-      || [[address componentsSeparatedByCharactersInSet: addressCharacters]
-           componentsJoinedByString: @""].length)
+      || [[[address componentsSeparatedByCharactersInSet: addressCharacters]
+            componentsJoinedByString: @""] length])
     return nil;
 
   return [NSString stringWithFormat: @"(\"x-originating-ip\" \"%@\")", address];
