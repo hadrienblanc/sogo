@@ -458,7 +458,7 @@
 "Set as Junk" = "ตั้งเป็นอีเมลขยะ";
 
 "Sort" = "เรียงลำดับ";
-"Order Received" = "เรียงตามผู้รับ";
+"Order Received" = "เรียงตามลำดับที่ได้รับ";
 "Descending Order" = "ลำดับจากมากไปน้อย";
 "Back" = "กลับ";
 "Copy messages" = "คัดลอกข้อความ";

@@ -18,6 +18,7 @@
     sortLabels = {
       subject: 'Subject',
       from: 'From',
+      to: 'To',
       date: 'Date',
       size: 'Size',
       arrival: 'Order Received'
