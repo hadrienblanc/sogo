@@ -98,6 +98,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoGCSFolderDelete.m \
 	TestSOGoAppointmentFolderNewEventsAsFree.m \
 	TestSOGoAppointmentObjectConflictWindow.m \
+	TestSOGoCalendarComponentCopy.m \
 	TestSOGoContactSourceFolder.m \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
