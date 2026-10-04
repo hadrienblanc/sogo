@@ -664,8 +664,9 @@ FIXME
 
                   if (![recoveredServerId isEqualToString: serverId])
                     {
-                      [self logWithFormat: @"EAS - Change - easId %@ was bound to missing serverId %@, rebinding to serverId %@ in folder %@",
-                            easId, serverId, recoveredServerId, [theCollection nameInContainer]];
+                      if (debugOn)
+                        [self logWithFormat: @"EAS - Change - easId %@ was bound to missing serverId %@, rebinding to serverId %@ in folder %@",
+                              easId, serverId, recoveredServerId, [theCollection nameInContainer]];
 
                       if (uidCache)
                         {
@@ -684,8 +685,9 @@ FIXME
           // Object was removed inbetween sync/commands?
           if ([sogoObject isKindOfClass: [NSException class]])
             {
-              [self logWithFormat: @"EAS - Change - replying status 8 for serverId %@ in folder %@: %@ %@",
-                    serverId, [theCollection nameInContainer], [sogoObject name], [sogoObject reason]];
+              if (debugOn)
+                [self logWithFormat: @"EAS - Change - replying status 8 for serverId %@ in folder %@: %@ %@",
+                      serverId, [theCollection nameInContainer], [sogoObject name], [sogoObject reason]];
 
               [theBuffer appendString: @"<Change>"];
               [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [origServerId activeSyncRepresentationInContext: context]];
