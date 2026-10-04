@@ -1,5 +1,4 @@
 import config from '../lib/config.js'
-import { default as WebDAV } from '../lib/WebDAV.js'
 
 const fetch = globalThis.fetch
 const BASE = `http://127.0.0.1:${config.port}/SOGo`
@@ -16,22 +15,12 @@ async function dav(method, path, body, headers = {}, user, pass) {
   return { status: res.status, text }
 }
 
-async function waitFor(fn, ms = 10000) {
-  const t0 = Date.now()
-  while (Date.now() - t0 < ms) {
-    if (await fn()) return true
-    await new Promise(r => setTimeout(r, 500))
-  }
-  return false
-}
-
 describe('E2E Mail: send via SMTP relay, receive via IMAP, read via DAV', function() {
   beforeAll(function() {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000
   })
 
   const subject = 'e2e-smtp-' + Date.now()
-  let messagePath
 
   it('sends a message through SOGo send endpoint', async function() {
     const res = await dav('POST',
