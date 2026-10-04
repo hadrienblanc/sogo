@@ -35,6 +35,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalRecurrenceRule+SOGo.m \
 	TestiCalRepeatableEntityObjectExceptionDates.m \
+	TestiCalRepeatableEntityObjectRecurrenceDates.m \
 	TestiCalRepeatableEntityObjectInvitation.m \
 	TestiCalEvent+SOGo.m \
 	TestiCalEntityObjectQuickRecordDates.m \

@@ -226,6 +226,7 @@
   NSArray *rdates;
   NSCalendarDate *date;
   SOGoUserDefaults *ud;
+  iCalDateTime *rdateTime;
   NSInteger i;
   BOOL isAllDay;
   id repeat, o;
@@ -285,7 +286,15 @@
                                 date = [date dateByAddingYears: 0 months: 0 days: 0
                                                          hours: 0 minutes: 0
                                                        seconds: [[date timeZone] secondsFromGMTForDate: date]];
-                              [self addToRecurrenceDates: date];
+                              rdateTime = [iCalDateTime new];
+                              [rdateTime setTag: @"rdate"];
+                              if (allDayDates
+                                  && [self isKindOfClass: [iCalEvent class]])
+                                [rdateTime setDate: date];
+                              else
+                                [rdateTime setDateTime: date];
+                              [self addChild: rdateTime];
+                              [rdateTime release];
                             }
                         }
                     }

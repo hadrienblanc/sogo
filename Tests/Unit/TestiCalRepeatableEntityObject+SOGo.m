@@ -362,10 +362,55 @@ LoadAppointmentsBundle ()
   if ([rdates count] == 2)
     {
       rdate = [rdates objectAtIndex: 0];
-      testEquals ([rdate substringToIndex: 8], @"20260501");
+      testEquals (rdate, @"20260501");
       rdate = [rdates objectAtIndex: 1];
-      testEquals ([rdate substringToIndex: 8], @"20260507");
+      testEquals (rdate, @"20260507");
     }
+}
+
+- (void) test_saveAllDayCustomRepeatOnCreationRendersDateRecurrenceValues
+{
+  NSArray *expectedLines;
+  iCalEvent *event;
+  NSMutableArray *rdateLines;
+  NSEnumerator *e;
+  NSString *line;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  event = [self _eventWithContent:
+                     @"BEGIN:VCALENDAR\r\n"
+                     @"VERSION:2.0\r\n"
+                     @"BEGIN:VEVENT\r\n"
+                     @"UID:test-5963-create\r\n"
+                     @"SUMMARY:test-5963\r\n"
+                     @"DTSTART:20260424T100000Z\r\n"
+                     @"DTEND:20260424T110000Z\r\n"
+                     @"END:VEVENT\r\n"
+                     @"END:VCALENDAR\r\n"];
+
+  [event setAttributes: [self _repeatDataWithDates:
+                                 [self _customDates: [NSArray arrayWithObjects:
+                                                      @"2026-05-01", @"2026-05-07", nil]]
+                                                    isAllDay: YES]
+                  inContext: [[[TestiCalRepeatableEntityObjectContext alloc] init]
+                               autorelease]];
+
+  rdateLines = [NSMutableArray array];
+  e = [[[[event parent] versitString] componentsSeparatedByString: @"\r\n"] objectEnumerator];
+  while ((line = [e nextObject]))
+    if ([line hasPrefix: @"RDATE"])
+      [rdateLines addObject: line];
+
+  expectedLines = [NSArray arrayWithObjects:
+                             @"RDATE;VALUE=DATE:20260501",
+                             @"RDATE;VALUE=DATE:20260507",
+                             nil];
+  testEquals (rdateLines, expectedLines);
 }
 
 - (void) test_saveTimedCustomRepeatKeepsWallClock

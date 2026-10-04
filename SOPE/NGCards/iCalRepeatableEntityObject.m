@@ -124,11 +124,14 @@
   NSCalendarDate *rDate;
   NSString *dateString;
   NSTimeZone *rdateTimezone;
+  BOOL allDayEvent;
   int offset;
   unsigned i;
 
   if (theTimeZone)
   {
+    allDayEvent = [self isKindOfClass: [iCalEvent class]]
+      && [(iCalEvent *) self isAllDay];
     dates = [NSMutableArray array];
     dateList = [[self childrenWithTag: @"rdate"] objectEnumerator];
 
@@ -163,7 +166,9 @@
         {
           rDate = [(iCalTimeZone *) theTimeZone computedDateForDate: rDate];
         }
-        else
+        else if (!(allDayEvent
+                   && ([rDate hourOfDay] != 0 || [rDate minuteOfHour] != 0
+                       || [rDate secondOfMinute] != 0)))
         {
           offset = [(NSTimeZone *) theTimeZone secondsFromGMTForDate: rDate];
           rDate = (NSCalendarDate *) [rDate dateByAddingYears:0 months:0 days:0 hours:0 minutes:0 seconds:-offset];
