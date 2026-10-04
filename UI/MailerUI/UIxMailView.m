@@ -729,6 +729,7 @@ static NSString *mailETag = nil;
   NGMimeMultipartBody *body;
   NGMimeMessage *message;
   NGMimeMessageGenerator *generator;
+  SOGoMailer *mailer;
   SOGoDomainDefaults *dd;
 
   message = [NGMimeMessage
@@ -745,10 +746,13 @@ static NSString *mailETag = nil;
   generator = [NGMimeMessageGenerator new];
   [generator autorelease];
 
-  if (![[SOGoMailer mailerWithDomainDefaults: dd]
-                sendMailData: [generator generateMimeFromPart: message]
-                toRecipients: [NSArray arrayWithObject: email]
-                      sender: [self _matchingIdentityEMail]
+  mailer = [SOGoMailer mailerWithDomainDefaults: dd
+                                       smtpUrl: [[self clientObject] smtp4URL]
+                                 userIdAccount: [[[self clientObject] mailAccountFolder] nameInContainer]];
+
+  if (![mailer sendMailData: [generator generateMimeFromPart: message]
+               toRecipients: [NSArray arrayWithObject: email]
+                     sender: [self _matchingIdentityEMail]
            withAuthenticator: [self authenticatorInContext: context]
                    inContext: context
                systemMessage: YES])

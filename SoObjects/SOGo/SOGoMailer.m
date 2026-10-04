@@ -158,6 +158,22 @@
                                                  userIdAccount: _userIdAccount];
 }
 
++ (SOGoMailer *) mailerWithDomainDefaults: (SOGoDomainDefaults *) dd
+                                  smtpUrl: (NSURL *) smtpUrl
+                            userIdAccount: (NSString *) userIdAccount
+{
+  SOGoMailer *mailer;
+
+  if (smtpUrl)
+    mailer = [self mailerWithDomainDefaultsAndSmtpUrl: dd
+                                             smtpUrl: smtpUrl
+                                             userIdAccount: userIdAccount];
+  else
+    mailer = [self mailerWithDomainDefaults: dd];
+
+  return mailer;
+}
+
 - (id) initWithDomainDefaults: (SOGoDomainDefaults *) dd
 {
   if ((self = [self init]))

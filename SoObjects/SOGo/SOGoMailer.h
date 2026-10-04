@@ -48,6 +48,9 @@
 + (SOGoMailer *) mailerWithDomainDefaultsAndSmtpUrl: (SOGoDomainDefaults *) dd
                                             smtpUrl: (NSURL *) smtpUrl
                                             userIdAccount: (NSString *) userIdAccount;
++ (SOGoMailer *) mailerWithDomainDefaults: (SOGoDomainDefaults *) dd
+                                  smtpUrl: (NSURL *) smtpUrl
+                            userIdAccount: (NSString *) userIdAccount;
 
 
 - (id) initWithDomainDefaults: (SOGoDomainDefaults *) dd;
