@@ -1027,6 +1027,16 @@
   return [self _urlPreferringParticle: @"so" overThisOne: @"dav"];
 }
 
+- (NSURL *) relativeSoURLToModule: (NSString *) module
+{
+  NSURL *url;
+
+  url = [NSURL URLWithString: [NSString stringWithFormat: @"%@/%@",
+                                        [[self soURL] path], module]];
+
+  return url;
+}
+
 - (NSURL *) soURLToBaseContainerForUser: (NSString *) uid
 {
   NSURL *soURL, *baseSoURL;
@@ -1055,6 +1065,22 @@
   currentLogin = [[context activeUser] login];
 
   return [self soURLToBaseContainerForUser: currentLogin];
+}
+
+- (NSURL *) relativeSoURLToBaseContainerForCurrentUser
+{
+  NSMutableArray *newPath;
+  NSArray *basePath;
+  NSString *currentLogin;
+
+  currentLogin = [[context activeUser] login];
+  basePath = [[[self soURL] path] componentsSeparatedByString: @"/"];
+  newPath
+    = [NSMutableArray arrayWithArray:
+			[basePath subarrayWithRange: NSMakeRange (0, 5)]];
+  [newPath replaceObjectAtIndex: 3 withObject: currentLogin];
+
+  return [NSURL URLWithString: [newPath componentsJoinedByString: @"/"]];
 }
 
 - (NSString *) httpURLForAdvisoryToUser: (NSString *) uid
