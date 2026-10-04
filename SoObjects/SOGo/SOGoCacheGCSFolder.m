@@ -109,16 +109,6 @@ Class SOGoCacheGCSObjectK = Nil;
   return path;
 }
 
-// - (SOGoMAPIDBMessage *) newMessage
-// {
-//   NSString *newFilename;
-
-//   newFilename = [NSString stringWithFormat: @"%@.plist",
-//                           [SOGoObject globallyUniqueObjectId]];
-
-//   return [SOGoMAPIDBMessage objectWithName: filename inContainer: self];
-// }
-
 - (NSArray *) childKeysOfType: (SOGoCacheObjectType) type
                includeDeleted: (BOOL) includeDeleted
             matchingQualifier: (EOQualifier *) qualifier
@@ -343,27 +333,6 @@ Class SOGoCacheGCSObjectK = Nil;
 
   return object;
 }
-
-// - (id) _fileAttributeForKey: (NSString *) key
-// {
-//   NSDictionary *attributes;
-
-//   attributes = [[NSFileManager defaultManager]
-//                    fileAttributesAtPath: directory
-//                            traverseLink: NO];
-  
-//   return [attributes objectForKey: key];
-// }
-
-// - (NSCalendarDate *) creationTime
-// {
-//   return [self _fileAttributeForKey: NSFileCreationDate];
-// }
-
-// - (NSCalendarDate *) lastModificationTime
-// {
-//   return [self _fileAttributeForKey: NSFileModificationDate];
-// }
 
 /* acl */
 - (NSString *) defaultUserID
