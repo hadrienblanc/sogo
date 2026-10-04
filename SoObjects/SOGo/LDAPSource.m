@@ -1587,8 +1587,8 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
           if (terms > 0)
             {
               entries = [self _searchLDAPEntriesWithQualifier:
-                           [EOQualifier qualifierWithQualifierFormat: qs]
-                                                usingConnection: connection];
+                                [EOQualifier qualifierWithQualifierFormat: qs]
+                                usingConnection: connection];
               while ((currentEntry = [entries nextObject]))
                 {
                   record = [self _convertLDAPEntryToContact: currentEntry];

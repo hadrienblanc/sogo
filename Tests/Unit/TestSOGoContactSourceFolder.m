@@ -59,8 +59,8 @@
   int singleLookupCount;
 }
 
-+ (Test6014LegacySource *) sourceWithEntryIDs: (NSArray *) newEntryIDs
-                                      records: (NSDictionary *) newRecords;
++ (id) sourceWithEntryIDs: (NSArray *) newEntryIDs
+                   records: (NSDictionary *) newRecords;
 
 - (int) singleLookupCount;
 
@@ -68,12 +68,12 @@
 
 @implementation Test6014LegacySource
 
-+ (Test6014LegacySource *) sourceWithEntryIDs: (NSArray *) newEntryIDs
-                                      records: (NSDictionary *) newRecords
++ (id) sourceWithEntryIDs: (NSArray *) newEntryIDs
+                   records: (NSDictionary *) newRecords
 {
   Test6014LegacySource *source;
 
-  source = [[Test6014LegacySource alloc] init];
+  source = [[self alloc] init];
   source->entryIDs = [newEntryIDs retain];
   source->records = [newRecords retain];
 
@@ -136,26 +136,11 @@
   NSMutableArray *batchCalls;
 }
 
-+ (Test6014Source *) sourceWithEntryIDs: (NSArray *) newEntryIDs
-                               records: (NSDictionary *) newRecords;
-
 - (NSArray *) batchCalls;
 
 @end
 
 @implementation Test6014Source
-
-+ (Test6014Source *) sourceWithEntryIDs: (NSArray *) newEntryIDs
-                               records: (NSDictionary *) newRecords
-{
-  Test6014Source *source;
-
-  source = [[Test6014Source alloc] init];
-  source->entryIDs = [newEntryIDs retain];
-  source->records = [newRecords retain];
-
-  return [source autorelease];
-}
 
 - (id) init
 {
