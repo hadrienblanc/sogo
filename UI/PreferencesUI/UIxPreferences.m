@@ -178,8 +178,7 @@ static NSArray *reminderValues = nil;
 - (void) sleep
 {
   [client closeConnection];
-  [client release];
-  client = nil;
+  ASSIGN (client, nil);
   [super sleep];
 }
 
