@@ -1284,9 +1284,9 @@ static NSArray *childRecordFields = nil;
                                                          (int)[theStartDate timeIntervalSince1970],
                                                          (int)[theStartDate timeIntervalSince1970]];
           
-          qualifier = [[EOAndQualifier alloc] initWithQualifiers: sinceDateQualifier, qualifier,
-                                              nil];
-          [qualifier autorelease];
+          qualifier = [[[EOAndQualifier alloc] initWithQualifiers: sinceDateQualifier,
+                                                  qualifier,
+                                                  nil] autorelease];
         }
 
       mRecords = [NSMutableArray arrayWithArray: [self _fetchFields: fields
