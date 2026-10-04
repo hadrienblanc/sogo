@@ -1207,7 +1207,9 @@ FIXME
 
         BOOL updated, initialLoadInProgress;
         int deleted, return_count;
-          
+
+        davCollectionTagToStore = [davCollectionTagToStore syncKeyCappedBelowCurrentSecond];
+
         if (theFolderType == ActiveSyncContactFolder)
           component_name = @"vcard";
         else if (theFolderType == ActiveSyncEventFolder)
