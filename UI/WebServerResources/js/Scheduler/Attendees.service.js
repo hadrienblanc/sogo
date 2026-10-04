@@ -105,12 +105,16 @@
     var _this = this, promise;
     if (calendar && calendar.isSubscription) {
       promise = Attendees.$User.$filter(calendar.owner).then(function(results) {
-        var owner = results[0];
-        _this.component.organizer = {
-          uid: owner.uid,
-          name: owner.cn,
-          email: owner.c_email
-        };
+        var owner = _.find(results, function(user) {
+          return user.uid == calendar.owner;
+        });
+        if (owner) {
+          _this.component.organizer = {
+            uid: owner.uid,
+            name: owner.cn,
+            email: owner.c_email
+          };
+        }
       });
     }
     else {
@@ -125,7 +129,9 @@
     }
     // Fetch organizer's freebusy
     promise.then(function() {
-      _this.updateFreeBusyAttendee(_this.component.organizer);
+      if (_this.component.organizer) {
+        _this.updateFreeBusyAttendee(_this.component.organizer);
+      }
     });
   };
 

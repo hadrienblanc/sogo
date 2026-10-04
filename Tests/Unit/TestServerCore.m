@@ -1199,6 +1199,7 @@
   NSString *first;
   NSString *second;
   NSArray *components;
+  unsigned int hexValue;
 
   first = [SOGoObject globallyUniqueObjectId];
   second = [SOGoObject globallyUniqueObjectId];
@@ -1207,8 +1208,10 @@
   failIf([first isEqualToString: second]);
   components = [first componentsSeparatedByString: @"-"];
   failIf([components count] != 4);
-  failIf([[components objectAtIndex: 0] longLongValue] <= 0);
-  failIf([[components objectAtIndex: 1] longLongValue] <= 0);
+  [[NSScanner scannerWithString: [components objectAtIndex: 0]] scanHexInt: &hexValue];
+  failIf(hexValue == 0);
+  [[NSScanner scannerWithString: [components objectAtIndex: 1]] scanHexInt: &hexValue];
+  failIf(hexValue == 0);
 }
 
 - (void) test_instanceUniqueObjectIds
