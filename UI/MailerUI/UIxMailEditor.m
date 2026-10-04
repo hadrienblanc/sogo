@@ -289,21 +289,48 @@ static NSArray *infoKeys = nil;
 - (NSString *) replyTo
 {
   NSString *value;
-  
+  NSArray *identities;
+  NSEnumerator *allIdentities;
+  NSDictionary *identity;
+  NSRange r;
+  BOOL valid;
+
   value = nil;
+  valid = NO;
 
   //
   // We add the correct replyTo here. That is, the one specified in the defaults
   // for the main "SOGo mail account" versus the one specified in the auxiliary
   // IMAP accounts.
   //
-  if ([[[[self clientObject] mailAccountFolder] nameInContainer] intValue] == 0)
+  if ([from length])
     {
-      value = [[[context activeUser] defaultIdentity] objectForKey: @"replyTo"];
+      identities = [[[self clientObject] mailAccountFolder] identities];
+      if ([identities count])
+        {
+          allIdentities = [identities objectEnumerator];
+          while ((identity = [allIdentities nextObject]) && !valid)
+            {
+              r = [[from lowercaseString] rangeOfString: [[identity objectForKey: @"email"] lowercaseString]];
+              if (r.length > 0)
+                {
+                  valid = YES;
+                  value = [identity objectForKey: @"replyTo"];
+                }
+            }
+        }
     }
-  else
+
+  if (!valid)
     {
-      value = [[[[self clientObject] mailAccountFolder] defaultIdentity] objectForKey: @"replyTo"];
+      if ([[[[self clientObject] mailAccountFolder] nameInContainer] intValue] == 0)
+        {
+          value = [[[context activeUser] defaultIdentity] objectForKey: @"replyTo"];
+        }
+      else
+        {
+          value = [[[[self clientObject] mailAccountFolder] defaultIdentity] objectForKey: @"replyTo"];
+        }
     }
 
   return value;
