@@ -1784,9 +1784,10 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
       if (event == nil)
         event = (iCalEvent*)[self newOccurenceWithID: recurrenceTime];
     }
-  else
-    // No specific occurence specified; return the first vEvent of
-    // the vCalendar.
+
+  if (event == nil)
+    // No specific occurence was specified or could be resolved; return the
+    // first vEvent of the vCalendar.
     event = (iCalEvent*)[calendar firstChildWithTag: [self componentTag]];
   
   if (event)
