@@ -133,4 +133,14 @@ describe('MessageEditorController signature handling on identity switch', functi
       .toBe('\n\n\n-- \n' + signatureB +
             '\nOn January 1, 2026 at 10:00, a@example.com wrote:\n\n> quoted')
   })
+
+  it('inserts the signature above the moz-cite-prefix marker on HTML replies (#5993)', function() {
+    const editor = newEditor('<br/><br/><div class="moz-cite-prefix">On January 1, 2026 at 10:00, a@example.com wrote:</div><br/><br/><blockquote type="cite" cite="a@example.com">quoted</blockquote>',
+                             { composeType: 'html', origin: { action: 'reply' },
+                               signatureB: signatureBHtml })
+    editor.setFromIdentity({ full: identityB.full, signature: signatureBHtml })
+    expect(editor.message.editable.text)
+      .toBe('<br /><br />--&nbsp;<br />' + signatureBHtml +
+            '<br/><br/><div class="moz-cite-prefix">On January 1, 2026 at 10:00, a@example.com wrote:</div><br/><br/><blockquote type="cite" cite="a@example.com">quoted</blockquote>')
+  })
 })

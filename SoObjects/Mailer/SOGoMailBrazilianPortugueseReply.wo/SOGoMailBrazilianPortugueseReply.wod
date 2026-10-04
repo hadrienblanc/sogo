@@ -104,3 +104,13 @@ signaturePlacementOnBottom: WOConditional {
   condition = signaturePlacementOnTop;
   negate = YES;
 }
+
+citePrefixOpen: WOString {
+  value = citePrefixOpen;
+  escapeHTML = NO;
+}
+
+citePrefixClose: WOString {
+  value = citePrefixClose;
+  escapeHTML = NO;
+}
