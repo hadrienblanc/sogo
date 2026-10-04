@@ -625,6 +625,8 @@ NSNumber *iCalDistantFutureNumber = nil;
       if (allDay)
         seconds += [[_date timeZone] secondsFromGMT];
 
+      if (seconds > INT_MAX)
+        seconds = INT_MAX;
       dateNumber = [NSNumber numberWithInt: seconds];
     }
 

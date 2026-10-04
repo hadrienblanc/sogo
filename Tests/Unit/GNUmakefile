@@ -36,6 +36,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalRepeatableEntityObjectExceptionDates.m \
 	TestiCalRepeatableEntityObjectInvitation.m \
 	TestiCalEvent+SOGo.m \
+	TestiCalEntityObjectQuickRecordDates.m \
 	TestiCalEvent+ActiveSync.m \
 	TestiCalToDo+ActiveSync.m \
 	TestiCalPerson+SOGo.m \
