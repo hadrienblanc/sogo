@@ -108,6 +108,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
 	TestSOGoUserManagerSources.m \
+	TestSOGoUserFolderCalendarUserAddressSet.m \
 	TestSOGoProxyAuthenticator.m \
 	TestSQLSourcePasswordCheck.m \
 	TestSQLSourceLookupContactEntries.m \
