@@ -304,8 +304,56 @@
                                         forKey: @"StartTime"];
 
   testWithMessage ([[self _allDayAttendeeEvent] hasActiveSyncScheduleChange: changes
-                                                                inContext: context],
-                   @"a moved all-day event must be detected");
+                                                                 inContext: context],
+                    @"a moved all-day event must be detected");
+}
+
+- (void) test_takeActiveSyncValuesRebindsUidOnOlderProtocols
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  changes = [NSDictionary dictionaryWithObject: @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01"
+                                        forKey: @"UID"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event uid], @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01");
+}
+
+- (void) test_takeActiveSyncValuesRebindsClientUidOnProtocol16
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"16.1"];
+  changes = [NSDictionary dictionaryWithObject: @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01"
+                                        forKey: @"ClientUid"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event uid], @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01");
+}
+
+- (void) test_takeActiveSyncValuesKeepsUidWithoutClientUid
+{
+  WOContext *context;
+  NSDictionary *changes;
+  iCalEvent *event;
+
+  context = [self _contextWithProtocolVersion: @"14.1"];
+  changes = [NSDictionary dictionaryWithObject: @"Mittagessen Dagobert Duck"
+                                        forKey: @"Subject"];
+  event = [self _attendeeEvent];
+
+  [event takeActiveSyncValues: changes  inContext: context];
+
+  testEquals([event uid], @"test-6156-attendee");
 }
 
 @end

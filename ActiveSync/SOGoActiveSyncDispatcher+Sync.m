@@ -629,7 +629,11 @@ FIXME
 
           allChanges = [[(id)[aChange getElementsByTagName: @"ApplicationData"]  lastObject] applicationData];
 
-          if (uidCache && (serverId = [[uidCache allKeysForObject: easId] objectAtIndex: 0]))
+          serverId = nil;
+          if (uidCache)
+            serverId = [[uidCache allKeysForObject: easId] lastObject];
+
+          if (serverId)
             {
               if (debugOn)
                 [self logWithFormat: @"EAS - Found serverId: %@ for easId: %@", serverId, easId];
@@ -642,9 +646,47 @@ FIXME
                                        inContext: context
                                          acquire: NO];
 
+          if ([sogoObject isKindOfClass: [NSException class]]
+              && theFolderType == ActiveSyncEventFolder)
+            {
+              NSString *clientUid, *componentName;
+
+              clientUid = [allChanges objectForKey: ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0) ? @"ClientUid" : @"UID"];
+              componentName = nil;
+              if ([clientUid length])
+                componentName = [(SOGoAppointmentFolder *) theCollection resourceNameForEventUID: clientUid];
+
+              if (componentName)
+                {
+                  NSString *recoveredServerId;
+
+                  recoveredServerId = [componentName sanitizedServerIdWithType: theFolderType];
+
+                  if (![recoveredServerId isEqualToString: serverId])
+                    {
+                      [self logWithFormat: @"EAS - Change - easId %@ was bound to missing serverId %@, rebinding to serverId %@ in folder %@",
+                            easId, serverId, recoveredServerId, [theCollection nameInContainer]];
+
+                      if (uidCache)
+                        {
+                          [uidCache removeObjectForKey: serverId];
+                          [uidCache setObject: easId forKey: recoveredServerId];
+                        }
+
+                      serverId = recoveredServerId;
+                      sogoObject = [theCollection lookupName: [serverId sanitizedServerIdWithType: theFolderType]
+                                                   inContext: context
+                                                     acquire: NO];
+                    }
+                }
+            }
+
           // Object was removed inbetween sync/commands?
           if ([sogoObject isKindOfClass: [NSException class]])
             {
+              [self logWithFormat: @"EAS - Change - replying status 8 for serverId %@ in folder %@: %@ %@",
+                    serverId, [theCollection nameInContainer], [sogoObject name], [sogoObject reason]];
+
               [theBuffer appendString: @"<Change>"];
               [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [origServerId activeSyncRepresentationInContext: context]];
               [theBuffer appendFormat: @"<Status>%d</Status>", 8];
