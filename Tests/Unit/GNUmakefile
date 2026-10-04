@@ -114,6 +114,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \
 	TestSOGoGCSFolderDelete.m \
+	TestSOGoGCSFolderWebDAVSync.m \
 	TestSOGoAppointmentFolderNewEventsAsFree.m \
 	TestSOGoAppointmentObjectConflictWindow.m \
 	TestSOGoAppointmentObjectStoreErrors.m \
@@ -164,8 +165,9 @@ $(TEST_TOOL)_CPPFLAGS += \
 ADDITIONAL_LIB_DIRS += \
 	-L../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -L../../SOPE/NGCards/obj -L../../SOPE/GDLContentStore/obj -lSOGo -lNGObjWeb -lDOM -lNGMime -lNGCards -lGDLContentStore -lNGExtensions -lSBJson -lobjc \
 	-L../../SoObjects/Appointments/Appointments.SOGo -l:Appointments \
+	-L../../SoObjects/Contacts/Contacts.SOGo -l:Contacts \
 	-L/usr/local/lib  -lSaxObjC -lNGStreams -lEOControl \
-	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj -Wl,-rpath,../../SoObjects/Appointments/Appointments.SOGo
+	-Wl,-rpath,../../SoObjects/SOGo/SOGo.framework/Versions/Current/sogo -Wl,-rpath,../../SOPE/NGCards/obj -Wl,-rpath,../../SOPE/GDLContentStore/obj -Wl,-rpath,../../SoObjects/Appointments/Appointments.SOGo -Wl,-rpath,../../SoObjects/Contacts/Contacts.SOGo
 ADDITIONAL_LDFLAGS += -Wl,--no-as-needed -Wl,--unresolved-symbols=ignore-in-object-files
 
 ifeq ($(HAS_LIBRARY_sodium), yes)

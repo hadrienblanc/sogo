@@ -28,7 +28,6 @@
 #import "SOGoTest.h"
 
 __attribute__((weak)) char __objc_class_name_SOGoContactGCSEntry = 0;
-__attribute__((weak)) char __objc_class_name_SOGoContactGCSFolder = 0;
 __attribute__((weak)) char __objc_class_name_SOGoContactSourceFolder = 0;
 
 @interface UIxListEditor (Test6065Attributes)
