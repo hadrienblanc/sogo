@@ -282,19 +282,16 @@ static NSString *Test5912Unquote(NSString *quoted)
         break;
     }
 
-  close (fd);
-  [buffer release];
-
   [lock lock];
   connectionFd = -1;
   [lock unlock];
+
+  close (fd);
+  [buffer release];
 }
 
 - (void) _serve
 {
-  NSAutoreleasePool *pool;
-
-  pool = [[NSAutoreleasePool alloc] init];
   while (running)
     {
       fd_set readFds;
@@ -310,9 +307,14 @@ static NSString *Test5912Unquote(NSString *quoted)
 
       fd = accept (listenerFd, NULL, NULL);
       if (fd >= 0)
-        [self _handleConnection: fd];
+        {
+          NSAutoreleasePool *pool;
+
+          pool = [[NSAutoreleasePool alloc] init];
+          [self _handleConnection: fd];
+          [pool release];
+        }
     }
-  [pool release];
 }
 
 - (void) start
