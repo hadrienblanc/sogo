@@ -1029,30 +1029,33 @@
 
 - (NSURL *) relativeSoURLToModule: (NSString *) module
 {
-  NSURL *url;
-
-  url = [NSURL URLWithString: [NSString stringWithFormat: @"%@/%@",
-                                        [[self soURL] path], module]];
-
-  return url;
+  return [NSURL URLWithString:
+                    [NSString stringWithFormat: @"%@/%@",
+                              [[self soURL] path], module]];
 }
 
-- (NSURL *) soURLToBaseContainerForUser: (NSString *) uid
+- (NSString *) _soBasePathForUser: (NSString *) uid
 {
-  NSURL *soURL, *baseSoURL;
-  NSArray *basePath;
   NSMutableArray *newPath;
+  NSArray *basePath;
 
-  soURL = [self soURL];
-  basePath = [[soURL path] componentsSeparatedByString: @"/"];
+  basePath = [[[self soURL] path] componentsSeparatedByString: @"/"];
   newPath
     = [NSMutableArray arrayWithArray:
 			[basePath subarrayWithRange: NSMakeRange (0, 5)]];
   [newPath replaceObjectAtIndex: 3 withObject: uid];
 
+  return [newPath componentsJoinedByString: @"/"];
+}
+
+- (NSURL *) soURLToBaseContainerForUser: (NSString *) uid
+{
+  NSURL *soURL, *baseSoURL;
+
+  soURL = [self soURL];
   baseSoURL = [[NSURL alloc] initWithScheme: [soURL scheme]
 			     host: [soURL host]
-			     path: [newPath componentsJoinedByString: @"/"]];
+			     path: [self _soBasePathForUser: uid]];
   [baseSoURL autorelease];
 
   return baseSoURL;
@@ -1069,18 +1072,11 @@
 
 - (NSURL *) relativeSoURLToBaseContainerForCurrentUser
 {
-  NSMutableArray *newPath;
-  NSArray *basePath;
   NSString *currentLogin;
 
   currentLogin = [[context activeUser] login];
-  basePath = [[[self soURL] path] componentsSeparatedByString: @"/"];
-  newPath
-    = [NSMutableArray arrayWithArray:
-			[basePath subarrayWithRange: NSMakeRange (0, 5)]];
-  [newPath replaceObjectAtIndex: 3 withObject: currentLogin];
 
-  return [NSURL URLWithString: [newPath componentsJoinedByString: @"/"]];
+  return [NSURL URLWithString: [self _soBasePathForUser: currentLogin]];
 }
 
 - (NSString *) httpURLForAdvisoryToUser: (NSString *) uid

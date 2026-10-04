@@ -24,6 +24,28 @@
 
 #import "NSURL+GCS.h"
 
+static NSString *gcsCredentialsInURLString(NSString *urlString)
+{
+  NSString *rest;
+  NSRange schemeRange, atRange, slashRange;
+
+  schemeRange = [urlString rangeOfString: @"://"];
+  if (schemeRange.location == NSNotFound)
+    return nil;
+
+  rest = [urlString substringFromIndex: NSMaxRange (schemeRange)];
+  atRange = [rest rangeOfString: @"@"];
+  if (atRange.location == NSNotFound)
+    return nil;
+
+  slashRange = [rest rangeOfString: @"/"];
+  if (slashRange.location != NSNotFound
+      && slashRange.location < atRange.location)
+    return nil;
+
+  return [rest substringToIndex: NSMaxRange (atRange)];
+}
+
 @implementation NSURL(GCS)
 
 - (NSString *) gcsPathComponent: (unsigned) _idx
@@ -67,55 +89,34 @@
 
 - (NSURL *) gcsURLWithoutCredentials
 {
-  NSString *urlString, *prefix, *rest;
-  NSRange schemeRange, atRange, slashRange;
+  NSString *urlString, *credentials;
+  NSRange schemeRange;
 
   urlString = [self absoluteString];
+  credentials = gcsCredentialsInURLString(urlString);
+  if (credentials == nil)
+    return self;
+
   schemeRange = [urlString rangeOfString: @"://"];
-  if (schemeRange.location == NSNotFound)
-    return self;
-
-  rest = [urlString substringFromIndex: NSMaxRange (schemeRange)];
-  atRange = [rest rangeOfString: @"@"];
-  if (atRange.location == NSNotFound)
-    return self;
-
-  slashRange = [rest rangeOfString: @"/"];
-  if (slashRange.location != NSNotFound
-      && slashRange.location < atRange.location)
-    return self;
-
-  prefix = [urlString substringToIndex: NSMaxRange (schemeRange)];
 
   return [NSURL URLWithString:
-                   [prefix stringByAppendingString:
-                            [rest substringFromIndex: NSMaxRange (atRange)]]];
+                   [[urlString substringToIndex: NSMaxRange (schemeRange)]
+                     stringByAppendingString:
+                     [urlString substringFromIndex:
+                                   NSMaxRange (schemeRange) + [credentials length]]]];
 }
 
 - (NSURL *) gcsURLWithCredentialsFromURL: (NSURL *) _url
 {
-  NSString *urlString, *credentials, *otherString;
-  NSRange schemeRange, atRange, slashRange;
+  NSString *urlString, *credentials;
+  NSRange schemeRange;
 
   if (_url == nil || [self user] != nil)
     return self;
 
-  otherString = [_url absoluteString];
-  schemeRange = [otherString rangeOfString: @"://"];
-  if (schemeRange.location == NSNotFound)
+  credentials = gcsCredentialsInURLString([_url absoluteString]);
+  if (credentials == nil)
     return self;
-
-  otherString = [otherString substringFromIndex: NSMaxRange (schemeRange)];
-  atRange = [otherString rangeOfString: @"@"];
-  if (atRange.location == NSNotFound)
-    return self;
-
-  slashRange = [otherString rangeOfString: @"/"];
-  if (slashRange.location != NSNotFound
-      && slashRange.location < atRange.location)
-    return self;
-
-  credentials = [otherString substringToIndex: NSMaxRange (atRange)];
 
   urlString = [self absoluteString];
   schemeRange = [urlString rangeOfString: @"://"];
