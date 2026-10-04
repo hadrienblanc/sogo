@@ -676,7 +676,6 @@ static Class iCalEventK = nil;
   /* this is used for group calendars (this folder just returns itself) */
   NSString *s;
   s = [[self container] nameInContainer];
-  //   [self logWithFormat:@"CAL UID: %@", s];
   return [s isNotNull] ? [NSArray arrayWithObjects:&s count:1] : nil;
 }
 
@@ -1560,8 +1559,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   ownerUser = [SOGoUser userWithLogin: self->owner roles: nil];
   rememberRecords = [self _checkIfWeCanRememberRecords: _fields];
   canCycle = [_component isEqualToString: @"vevent"] || [_component isEqualToString: @"vtodo"];
-  //   if (rememberRecords)
-  //     NSLog (@"we will remember those records!");
 
   folder = [self ocsFolder];
   if (!folder)
@@ -1981,8 +1978,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   NSDictionary *filter;
   unsigned int count, max;
 
-  //   NSLog (@"parseCalendarFilter: %@", [NSDate date]);
-
   filters = [NSMutableArray array];
   children = [parentNode getElementsByTagName: @"comp-filter"];
   max = [children length];
@@ -1996,7 +1991,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
           [filters addObject: [self _makeCyclicFilterFrom: filter]];
         }
     }
-  //   NSLog (@"/parseCalendarFilter: %@", [NSDate date]);
 
   return filters;
 }
@@ -2186,7 +2180,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   propertiesArray = [[properties allKeys] asPointersOfObjects];
   propertiesCount = [properties count];
 
-  //   NSLog (@"start");
   filterList = [filters objectEnumerator];
   while ((currentFilter = [filterList nextObject]))
     {
@@ -2199,7 +2192,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
                              title: [currentFilter objectForKey: @"title"]
                          component: [currentFilter objectForKey: @"name"]
                  additionalFilters: additionalFilters];
-      //       NSLog(@"adding properties");
       max = [apts count];
       buffer = [NSMutableString stringWithCapacity: max * 512];
       for (count = 0; count < max; count++)
@@ -2208,11 +2200,8 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
                      count: propertiesCount
                withBaseURL: baseURL
                   toBuffer: buffer];
-      //       NSLog(@"done 1");
       [response appendContentString: buffer];
-      //       NSLog(@"done 2");
     }
-  //   NSLog (@"stop");
 
   NSZoneFree (NULL, propertiesArray);
 }
