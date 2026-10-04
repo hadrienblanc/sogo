@@ -64,6 +64,12 @@
 
   data = [@"Re: =?utf-8?q?caf=C3=A9?=" dataUsingEncoding: NSASCIIStringEncoding];
   testEquals([data decodedHeader], @"Re: café");
+
+  data = [@"=?utf-8?B?6aG555uu5Lu75YqhIOS4tOacn+aPkOmGkijkuIDmsb3lpKfk?=\r\n\t=?utf-8?B?vJfCt0IxMMK3MuWNh+mZjeezu+e7nyk=?=" dataUsingEncoding: NSASCIIStringEncoding];
+  testEquals([data decodedHeader], @"项目任务 临期提醒(一汽大众·B10·2升降系统)");
+
+  data = [@"=?utf-8?B?Y2Fm?= =?utf-8?q?=C3=A9?=" dataUsingEncoding: NSASCIIStringEncoding];
+  testEquals([data decodedHeader], @"café");
 }
 
 - (void) test_sanitizedContentUsingVoidTags_charsetSubstitution
