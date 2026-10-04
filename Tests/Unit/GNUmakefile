@@ -124,6 +124,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxListEditor.m \
 	TestUIxContactFolderActionsMobileconfig.m \
 	TestUIxMailRenderingContext.m \
+	TestUIxMailEditorReplyTo.m \
 	TestUIxMailListActionsChanges.m \
 	TestUIxJSONPreferences.m \
 	TestMailerUnseenCountReset.m \
@@ -138,6 +139,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../UI/SOGoUI/SOGoDirectAction.m \
 	../../UI/MailPartViewers/UIxMailSizeFormatter.m \
 	../../UI/MailerUI/UIxMailListActions.m \
+	../../UI/MailerUI/UIxMailEditor.m \
 	../../UI/Contacts/UIxListEditor.m \
 	../../UI/Contacts/UIxContactFolderActions.m \
 	../../UI/SOGoUI/UIxComponent.m \

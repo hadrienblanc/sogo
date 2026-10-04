@@ -474,4 +474,68 @@ LoadDraftClass ()
                    @"a string attachment body must be persisted as UTF-8");
 }
 
+- (void) test_setHeadersReplacesPreviousReplyTo
+{
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"replies-a@example.com", @"replyTo",
+                                 nil]];
+  testEquals ([[draft headers] objectForKey: @"reply-to"],
+              @"replies-a@example.com");
+
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"replies-b@example.com", @"replyTo",
+                                 nil]];
+  testEquals ([[draft headers] objectForKey: @"reply-to"],
+              @"replies-b@example.com");
+  testEquals ([[draft headers] objectForKey: @"replyTo"], nil);
+}
+
+- (void) test_setHeadersDropsStaleReplyToWhenCleared
+{
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"replies-a@example.com", @"replyTo",
+                                 nil]];
+  testEquals ([[draft headers] objectForKey: @"reply-to"],
+              @"replies-a@example.com");
+
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"", @"replyTo",
+                                 nil]];
+  testEquals ([[draft headers] objectForKey: @"reply-to"], nil);
+}
+
+- (void) test_setHeadersDropsStaleReplyToWhenAbsent
+{
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"replies-a@example.com", @"replyTo",
+                                 nil]];
+
+  [draft setHeaders: [NSDictionary dictionary]];
+  testEquals ([[draft headers] objectForKey: @"reply-to"], nil);
+}
+
+- (void) test_composedMessageCarriesCurrentReplyToOnly
+{
+  NSData *message;
+  NSString *messageString;
+
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"replies-a@example.com", @"replyTo",
+                                 nil]];
+  message = [draft mimeMessageForRecipient: nil extractingImages: NO];
+  messageString = [[[NSString alloc] initWithData: message
+                                          encoding: NSUTF8StringEncoding] autorelease];
+  testWithMessage ([messageString rangeOfString: @"replies-a@example.com"].location != NSNotFound,
+                   @"the composed message must carry the reply-to of the current identity (bug 5984)");
+
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"", @"replyTo",
+                                 nil]];
+  message = [draft mimeMessageForRecipient: nil extractingImages: NO];
+  messageString = [[[NSString alloc] initWithData: message
+                                          encoding: NSUTF8StringEncoding] autorelease];
+  testWithMessage ([messageString rangeOfString: @"replies-a@example.com"].location == NSNotFound,
+                   @"the composed message must drop the reply-to of the previous identity (bug 5984)");
+}
+
 @end

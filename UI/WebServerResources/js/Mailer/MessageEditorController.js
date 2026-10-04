@@ -389,8 +389,7 @@
       if (identity && identity.full)
       {
         this.message.editable.from = identity.full;
-        if(identity.replyTo)
-          this.message.editable.replyTo = identity.replyTo
+        this.message.editable.replyTo = identity.replyTo || '';
       }
       else if (identity && identity.length)
         return;

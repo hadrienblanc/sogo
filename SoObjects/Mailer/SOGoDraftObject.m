@@ -285,6 +285,10 @@ static NSString    *userAgent      = nil;
     {
       [headers setObject: replyTo forKey: @"reply-to"];
     }
+  else
+    {
+      [headers removeObjectForKey: @"reply-to"];
+    }
   [headers removeObjectForKey: @"replyTo"];
 
   receipt = [newHeaders objectForKey: @"Disposition-Notification-To"];
