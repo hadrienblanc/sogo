@@ -30,6 +30,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalCalendarInvitationUpdate.m \
 	TestiCalTimeZonePeriod.m \
 	TestiCalTimeZoneFallback.m \
+	TestiCalTimeZoneSystemFallback.m \
 	TestiCalRecurrenceCalculator.m \
 	TestiCalRepeatableEntityObject+SOGo.m \
 	TestiCalRepeatableEntityObjectExceptionDates.m \

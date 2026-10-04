@@ -58,6 +58,18 @@ LoadAppointmentsBundle ()
   return [date descriptionWithCalendarFormat: @"%Y-%m-%d %H:%M"];
 }
 
+- (NSString *) _dateTimeString: (NSCalendarDate *) date
+                    inTimeZone: (NSString *) tzName
+{
+  NSCalendarDate *localDate;
+
+  localDate = [date copy];
+  [localDate autorelease];
+  [localDate setTimeZone: [NSTimeZone timeZoneWithName: tzName]];
+
+  return [localDate descriptionWithCalendarFormat: @"%Y-%m-%d %H:%M"];
+}
+
 - (NSString *) _dateString: (NSCalendarDate *) date
 {
   return [date descriptionWithCalendarFormat: @"%Y-%m-%d"];
@@ -87,12 +99,14 @@ LoadAppointmentsBundle ()
 
   [event synchronizeStartDateWithRecurrenceRule];
 
-  testWithMessage ([[self _dateTimeString: [event startDate]]
-                    isEqualToString: @"2025-10-03 09:45"],
-                   @"DTSTART must snap to the first BYDAY match (Friday)");
-  testWithMessage ([[self _dateTimeString: [event endDate]]
-                    isEqualToString: @"2025-10-03 14:45"],
-                   @"DTEND must keep the event duration when DTSTART snaps");
+  testWithMessage ([[self _dateTimeString: [event startDate]
+                              inTimeZone: @"Europe/Moscow"]
+                     isEqualToString: @"2025-10-03 09:45"],
+                    @"DTSTART must snap to the first BYDAY match (Friday)");
+  testWithMessage ([[self _dateTimeString: [event endDate]
+                              inTimeZone: @"Europe/Moscow"]
+                     isEqualToString: @"2025-10-03 14:45"],
+                    @"DTEND must keep the event duration when DTSTART snaps");
 }
 
 - (void) test_synchronizeStartDateKeepsMatchingStartDate
@@ -119,9 +133,10 @@ LoadAppointmentsBundle ()
 
   [event synchronizeStartDateWithRecurrenceRule];
 
-  testWithMessage ([[self _dateTimeString: [event startDate]]
-                    isEqualToString: @"2025-10-01 09:45"],
-                   @"DTSTART matching BYDAY must not move");
+  testWithMessage ([[self _dateTimeString: [event startDate]
+                              inTimeZone: @"Europe/Moscow"]
+                     isEqualToString: @"2025-10-01 09:45"],
+                    @"DTSTART matching BYDAY must not move");
 }
 
 - (void) test_synchronizeStartDateOnAllDayEvent
@@ -339,9 +354,10 @@ LoadAppointmentsBundle ()
 
   [occurrence synchronizeStartDateWithRecurrenceRule];
 
-  testWithMessage ([[self _dateTimeString: [occurrence startDate]]
-                    isEqualToString: @"2025-10-03 10:00"],
-                   @"occurrences must not be snapped to the recurrence rule");
+  testWithMessage ([[self _dateTimeString: [occurrence startDate]
+                              inTimeZone: @"Europe/Moscow"]
+                     isEqualToString: @"2025-10-03 10:00"],
+                    @"occurrences must not be snapped to the recurrence rule");
 }
 
 - (void) test_saveWeeklyRepeatSnapsTimedStartDate
