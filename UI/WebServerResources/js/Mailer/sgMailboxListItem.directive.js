@@ -94,12 +94,8 @@
           Mailbox.$virtualMode = false;
           Mailbox.$virtualPath = false;
           $rootScope.$broadcast('resetMailAdvancedSearchPanel'); // Reset advanced search panel (broadcast event to MailboxesController)
-          if (Mailbox.selectedFolder.$mailboxes && Mailbox.selectedFolder.$mailboxes.length > 0) {
-            Mailbox.selectedFolder.$reset({ filter: true, unseenCount: Mailbox.selectedFolder.$mailboxes[0].unseenCount });
-          }
-        } else {
-          Mailbox.selectedFolder.$reset({ filter: true, unseenCount: Mailbox.selectedFolder.unseenCount });
         }
+        Mailbox.selectedFolder.$reset({ filter: true });
       }
 
       this.accountController.selectFolder(this);
