@@ -175,6 +175,14 @@ static NSArray *reminderValues = nil;
   [super dealloc];
 }
 
+- (void) sleep
+{
+  [client closeConnection];
+  [client release];
+  client = nil;
+  [super sleep];
+}
+
 - (NSString *) moduleName
 {
   return [self commonLabelForKey: @"Preferences"];
