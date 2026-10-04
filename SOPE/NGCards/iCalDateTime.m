@@ -29,25 +29,7 @@
 
 #import "iCalDateTime.h"
 
-// static NSTimeZone *localTimeZone = nil;
-
 @implementation iCalDateTime
-
-// + (void) initialize
-// {
-//   if (!localTimeZone)
-//     {
-//       localTimeZone = [NSTimeZone defaultTimeZone];
-//       [localTimeZone retain];
-//     }
-// }
-
-// + (void) setLocalTimeZone: (NSTimeZone *) aTimeZone
-// {
-//   [localTimeZone release];
-//   localTimeZone = aTimeZone;
-//   [localTimeZone retain];
-// }
 
 - (void) setTimeZone: (iCalTimeZone *) iTZ
 {
@@ -162,7 +144,6 @@
   NSCalendarDate *initialDate, *dateTime;
   NSArray *subValues;
   NSMutableArray *dates;
-  //NSTimeZone *tz;
   unsigned count, i;
 
   subValues = [self valuesAtIndex: 0 forKey: @""];
@@ -180,20 +161,6 @@
 	    initialDate = [date asCalendarDate];
 	    if (initialDate)
 	      dateTime = initialDate;
-      /*
-        {
-          if ([date hasSuffix: @"Z"] || [date hasSuffix: @"z"])
-      dateTime = initialDate;
-          else
-      {
-        // same TODO as above
-        tz = [NSTimeZone defaultTimeZone];
-        dateTime = [initialDate addYear: 0 month: 0 day: 0
-                hour: 0 minute: 0
-              second: -[tz secondsFromGMTForDate: initialDate]];
-      }
-        }
-      */
 	    else
 	      dateTime = nil;
 	  }
