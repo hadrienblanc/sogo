@@ -44,6 +44,7 @@
   NSArray *_userPasswordPolicy;
   NSString *_userPasswordAlgorithm;
   NSString *_keyPath;
+  NSString *_dummyCryptedPassword;
   NSURL *_viewURL;
   BOOL _prependPasswordScheme;
 

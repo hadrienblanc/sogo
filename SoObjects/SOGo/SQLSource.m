@@ -102,6 +102,7 @@
       _userPasswordPolicy = nil;
       _userPasswordAlgorithm = nil;
       _keyPath = nil;
+      _dummyCryptedPassword = nil;
       _viewURL = nil;
       _kindField = nil;
       _multipleBookingsField = nil;
@@ -125,6 +126,7 @@
   [_userPasswordPolicy release];
   [_userPasswordAlgorithm release];
   [_keyPath release];
+  [_dummyCryptedPassword release];
   [_viewURL release];
   [_kindField release];
   [_multipleBookingsField release];
@@ -206,11 +208,44 @@
   return _userPasswordPolicy;
 }
 
+- (NSString *) _dummyCryptedPassword
+{
+  NSString *dummyPassword;
+
+  if (!_dummyCryptedPassword)
+    {
+      dummyPassword = [@"SOGoDummyPassword6040" asCryptedPassUsingScheme: _userPasswordAlgorithm
+                                                                  keyPath: _keyPath];
+      if (!dummyPassword)
+        dummyPassword = @"";
+      [dummyPassword retain];
+      if (!_dummyCryptedPassword)
+        _dummyCryptedPassword = dummyPassword;
+      else
+        [dummyPassword release];
+    }
+
+  return _dummyCryptedPassword;
+}
+
 - (BOOL) _isPassword: (NSString *) plainPassword
              equalTo: (NSString *) encryptedPassword
 {
-  if (!plainPassword || !encryptedPassword)
+  if (!plainPassword)
     return NO;
+
+  if (!encryptedPassword)
+    {
+      NSString *dummyPassword;
+
+      dummyPassword = [self _dummyCryptedPassword];
+      if ([dummyPassword length])
+        [plainPassword isEqualToCrypted: dummyPassword
+                     withDefaultScheme: _userPasswordAlgorithm
+                               keyPath: _keyPath];
+
+      return NO;
+    }
 
   return [plainPassword isEqualToCrypted: encryptedPassword
                        withDefaultScheme: _userPasswordAlgorithm
