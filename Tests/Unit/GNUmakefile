@@ -102,7 +102,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoSieveManager.m \
 	TestSOGoUserDefaults.m \
 	TestSOGoUserManagerSources.m \
-	TestSQLSourcePasswordCheck.m \
+ 	TestSQLSourcePasswordCheck.m \
+ 	TestSQLSourceLookupContactEntries.m \
 	TestSOGoUserProfile.m \
 	TestSOGoWebDAVAclManager.m \
 	TestSOGoFolderSubscriptionRoles.m \

@@ -69,6 +69,9 @@
 - (NSDictionary *) lookupContactEntry: (NSString *) theID
                              inDomain: (NSString *) domain
 		      usingConnection: (id) connection;
+- (NSDictionary *) lookupContactEntriesForIDs: (NSArray *) theIDs
+                                     inDomain: (NSString *) domain
+                              usingConnection: (id) connection;
 - (NSDictionary *) lookupContactEntryWithUIDorEmail: (NSString *) entryID
                                            inDomain: (NSString *) domain;
 

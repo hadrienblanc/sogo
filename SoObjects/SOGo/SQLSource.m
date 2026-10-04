@@ -46,6 +46,8 @@
 #import "SQLSource.h"
 #import "SOGoPasswordPolicy.h"
 
+#define LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE 500
+
 /**
  * The view MUST contain the following columns:
  *
@@ -610,18 +612,155 @@
     }
 }
 
+- (void) _fixupContactRecord: (NSMutableDictionary *) response
+{
+  NSMutableArray *emails;
+  NSArray *fieldNames;
+  NSString *value, *field;
+  int i;
+
+  /* Convert all c_ fields to obtain their ldif equivalent */
+  fieldNames = [response allKeys];
+  for (i = 0; i < [fieldNames count]; i++)
+    {
+      field = [fieldNames objectAtIndex: i];
+      if ([field hasPrefix: @"c_"])
+        [response setObject: [response objectForKey: field]
+                     forKey: [field substringFromIndex: 2]];
+    }
+
+  [self _fillConstraintsForModule: @"Calendar"    intoRecord: response];
+  [self _fillConstraintsForModule: @"Mail"        intoRecord: response];
+  [self _fillConstraintsForModule: @"ActiveSync"  intoRecord: response];
+
+  // We set the domain, if any
+  value = nil;
+  if (_domain)
+    value = _domain;
+  else if (_domainField)
+    value = [response objectForKey: _domainField];
+  if (![value isNotNull])
+    value = @"";
+  [response setObject: value forKey: @"c_domain"];
+
+  // We populate all mail fields
+  emails = [NSMutableArray array];
+
+  if ([response objectForKey: @"mail"])
+    [emails addObject: [response objectForKey: @"mail"]];
+
+  if (_mailFields && [_mailFields count] > 0)
+    {
+      NSString *s;
+      int j;
+
+      for (j = 0; j < [_mailFields count]; j++)
+        if ((s = [response objectForKey: [_mailFields objectAtIndex: j]]) &&
+            [s isNotNull] &&
+            [[s stringByTrimmingSpaces] length] > 0)
+          [emails addObjectsFromArray: [s componentsSeparatedByString: @" "]];
+    }
+
+  [response setObject: [emails uniqueObjects]  forKey: @"c_emails"];
+  if (_imapHostField)
+    {
+      value = [response objectForKey: _imapHostField];
+      if ([value isNotNull])
+        [response setObject: value forKey: @"c_imaphostname"];
+    }
+
+  if (_sieveHostField)
+    {
+      value = [response objectForKey: _sieveHostField];
+      if ([value isNotNull])
+        [response setObject: value forKey: @"c_sievehostname"];
+    }
+
+  // We check if we should use a different login for IMAP
+  if (_imapLoginField)
+    {
+      if ([[response objectForKey: _imapLoginField] isNotNull])
+        [response setObject: [response objectForKey: _imapLoginField] forKey: @"c_imaplogin"];
+    }
+
+  // We check if it's a resource of not
+  if (_kindField)
+    {
+      if ((value = [response objectForKey: _kindField]) && [value isNotNull])
+        {
+          if ([value caseInsensitiveCompare: @"location"] == NSOrderedSame ||
+              [value caseInsensitiveCompare: @"thing"] == NSOrderedSame ||
+              [value caseInsensitiveCompare: @"group"] == NSOrderedSame)
+            {
+              [response setObject: [NSNumber numberWithInt: 1]
+                           forKey: @"isResource"];
+            }
+        }
+    }
+
+  if (_multipleBookingsField)
+    {
+      if ((value = [response objectForKey: _multipleBookingsField]))
+        {
+          [response setObject: [NSNumber numberWithInt: [value intValue]]
+                       forKey: @"numberOfSimultaneousBookings"];
+        }
+    }
+
+  [response setObject: self forKey: @"source"];
+}
+
+- (NSArray *) _authenticatedUIDsForUIDQualifier: (EOQualifier *) uidQualifier
+                                     onChannel: (EOAdaptorChannel *) channel
+{
+  EOQualifier *qualifier;
+  NSMutableString *sql;
+  NSMutableArray *uids;
+  NSDictionary *row;
+  NSArray *attrs;
+  NSException *ex;
+
+  uids = nil;
+
+  sql = [NSMutableString stringWithFormat: @"SELECT c_uid"
+                         @" FROM %@"
+                         @" WHERE ",
+                         [_viewURL gcsTableName]];
+
+  qualifier = [[EOAndQualifier alloc]
+                initWithQualifiers:
+                  [EOQualifier qualifierWithQualifierFormat: _authenticationFilter],
+                  uidQualifier, nil];
+  [qualifier autorelease];
+  [qualifier appendSQLToString: sql];
+
+  ex = [channel evaluateExpressionX: sql];
+  if (!ex)
+    {
+      uids = [NSMutableArray array];
+      attrs = [channel describeResults: NO];
+      while ((row = [channel fetchAttributes: attrs withZone: NULL]))
+        [uids addObject: [row objectForKey: @"c_uid"]];
+      [channel cancelFetch];
+    }
+  else
+    [self errorWithFormat: @"could not run SQL '%@': %@", sql, ex];
+
+  return uids;
+}
+
 - (NSDictionary *) _lookupContactEntry: (NSString *) theID
-                         considerEmail: (BOOL) b
-                              inDomain: (NSString *) domain
+                          considerEmail: (BOOL) b
+                               inDomain: (NSString *) domain
 		       usingConnection: (id) connection
 {
   NSMutableDictionary *response;
   NSMutableArray *qualifiers;
-  NSArray *fieldNames;
   EOAdaptorChannel *channel;
   EOQualifier *loginQualifier, *domainQualifier, *qualifier;
   NSMutableString *sql;
-  NSString *value, *field;
+  NSString *field;
+  NSArray *authUIDs;
   NSException *ex;
   int i;
 
@@ -635,8 +774,8 @@
 
       // Always compare against the c_uid field
       loginQualifier = [[EOKeyValueQualifier alloc] initWithKey: @"c_uid"
-                                               operatorSelector: EOQualifierOperatorEqual
-                                                          value: theID];
+                                                operatorSelector: EOQualifierOperatorEqual
+                                                           value: theID];
       [loginQualifier autorelease];
       [qualifiers addObject: loginQualifier];
 
@@ -648,8 +787,8 @@
               if ([field caseInsensitiveCompare: @"c_uid"] != NSOrderedSame)
                 {
                   loginQualifier = [[EOKeyValueQualifier alloc] initWithKey: field
-                                                           operatorSelector: EOQualifierOperatorEqual
-                                                                      value: theID];
+                                                            operatorSelector: EOQualifierOperatorEqual
+                                                                       value: theID];
                   [loginQualifier autorelease];
                   [qualifiers addObject: loginQualifier];
                 }
@@ -664,8 +803,8 @@
         {
           // Always compare againts the mail field
           loginQualifier = [[EOKeyValueQualifier alloc] initWithKey: @"mail"
-                                                   operatorSelector: EOQualifierOperatorEqual
-                                                              value: [theID lowercaseString]];
+                                                    operatorSelector: EOQualifierOperatorEqual
+                                                               value: [theID lowercaseString]];
           [loginQualifier autorelease];
           [qualifiers addObject: loginQualifier];
 
@@ -678,8 +817,8 @@
                       && ![_loginFields containsObject: field])
                     {
                       loginQualifier = [[EOKeyValueQualifier alloc] initWithKey: field
-                                                               operatorSelector: EOQualifierOperatorEqual
-                                                                          value: [theID lowercaseString]];
+                                                                operatorSelector: EOQualifierOperatorEqual
+                                                                           value: [theID lowercaseString]];
                       [loginQualifier autorelease];
                       [qualifiers addObject: loginQualifier];
                     }
@@ -692,145 +831,39 @@
                              @" WHERE ",
                              [_viewURL gcsTableName]];
       qualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
+      [qualifier autorelease];
       if (domainQualifier)
-        qualifier = [[EOAndQualifier alloc] initWithQualifiers: domainQualifier, qualifier, nil];
+        {
+          qualifier = [[EOAndQualifier alloc] initWithQualifiers: domainQualifier, qualifier, nil];
+          [qualifier autorelease];
+        }
       [qualifier appendSQLToString: sql];
 
       ex = [channel evaluateExpressionX: sql];
       if (!ex)
         {
-          NSMutableArray *emails;
-
           response = [[channel fetchAttributes: [channel describeResults: NO]
                                       withZone: NULL] mutableCopy];
           [response autorelease];
           [channel cancelFetch];
 
-          /* Convert all c_ fields to obtain their ldif equivalent */
-          fieldNames = [response allKeys];
-          for (i = 0; i < [fieldNames count]; i++)
-            {
-              field = [fieldNames objectAtIndex: i];
-              if ([field hasPrefix: @"c_"])
-                [response setObject: [response objectForKey: field]
-                             forKey: [field substringFromIndex: 2]];
-            }
-
-          [self _fillConstraintsForModule: @"Calendar"    intoRecord: response];
-          [self _fillConstraintsForModule: @"Mail"        intoRecord: response];
-          [self _fillConstraintsForModule: @"ActiveSync"  intoRecord: response];
-
-          // We set the domain, if any
-          value = nil;
-          if (_domain)
-            value = _domain;
-          else if (_domainField)
-            value = [response objectForKey: _domainField];
-          if (![value isNotNull])
-            value = @"";
-          [response setObject: value forKey: @"c_domain"];
-
-          // We populate all mail fields
-          emails = [NSMutableArray array];
-
-          if ([response objectForKey: @"mail"])
-            [emails addObject: [response objectForKey: @"mail"]];
-
-          if (_mailFields && [_mailFields count] > 0)
-            {
-              NSString *s;
-              int i;
-
-              for (i = 0; i < [_mailFields count]; i++)
-                if ((s = [response objectForKey: [_mailFields objectAtIndex: i]]) &&
-                    [s isNotNull] &&
-                    [[s stringByTrimmingSpaces] length] > 0)
-                  [emails addObjectsFromArray: [s componentsSeparatedByString: @" "]];
-            }
-
-          [response setObject: [emails uniqueObjects]  forKey: @"c_emails"];
-          if (_imapHostField)
-            {
-              value = [response objectForKey: _imapHostField];
-              if ([value isNotNull])
-                [response setObject: value forKey: @"c_imaphostname"];
-            }
-
-          if (_sieveHostField)
-            {
-              value = [response objectForKey: _sieveHostField];
-              if ([value isNotNull])
-                [response setObject: value forKey: @"c_sievehostname"];
-            }
+          [self _fixupContactRecord: response];
 
           // We check if the user can authenticate
           if (_authenticationFilter)
             {
-              EOQualifier *q_uid, *q_auth;
-
-              sql = [NSMutableString stringWithFormat: @"SELECT c_uid"
-                                     @" FROM %@"
-                                     @" WHERE ",
-                                     [_viewURL gcsTableName]];
-
-              q_auth = [EOQualifier qualifierWithQualifierFormat: _authenticationFilter];
-
-              q_uid = [[EOKeyValueQualifier alloc] initWithKey: @"c_uid"
-                                              operatorSelector: EOQualifierOperatorEqual
-                                                         value: theID];
-              [q_uid autorelease];
-
-              qualifier = [[EOAndQualifier alloc] initWithQualifiers: q_uid, q_auth, nil];
-              [qualifier autorelease];
-              [qualifier appendSQLToString: sql];
-
-              ex = [channel evaluateExpressionX: sql];
-              if (!ex)
-                {
-                  NSDictionary *authResponse;
-
-                  authResponse = [channel fetchAttributes: [channel describeResults: NO]  withZone: NULL];
-                  [response setObject: [NSNumber numberWithBool: [authResponse count] > 0] forKey: @"canAuthenticate"];
-                  [channel cancelFetch];
-                }
-              else
-                [self errorWithFormat: @"could not run SQL '%@': %@", sql, ex];
+              loginQualifier = [[EOKeyValueQualifier alloc] initWithKey: @"c_uid"
+                                                    operatorSelector: EOQualifierOperatorEqual
+                                                               value: theID];
+              [loginQualifier autorelease];
+              authUIDs = [self _authenticatedUIDsForUIDQualifier: loginQualifier
+                                                        onChannel: channel];
+              if (authUIDs)
+                [response setObject: [NSNumber numberWithBool: [authUIDs count] > 0]
+                             forKey: @"canAuthenticate"];
             }
           else
             [response setObject: [NSNumber numberWithBool: YES] forKey: @"canAuthenticate"];
-
-          // We check if we should use a different login for IMAP
-          if (_imapLoginField)
-            {
-              if ([[response objectForKey: _imapLoginField] isNotNull])
-                [response setObject: [response objectForKey: _imapLoginField] forKey: @"c_imaplogin"];
-            }
-
-          // We check if it's a resource of not
-          if (_kindField)
-            {
-              if ((value = [response objectForKey: _kindField]) && [value isNotNull])
-                {
-                  if ([value caseInsensitiveCompare: @"location"] == NSOrderedSame ||
-                      [value caseInsensitiveCompare: @"thing"] == NSOrderedSame ||
-                      [value caseInsensitiveCompare: @"group"] == NSOrderedSame)
-                    {
-                      [response setObject: [NSNumber numberWithInt: 1]
-                                   forKey: @"isResource"];
-                    }
-                }
-            }
-
-          if (_multipleBookingsField)
-            {
-              if ((value = [response objectForKey: _multipleBookingsField]))
-                {
-                  [response setObject: [NSNumber numberWithInt: [value intValue]]
-                               forKey: @"numberOfSimultaneousBookings"];
-                }
-            }
-
-          [response setObject: self forKey: @"source"];
         }
       else
         [self errorWithFormat: @"could not run SQL '%@': %@", sql, ex];
@@ -881,9 +914,128 @@
 }
 
 - (NSDictionary *) lookupContactEntryWithUIDorEmail: (NSString *) entryID
-                                           inDomain: (NSString *) domain
+                                            inDomain: (NSString *) domain
 {
   return [self _lookupContactEntry: entryID  considerEmail: YES inDomain: domain];
+}
+
+- (NSDictionary *) lookupContactEntriesForIDs: (NSArray *) theIDs
+                                     inDomain: (NSString *) domain
+                              usingConnection: (id) connection
+{
+  EOAdaptorChannel *channel;
+  EOQualifier *domainQualifier, *idQualifier, *qualifier;
+  EOKeyValueQualifier *uidQualifier;
+  NSMutableString *sql;
+  NSMutableDictionary *results;
+  NSMutableArray *chunkRecords, *qualifiers;
+  NSSet *authUIDs;
+  NSDictionary *row;
+  NSArray *attrs;
+  NSString *theID, *c_uid;
+  NSNumber *canAuthenticate;
+  NSException *ex;
+  unsigned int i, j, max, remaining, take;
+
+  results = [NSMutableDictionary dictionary];
+
+  channel = (EOAdaptorChannel *)connection;
+  if (channel)
+    {
+      max = [theIDs count];
+      for (i = 0; i < max; i += LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE)
+        {
+          remaining = max - i;
+          take = ((remaining > LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE)
+                  ? LOOKUP_CONTACT_ENTRIES_CHUNK_SIZE
+                  : remaining);
+
+          qualifiers = [NSMutableArray arrayWithCapacity: take];
+          for (j = i; j < i + take; j++)
+            {
+              theID = [[theIDs objectAtIndex: j]
+                        stringByReplacingString: @"'"  withString: @"''"];
+              uidQualifier = [[EOKeyValueQualifier alloc] initWithKey: @"c_uid"
+                                                        operatorSelector: EOQualifierOperatorEqual
+                                                                   value: theID];
+              [uidQualifier autorelease];
+              [qualifiers addObject: uidQualifier];
+            }
+
+          sql = [NSMutableString stringWithFormat: @"SELECT *"
+                                 @" FROM %@"
+                                 @" WHERE ",
+                                 [_viewURL gcsTableName]];
+          qualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
+          [qualifier autorelease];
+          domainQualifier = nil;
+          if (_domainField && [domain length])
+            domainQualifier = [self visibleDomainsQualifierFromDomain: domain];
+          if (domainQualifier)
+            {
+              qualifier = [[EOAndQualifier alloc] initWithQualifiers: domainQualifier, qualifier, nil];
+              [qualifier autorelease];
+            }
+          [qualifier appendSQLToString: sql];
+
+          ex = [channel evaluateExpressionX: sql];
+          if (!ex)
+            {
+              chunkRecords = [NSMutableArray array];
+              attrs = [channel describeResults: NO];
+              while ((row = [channel fetchAttributes: attrs withZone: NULL]))
+                {
+                  NSMutableDictionary *mutableRow;
+
+                  mutableRow = [row mutableCopy];
+                  [mutableRow autorelease];
+                  [self _fixupContactRecord: mutableRow];
+                  [chunkRecords addObject: mutableRow];
+                }
+              [channel cancelFetch];
+
+              if (_authenticationFilter)
+                {
+                  NSArray *authResults;
+
+                  idQualifier = [[EOOrQualifier alloc] initWithQualifierArray: qualifiers];
+                  [idQualifier autorelease];
+                  authResults = [self _authenticatedUIDsForUIDQualifier: idQualifier
+                                                               onChannel: channel];
+                  authUIDs = [NSSet setWithArray: (authResults
+                                                   ? authResults
+                                                   : [NSArray array])];
+                }
+              else
+                authUIDs = nil;
+
+              for (j = 0; j < [chunkRecords count]; j++)
+                {
+                  NSMutableDictionary *record;
+
+                  record = [chunkRecords objectAtIndex: j];
+                  c_uid = [record objectForKey: @"c_uid"];
+                  if (![results objectForKey: c_uid])
+                    {
+                      if (!_authenticationFilter)
+                        canAuthenticate = [NSNumber numberWithBool: YES];
+                      else
+                        canAuthenticate = [NSNumber numberWithBool:
+                                            [authUIDs containsObject: c_uid]];
+                      [record setObject: canAuthenticate forKey: @"canAuthenticate"];
+                      [results setObject: record forKey: c_uid];
+                    }
+                }
+            }
+          else
+            [self errorWithFormat: @"could not run SQL '%@': %@", sql, ex];
+        }
+    }
+  else
+    [self errorWithFormat:@"failed to acquire channel for URL: %@",
+          [_viewURL absoluteString]];
+
+  return results;
 }
 
 - (void) addVCardProperty: (NSString *) property
