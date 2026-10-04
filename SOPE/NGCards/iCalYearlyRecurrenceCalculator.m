@@ -228,12 +228,10 @@
                       rangesInMonth = [monthlyCalc recurrenceRangesWithinCalendarDateRange: rangeForMonth];
 
                       for (k = 0; k < [rangesInMonth count] && (repeatCount == 0 || count < repeatCount); k++) {
-                        //NSLog(@"*** YEARLY found %@ (count = %i)", [[rangesInMonth objectAtIndex: k] startDate], count);
                         count++;
                         if ([_r doesIntersectWithDateRange: [rangesInMonth objectAtIndex: k]])
                           {
                             [ranges addObject: [rangesInMonth objectAtIndex: k]];
-                            //NSLog(@"*** YEARLY adding %@ (count = %i)", [[rangesInMonth objectAtIndex: k] startDate], count);
                           }
                       }
                     }

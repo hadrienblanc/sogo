@@ -451,11 +451,9 @@ static inline unsigned iCalDoWForNSDoW (int dow)
                                        limitDate: untilStart
                                       limitRange: _r
                                          toArray: ranges];
-        //NSLog(@"*** MONTHLY [%i/%i] adding %@%@ (count = %i)", dom, numDaysInMonth, start, (doCont?@"":@" .. NOT!"), count);
         if (repeatCount > 0)
           {
             count++;
-            //NSLog(@"MONTHLY count = %i/%i", count, repeatCount);
             doCont = (count < repeatCount);
           }
       }
