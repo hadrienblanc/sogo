@@ -505,7 +505,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   occurences = [NSMutableArray arrayWithArray: [[self parent] events]];
 
-  if ((o = [theValues objectForKey: ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0) ? @"ClientUid" : @"UID"]))
+  if ((o = [theValues objectForKey: @"ClientUid"]))
+    [self setUid: o];
+  else if ((o = [theValues objectForKey: @"UID"]))
     [self setUid: o];
     
   // FIXME: merge with iCalToDo
@@ -584,10 +586,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         [self setComment: o];
     }
 
-  if ([[context objectForKey: @"ASProtocolVersion"] floatValue] < 16.0 && (o = [theValues objectForKey: @"Location"]))
-    [self setLocation: o];
-  else if ([[context objectForKey: @"ASProtocolVersion"] floatValue] >= 16.0 && (o = [theValues objectForKey: @"Location"]) && [o isKindOfClass: [NSDictionary class]])
-    [self setLocation: [o objectForKey: @"DisplayName"]];
+  if ((o = [theValues objectForKey: @"Location"]))
+    {
+      if ([o isKindOfClass: [NSDictionary class]])
+        [self setLocation: [o objectForKey: @"DisplayName"]];
+      else
+        [self setLocation: o];
+    }
 
   deltasecs = 0;
   start = nil;
