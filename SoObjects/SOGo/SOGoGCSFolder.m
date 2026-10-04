@@ -1203,7 +1203,9 @@ static NSArray *childRecordFields = nil;
 
   // For Thunderbird, disable contact list
   // This will be removed when VCARD will be implemented
-  if ([[context request] isThunderbird] && [self isKindOfClass: NSClassFromString(@"SOGoContactGCSFolder")]) {
+  if (ignoreDeleted
+      && [[context request] isThunderbird]
+      && [self isKindOfClass: NSClassFromString(@"SOGoContactGCSFolder")]) {
     vlistExclusionQualifier = [EOQualifier qualifierWithQualifierFormat: @"c_component != 'vlist'"];
     qualifier = [[[EOAndQualifier alloc] initWithQualifiers:
                                                 vlistExclusionQualifier,
