@@ -63,11 +63,6 @@
            endOfDay];
 }
 
-// - (NSArray *) appointments
-// {
-//   return [self fetchCoreAppointmentsInfos];
-// }
-
 /* URLs */
 
 - (NSDictionary *) weekBeforePrevWeekQueryParameters
