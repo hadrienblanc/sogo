@@ -153,7 +153,8 @@
 "Before" = "전";
 "After" = "후";
 "Between" = "사이";
-"and" = "와";
+"and" = "
+와";
 "With attachments" = "첨부 파일 포함";
 "In favorites" = "즐겨찾기에";
 "Unseen only" = "표시되지 않음";
@@ -166,7 +167,8 @@
 "read"    = "읽기";
 "unread"  = "읽지 않음";
 "deleted" = "삭제됨";
-"flagged" = "플래그됨";
+"flagged" = "플래그
+됨";
 
 /* MailListView */
 "Sender" = "보낸사람";
@@ -537,3 +539,4 @@
 "repeat_YEARLY" = "매년";
 "repeat_CUSTOM" = "사용자 지정...";
 "until" = "까지";
+"times" = "회";

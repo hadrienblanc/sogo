@@ -199,6 +199,40 @@ LoadAppointmentsBundle ()
   test (![rule hasRepeatCount]);
 }
 
+- (void) test_countBoundedRuleExposesRepeatCount
+{
+  iCalRecurrenceRule *rule;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  rule = [self _ruleWithContent: @"FREQ=DAILY;COUNT=10"];
+
+  test ([rule hasRepeatCount]);
+  test ([rule repeatCount] == 10);
+  test ([rule untilDate] == nil);
+  test ([[rule repeatLabelKey] isEqualToString: @"repeat_DAILY"]);
+}
+
+- (void) test_unboundedRuleHasNeitherCountNorUntil
+{
+  iCalRecurrenceRule *rule;
+
+  if (!LoadAppointmentsBundle ())
+    {
+      testWithMessage (NO, @"Appointments.SOGo bundle unavailable");
+      return;
+    }
+
+  rule = [self _ruleWithContent: @"FREQ=DAILY"];
+
+  test (![rule hasRepeatCount]);
+  test ([rule untilDate] == nil);
+}
+
 - (void) test_recurrenceDatesOnlyEventIsRecurrentWithoutRule
 {
   iCalCalendar *calendar;
