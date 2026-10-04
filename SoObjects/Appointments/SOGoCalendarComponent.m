@@ -701,9 +701,7 @@ static NSArray *allowed_tags = nil;
 
 - (NSException *) saveCalendar: (iCalCalendar *) newCalendar
 {
-  [super saveComponent: newCalendar];
-
-  return nil;
+  return [super saveComponent: newCalendar];
 }
 
 - (NSException *) saveComponent: (iCalRepeatableEntityObject *) newObject
