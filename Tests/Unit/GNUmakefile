@@ -99,6 +99,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoMailFolder.m \
 	TestSOGoMailFolderSortOrder.m \
 	TestSOGoMailForward.m \
+	TestSOGoMailReply.m \
 	TestSOGoMailerAccountSelection.m \
 	TestSOGoSieveClientLifecycle.m \
 	TestSOGoSieveManager.m \

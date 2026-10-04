@@ -60,6 +60,26 @@
   return [replyPlacement isEqual: @"above"];
 }
 
+- (NSString *) citePrefixOpen
+{
+  NSString *rc = @"";
+
+  if (htmlComposition)
+    rc = @"<div class=\"moz-cite-prefix\">";
+
+  return rc;
+}
+
+- (NSString *) citePrefixClose
+{
+  NSString *rc = @"";
+
+  if (htmlComposition)
+    rc = @"</div>";
+
+  return rc;
+}
+
 - (NSString *) messageBody
 {
   NSString *s, *msgid;
