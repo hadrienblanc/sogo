@@ -243,6 +243,40 @@ LoadDraftClass ()
                    @"a resent message must still carry the attachment (bug 6224)");
 }
 
+- (void) test_composedAttachmentCarriesNoContentLengthHeader
+{
+  NGMimeBodyPart *part;
+  NSData *message;
+  NSString *messageString;
+
+  [draft setIsHTML: YES];
+  [draft setText: @"<html>Test Message</html>"];
+
+  message = [draft mimeMessageForRecipient: nil extractingImages: NO];
+  testWithMessage (message != nil, @"the composed html message must be generated");
+
+  part = [self _composedAttachmentPartWithFilename: @"test-6224-attachment.txt"];
+  testWithMessage (part != nil, @"the composed html message must carry the attachment");
+  testWithMessage ([part headerForKey: @"content-length"] == nil,
+                   @"an html message attachment must not carry a content-length header (bug 5926)");
+
+  messageString = [[[NSString alloc] initWithData: message
+                                          encoding: NSUTF8StringEncoding] autorelease];
+  testWithMessage ([messageString rangeOfString: @"Content-Transfer-Encoding: base64"].location != NSNotFound,
+                   @"the attachment part must still declare base64 transfer encoding");
+
+  [draft setIsHTML: NO];
+  [draft setText: @"Test Message"];
+
+  message = [draft mimeMessageForRecipient: nil extractingImages: NO];
+  testWithMessage (message != nil, @"the composed text message must be generated");
+
+  part = [self _composedAttachmentPartWithFilename: @"test-6224-attachment.txt"];
+  testWithMessage (part != nil, @"the composed text message must carry the attachment");
+  testWithMessage ([part headerForKey: @"content-length"] == nil,
+                   @"a text message attachment must not carry a content-length header (bug 5926)");
+}
+
 - (void) test_deleteRemovesDraftFolder
 {
   NSFileManager *fm;
