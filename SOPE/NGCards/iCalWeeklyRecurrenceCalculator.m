@@ -21,7 +21,6 @@
 */
 
 #import <NGExtensions/NSCalendarDate+misc.h>
-#import <NGExtensions/NSObject+Logs.h>
 
 #import "iCalRecurrenceCalculator.h"
 

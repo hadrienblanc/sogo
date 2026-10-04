@@ -61,8 +61,6 @@
   long i, count, repeatCount;
   unsigned interval;
 
-  //[self logWithFormat: @"Recurrence rule is %@", rrule];
-
   firStart = [firstRange startDate];
   firEnd = [firstRange endDate];
   startDate = [_r startDate];
