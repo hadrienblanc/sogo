@@ -221,6 +221,7 @@
 				      fields, @"fields",
 				      [[spec qualifier] allQualifierKeys], @"qualifierKeys",
 				      [NSNumber numberWithBool: ignoreDeleted], @"ignoreDeleted",
+				      [spec qualifier], @"qualifier",
 				      nil]];
 
   return [NSArray array];
@@ -247,6 +248,7 @@
 @implementation TestSOGoGCSFolderWebDAVSync
 
 - (TestSyncOCSFolder *) _runSyncReportWithThunderbirdUserAgent: (BOOL) thunderbird
+                                                     syncToken: (NSString *) syncToken
 {
   TestSyncOCSFolder *ocsFolderStub;
   TestSyncContactFolder *folder;
@@ -266,11 +268,37 @@
   [folder setTestOCSFolder: ocsFolderStub];
 
   [folder syncTokenFieldsWithProperties: [NSDictionary dictionary]
-		      matchingSyncToken: @"100"
+		      matchingSyncToken: syncToken
 		               fromDate: nil
 		            initialLoad: NO];
 
   return ocsFolderStub;
+}
+
+- (id) _syncValueForQualifier: (EOQualifier *) qualifier
+                          key: (NSString *) key
+                     operator: (SEL) operatorSelector
+{
+  NSEnumerator *subQualifiers;
+  EOQualifier *subQualifier;
+  id value;
+
+  value = nil;
+  if ([qualifier isKindOfClass: [EOAndQualifier class]])
+    {
+      subQualifiers = [[(EOAndQualifier *) qualifier qualifiers] objectEnumerator];
+      while (!value && (subQualifier = [subQualifiers nextObject]))
+        value = [self _syncValueForQualifier: subQualifier
+                                          key: key
+                                     operator: operatorSelector];
+    }
+  else if ([qualifier isKindOfClass: [EOKeyValueQualifier class]]
+           && [[(EOKeyValueQualifier *) qualifier key] isEqualToString: key]
+           && [NSStringFromSelector([(EOKeyValueQualifier *) qualifier selector])
+                  isEqualToString: NSStringFromSelector(operatorSelector)])
+    value = [(EOKeyValueQualifier *) qualifier value];
+
+  return value;
 }
 
 - (void) test_thunderbirdLiveRecordsKeepVlistExclusion
@@ -278,7 +306,7 @@
   TestSyncOCSFolder *ocsFolder;
   NSDictionary *liveFetch;
 
-  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: YES];
+  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: YES syncToken: @"100"];
 
   test([[ocsFolder recordedFetches] count] == 2);
   liveFetch = [[ocsFolder recordedFetches] objectAtIndex: 0];
@@ -291,7 +319,7 @@
   TestSyncOCSFolder *ocsFolder;
   NSDictionary *tombstoneFetch;
 
-  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: YES];
+  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: YES syncToken: @"100"];
 
   test([[ocsFolder recordedFetches] count] == 2);
   tombstoneFetch = [[ocsFolder recordedFetches] objectAtIndex: 1];
@@ -309,12 +337,79 @@
   TestSyncOCSFolder *ocsFolder;
   NSDictionary *liveFetch;
 
-  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: NO];
+  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: NO syncToken: @"100"];
 
   test([[ocsFolder recordedFetches] count] == 2);
   liveFetch = [[ocsFolder recordedFetches] objectAtIndex: 0];
   test([[liveFetch objectForKey: @"ignoreDeleted"] boolValue] == YES);
   test([[liveFetch objectForKey: @"qualifierKeys"] containsObject: @"c_component"] == NO);
+}
+
+- (void) test_incrementalFetchesExcludeCurrentSecond
+{
+  TestSyncOCSFolder *ocsFolder;
+  NSDictionary *liveFetch, *tombstoneFetch;
+  EOQualifier *qualifier;
+  NSNumber *upperBound;
+  int before, after;
+
+  before = (int) [[NSDate date] timeIntervalSince1970];
+  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: NO syncToken: @"100"];
+  after = (int) [[NSDate date] timeIntervalSince1970];
+
+  test([[ocsFolder recordedFetches] count] == 2);
+  liveFetch = [[ocsFolder recordedFetches] objectAtIndex: 0];
+  qualifier = [liveFetch objectForKey: @"qualifier"];
+  test([[self _syncValueForQualifier: qualifier
+                                  key: @"c_lastmodified"
+                             operator: EOQualifierOperatorGreaterThan] intValue] == 100);
+  upperBound = [self _syncValueForQualifier: qualifier
+                                         key: @"c_lastmodified"
+                                    operator: EOQualifierOperatorLessThan];
+  test(upperBound != nil);
+  test([upperBound intValue] >= before);
+  test([upperBound intValue] <= after);
+
+  tombstoneFetch = [[ocsFolder recordedFetches] objectAtIndex: 1];
+  qualifier = [tombstoneFetch objectForKey: @"qualifier"];
+  test([[self _syncValueForQualifier: qualifier
+                                  key: @"c_lastmodified"
+                             operator: EOQualifierOperatorGreaterThan] intValue] == 100);
+  upperBound = [self _syncValueForQualifier: qualifier
+                                         key: @"c_lastmodified"
+                                    operator: EOQualifierOperatorLessThan];
+  test(upperBound != nil);
+  test([upperBound intValue] >= before);
+  test([upperBound intValue] <= after);
+  test([[self _syncValueForQualifier: qualifier
+                                  key: @"c_deleted"
+                             operator: EOQualifierOperatorEqual] intValue] == 1);
+}
+
+- (void) test_initialLoadFetchExcludesCurrentSecond
+{
+  TestSyncOCSFolder *ocsFolder;
+  NSDictionary *liveFetch;
+  EOQualifier *qualifier;
+  NSNumber *upperBound;
+  int before, after;
+
+  before = (int) [[NSDate date] timeIntervalSince1970];
+  ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: NO syncToken: @""];
+  after = (int) [[NSDate date] timeIntervalSince1970];
+
+  test([[ocsFolder recordedFetches] count] == 1);
+  liveFetch = [[ocsFolder recordedFetches] objectAtIndex: 0];
+  qualifier = [liveFetch objectForKey: @"qualifier"];
+  test([self _syncValueForQualifier: qualifier
+                                key: @"c_lastmodified"
+                           operator: EOQualifierOperatorGreaterThan] == nil);
+  upperBound = [self _syncValueForQualifier: qualifier
+                                         key: @"c_lastmodified"
+                                    operator: EOQualifierOperatorLessThan];
+  test(upperBound != nil);
+  test([upperBound intValue] >= before);
+  test([upperBound intValue] <= after);
 }
 
 @end

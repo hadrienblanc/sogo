@@ -1251,7 +1251,9 @@ static NSArray *childRecordFields = nil;
   EOQualifier *qualifier;
   NSEnumerator *addFields;
   NSString *currentField, *filter;
-  int syncTokenInt;
+  int syncTokenInt, now;
+
+  now = (int) [[NSDate date] timeIntervalSince1970];
 
   fields = [NSMutableArray arrayWithObjects: @"c_name", @"c_component",
                            @"c_creationdate", @"c_lastmodified", nil];
@@ -1272,7 +1274,8 @@ static NSArray *childRecordFields = nil;
       syncTokenInt = [syncToken intValue];
       
       qualifier = [EOQualifier qualifierWithQualifierFormat:
-                                 @"c_lastmodified > %d", syncTokenInt];
+                                 @"c_lastmodified > %d and c_lastmodified < %d",
+                                 syncTokenInt, now];
 
       if (theStartDate)
         {
@@ -1292,8 +1295,8 @@ static NSArray *childRecordFields = nil;
       if (!initialLoadInProgress)
         {
           qualifier = [EOQualifier qualifierWithQualifierFormat:
-                                   @"c_lastmodified > %d and c_deleted == 1",
-                                   syncTokenInt];
+                                     @"c_lastmodified > %d and c_lastmodified < %d and c_deleted == 1",
+                                     syncTokenInt, now];
           fields = [NSMutableArray arrayWithObjects: @"c_name", @"c_lastmodified", @"c_deleted", nil];
           [mRecords addObjectsFromArray: [self _fetchFields: fields
                                               withQualifier: qualifier
@@ -1304,11 +1307,15 @@ static NSArray *childRecordFields = nil;
     }
   else
     {
+      qualifier = [EOQualifier qualifierWithQualifierFormat:
+                                 @"c_lastmodified < %d", now];
+
       filter = [self additionalWebdavSyncFilters];
       if ([filter length])
-        qualifier = [EOQualifier qualifierWithQualifierFormat: filter];
-      else
-        qualifier = nil;
+        qualifier = [[[EOAndQualifier alloc] initWithQualifiers:
+                                           [EOQualifier qualifierWithQualifierFormat: filter],
+                                           qualifier,
+                                           nil] autorelease];
 
       if (theStartDate)
         {
@@ -1316,10 +1323,10 @@ static NSArray *childRecordFields = nil;
                                                            @"(c_enddate > %d OR c_enddate = NULL) OR (c_iscycle = 1 and (c_cycleenddate > %d OR c_cycleenddate = NULL))",
                                                          (int)[theStartDate timeIntervalSince1970],
                                                          (int)[theStartDate timeIntervalSince1970]];
-          
-          qualifier = [[EOAndQualifier alloc] initWithQualifiers: sinceDateQualifier, qualifier,
-                                              nil];
-          [qualifier autorelease];
+
+          qualifier = [[[EOAndQualifier alloc] initWithQualifiers: sinceDateQualifier,
+                                                  qualifier,
+                                                  nil] autorelease];
         }
       
       records = [self _fetchFields: fields
