@@ -67,6 +67,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Imap4LabelName.m \
 	TestNSData+Mail.m \
 	TestNSString+ActiveSync.m \
+	TestNGDOMElement+ActiveSync.m \
 	TestNSString+Mail.m \
 	TestNSStringMailHelpers.m \
 	TestNSDataMail.m \
@@ -153,6 +154,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/iCalToDo+ActiveSync.m \
 	../../ActiveSync/NSArray+SyncCache.m \
+	../../ActiveSync/NGDOMElement+ActiveSync.m \
 	../../ActiveSync/SOGoSyncCacheObject.m \
 	../../ActiveSync/NSString+ActiveSync.m \
 	../../ActiveSync/NSDate+ActiveSync.m \
