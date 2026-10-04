@@ -72,4 +72,34 @@
              @"20250403T201820Z-20250706T180000-52EA9D00-1-A253E70");
 }
 
+- (void) test_sanitizedServerIdStripsIcsSuffixForEventFolders
+{
+  testEquals([@"040000008200E00074C5B7101A82E00800000000E09B5642B062DB01.ics" sanitizedServerIdWithType: ActiveSyncEventFolder],
+             @"040000008200E00074C5B7101A82E00800000000E09B5642B062DB01");
+}
+
+- (void) test_sanitizedServerIdAppendsIcsSuffixForEventFolders
+{
+  testEquals([@"290B-677FE580-31-122BB540" sanitizedServerIdWithType: ActiveSyncEventFolder],
+             @"290B-677FE580-31-122BB540.ics");
+}
+
+- (void) test_sanitizedServerIdNormalizesEventComponentNameToCacheKey
+{
+  testEquals([[@"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01.ics" sanitizedServerIdWithType: ActiveSyncEventFolder] sanitizedServerIdWithType: ActiveSyncEventFolder],
+             @"040000008200E00074C5B7101A82E00800000000F07EF645B062DB01.ics");
+}
+
+- (void) test_sanitizedServerIdKeepsTaskServerIdUnchanged
+{
+  testEquals([@"290B-677FE580-31-122BB540.ics" sanitizedServerIdWithType: ActiveSyncTaskFolder],
+             @"290B-677FE580-31-122BB540.ics");
+}
+
+- (void) test_sanitizedServerIdKeepsContactServerIdUnchanged
+{
+  testEquals([@"290B-677FE580-31-122BB540.vcf" sanitizedServerIdWithType: ActiveSyncContactFolder],
+             @"290B-677FE580-31-122BB540.vcf");
+}
+
 @end
