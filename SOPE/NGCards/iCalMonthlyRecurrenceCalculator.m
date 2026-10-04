@@ -224,14 +224,14 @@ static inline unsigned iCalDoWForNSDoW (int dow)
 	  untilStart = [eventStartDate dateByAddingYears: 0
 					     months: (interval * (repeatCount - 1))
 					       days: 0];
-    untilEnd = [eventEndDate dateByAddingYears: 0
-            months: (interval * (repeatCount - 1))
-              days: 0];
+	  untilEnd = [eventEndDate dateByAddingYears: 0
+					       months: (interval * (repeatCount - 1))
+					         days: 0];
 	}
       else
 	{
 	  untilStart = [self inclusiveUntilDate];
-    untilEnd = [self inclusiveUntilDate];
+	  untilEnd = [self inclusiveUntilDate];
 	}
     }
 
