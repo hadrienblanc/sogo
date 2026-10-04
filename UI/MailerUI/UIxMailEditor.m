@@ -248,39 +248,45 @@ static NSArray *infoKeys = nil;
   return [identity keysWithFormat: format];
 }
 
-- (NSString *) from
+- (NSDictionary *) _identityMatchingFrom: (NSString *) aFrom
 {
   NSArray *identities;
   NSEnumerator *allIdentities;
   NSDictionary *identity;
+  NSString *lowercaseFrom;
   NSRange r;
-  BOOL valid;
 
-  if ([from length])
+  if (![aFrom length])
+    return nil;
+
+  identities = [[[self clientObject] mailAccountFolder] identities];
+  if (![identities count])
+    return nil;
+
+  // from ivar must contain a valid email address surrounded by pointy brackets
+  lowercaseFrom = [aFrom lowercaseString];
+  allIdentities = [identities objectEnumerator];
+  while ((identity = [allIdentities nextObject]))
     {
-      identities = [[[self clientObject] mailAccountFolder] identities];
-      if ([identities count])
-        {
-          allIdentities = [identities objectEnumerator];
-          valid = NO;
-          while ((identity = [allIdentities nextObject]) && !valid)
-             {
-               // from ivar must contain a valid email address surrounded by pointy brackets
-               r = [[from lowercaseString] rangeOfString: [[identity objectForKey: @"email"] lowercaseString]];
-               if (r.length > 0)
-                 {
-                   valid = YES;
-                   [from release];
-                   from = [self _emailFromIdentity: identity];
-                   [from retain];
-                 }
-             }
-          if (!valid)
-            {
-              [from release];
-              from = nil;
-            }
-        }
+      r = [lowercaseFrom rangeOfString: [[identity objectForKey: @"email"] lowercaseString]];
+      if (r.length > 0)
+        return identity;
+    }
+
+  return nil;
+}
+
+- (NSString *) from
+{
+  NSDictionary *identity;
+
+  if ([from length] && [[[[self clientObject] mailAccountFolder] identities] count])
+    {
+      identity = [self _identityMatchingFrom: from];
+      if (identity)
+        ASSIGN (from, [self _emailFromIdentity: identity]);
+      else
+        ASSIGN (from, nil);
     }
 
   return from;
@@ -288,40 +294,20 @@ static NSArray *infoKeys = nil;
 
 - (NSString *) replyTo
 {
-  NSString *value;
-  NSArray *identities;
-  NSEnumerator *allIdentities;
   NSDictionary *identity;
-  NSRange r;
-  BOOL valid;
+  NSString *value;
 
   value = nil;
-  valid = NO;
 
   //
   // We add the correct replyTo here. That is, the one specified in the defaults
   // for the main "SOGo mail account" versus the one specified in the auxiliary
   // IMAP accounts.
   //
-  if ([from length])
-    {
-      identities = [[[self clientObject] mailAccountFolder] identities];
-      if ([identities count])
-        {
-          allIdentities = [identities objectEnumerator];
-          while ((identity = [allIdentities nextObject]) && !valid)
-            {
-              r = [[from lowercaseString] rangeOfString: [[identity objectForKey: @"email"] lowercaseString]];
-              if (r.length > 0)
-                {
-                  valid = YES;
-                  value = [identity objectForKey: @"replyTo"];
-                }
-            }
-        }
-    }
-
-  if (!valid)
+  identity = [self _identityMatchingFrom: from];
+  if (identity)
+    value = [identity objectForKey: @"replyTo"];
+  else
     {
       if ([[[[self clientObject] mailAccountFolder] nameInContainer] intValue] == 0)
         {

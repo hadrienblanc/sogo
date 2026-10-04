@@ -505,9 +505,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   occurences = [NSMutableArray arrayWithArray: [[self parent] events]];
 
-  if ((o = [theValues objectForKey: @"ClientUid"]))
-    [self setUid: o];
-  else if ((o = [theValues objectForKey: @"UID"]))
+  o = [theValues objectForKey: @"ClientUid"];
+  if (!o)
+    o = [theValues objectForKey: @"UID"];
+  if (o)
     [self setUid: o];
     
   // FIXME: merge with iCalToDo
