@@ -451,6 +451,16 @@ NSString *SOGoPasswordRecoverySecondaryEmail = @"SecondaryEmail";
   return [self boolForKey: @"SOGoMailSynchronizeOnlyDefaultFolders"];
 }
 
+- (void) setMailFetchAllUnseenCountFolders: (BOOL) newValue
+{
+  [self setBool: newValue forKey: @"SOGoMailFetchAllUnseenCountFolders"];
+}
+
+- (BOOL) mailFetchAllUnseenCountFolders
+{
+  return [self boolForKey: @"SOGoMailFetchAllUnseenCountFolders"];
+}
+
 - (void) setMailSortByThreads: (BOOL) newValue
 {
   [self setBool: newValue forKey: @"SOGoMailSortByThreads"];

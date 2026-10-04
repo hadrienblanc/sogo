@@ -163,4 +163,66 @@
   test ([defaults calendarAutoAddExternalInvitations] == YES);
 }
 
+- (void) test_mailFetchAllUnseenCountFoldersUnset
+{
+  SOGoUserDefaults *defaults;
+
+  defaults = [self _defaultsWithSource: [NSDictionary dictionary]
+                           parentSource: [NSDictionary dictionary]];
+
+  test ([defaults mailFetchAllUnseenCountFolders] == NO);
+}
+
+- (void) test_mailFetchAllUnseenCountFoldersFallsBackToParentSource
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *parentSource;
+
+  parentSource = [NSDictionary dictionaryWithObject: [NSNumber numberWithBool: YES]
+                                              forKey: @"SOGoMailFetchAllUnseenCountFolders"];
+  defaults = [self _defaultsWithSource: [NSDictionary dictionary]
+                           parentSource: parentSource];
+
+  test ([defaults mailFetchAllUnseenCountFolders] == YES);
+}
+
+- (void) test_mailFetchAllUnseenCountFoldersFromParentSourceString
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *parentSource;
+
+  parentSource = [NSDictionary dictionaryWithObject: @"1"
+                                              forKey: @"SOGoMailFetchAllUnseenCountFolders"];
+  defaults = [self _defaultsWithSource: [NSDictionary dictionary]
+                           parentSource: parentSource];
+
+  test ([defaults mailFetchAllUnseenCountFolders] == YES);
+}
+
+- (void) test_mailFetchAllUnseenCountFoldersUserSourceWins
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *userSource, *parentSource;
+
+  userSource = [NSDictionary dictionaryWithObject: [NSNumber numberWithInt: 0]
+                                            forKey: @"SOGoMailFetchAllUnseenCountFolders"];
+  parentSource = [NSDictionary dictionaryWithObject: [NSNumber numberWithBool: YES]
+                                              forKey: @"SOGoMailFetchAllUnseenCountFolders"];
+  defaults = [self _defaultsWithSource: userSource
+                           parentSource: parentSource];
+
+  test ([defaults mailFetchAllUnseenCountFolders] == NO);
+}
+
+- (void) test_setMailFetchAllUnseenCountFoldersStoresBool
+{
+  SOGoUserDefaults *defaults;
+
+  defaults = [self _defaultsWithSource: [NSMutableDictionary dictionary]
+                           parentSource: [NSDictionary dictionary]];
+  [defaults setMailFetchAllUnseenCountFolders: YES];
+
+  test ([defaults mailFetchAllUnseenCountFolders] == YES);
+}
+
 @end

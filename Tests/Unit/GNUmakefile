@@ -124,6 +124,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxContactFolderActionsMobileconfig.m \
 	TestUIxMailRenderingContext.m \
 	TestUIxMailListActionsChanges.m \
+	TestUIxJSONPreferences.m \
 	TestMailerUnseenCountReset.m \
 	TestMailerSortListLocalization.m \
 	TestWORequest+SOGo.m \
@@ -139,6 +140,8 @@ $(TEST_TOOL)_OBJC_FILES += \
 	../../UI/Contacts/UIxListEditor.m \
 	../../UI/Contacts/UIxContactFolderActions.m \
 	../../UI/SOGoUI/UIxComponent.m \
+	../../UI/PreferencesUI/UIxJSONPreferences.m \
+	../../UI/PreferencesUI/PreferencesUIProduct.m \
 	../../ActiveSync/iCalEvent+ActiveSync.m \
 	../../ActiveSync/iCalToDo+ActiveSync.m \
 	../../ActiveSync/NSArray+SyncCache.m \
