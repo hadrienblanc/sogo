@@ -82,9 +82,9 @@
   source = [self _sourceWithBindFields: YES];
   testWithMessage ([[source _userDNForLogin: login] isEqualToString:
                      @"uid=test-6054-user,ou=people,dc=example,dc=com"],
-                   @"exuser@example.com (UIDFieldName=mail, domain-based"
-                   @" uid) -> uid=test-6054-user,ou=people,dc=example,dc=com"
-                   @" (IDFieldName=uid, bug 6054)");
+                   @"test-6054-user@example.com (UIDFieldName=mail,"
+                   @" domain-based uid) -> uid=test-6054-user,ou=people,"
+                   @"dc=example,dc=com (IDFieldName=uid, bug 6054)");
 
   [self _cleanCachedDNForLogin: login];
 }

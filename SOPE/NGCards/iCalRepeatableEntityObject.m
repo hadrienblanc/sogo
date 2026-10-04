@@ -327,12 +327,6 @@
   [dateTime release];
 }
 
-//- (void) setExceptionDates: (NSArray *) _rdates
-//{
-//  [children removeObjectsInArray: [self childrenWithTag: @"exdate"]];
-//  [self addChildren: _rdates];
-//}
-
 - (BOOL) hasExceptionDates
 {
   return ([[self childrenWithTag: @"exdate"] count] > 0);

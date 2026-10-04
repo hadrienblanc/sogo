@@ -1196,7 +1196,7 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 // _removeEventFromUID:owner:withRecurrenceId:  [changeParticipationStatus:withDelegate:forRecurrenceId:]   |                    
 //                     |                                          |                                         |
 //                     |                                          v                                         |
-//                     +------------------------> _handleAttendee:withDelegate:ownerUser:statusChange:inEvent: ---> [sendResponseToOrganizer:from:]
+//                     +------------------------> _handleAttendee:withDelegate:ownerUser:statusChange:inEvent: ---> [sendResponseToOrganizer:from:] once the event is saved
 //                                                  |
 //                                                  v
 //  _updateAttendee:withDelegate:ownerUser:forEventUID:withRecurrenceId:withSequence:forUID:shouldAddSentBy:      
