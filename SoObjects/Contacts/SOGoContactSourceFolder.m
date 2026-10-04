@@ -809,7 +809,6 @@
   [source releaseConnection: connection];
   [records release];
   [cnames release];
-//   NSLog (@"/adding properties with url");
 
   NSZoneFree (NULL, propertiesArray);
 }
