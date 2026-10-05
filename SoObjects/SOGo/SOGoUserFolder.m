@@ -689,19 +689,6 @@
   return [NSString stringWithFormat: @"%02i%02i", secs / 60 / 60, abs(secs % 60)];
 }
 
-// - (NSException *) setDavSignature: (NSString *) newSignature
-// {
-//   SOGoUserDefaults *ud;
-//   SOGoUser *user;
-
-//   user = [SOGoUser userWithLogin: [self ownerInContext: nil]];
-//   ud = [user userDefaults];
-//   [ud setMailSignature: newSignature];
-//   [ud synchronize];
-
-//   return nil;
-// }
-
 #warning unused stub
 - (BOOL) collectionDavKey: (NSString *) key
 		  matches: (NSString *) value

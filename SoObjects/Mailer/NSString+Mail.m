@@ -708,37 +708,6 @@ DomainByDecodingIDNLabels (NSString *domain)
 
 @end
 
-// @interface NSDictionary (SOGoDebug)
-
-// - (void) dump;
-
-// @end
-
-// @implementation NSDictionary (SOGoDebug)
-
-// - (void) dump
-// {
-//   NSEnumerator *keys;
-//   NSString *key;
-//   NSMutableString *dump;
-
-//   dump = [NSMutableString new];
-//   [dump appendFormat: @"\nNSDictionary dump (%@):\n", self];
-//   keys = [[self allKeys] objectEnumerator];
-//   key = [keys nextObject];
-//   while (key)
-//     {
-//       [dump appendFormat: @"%@: %@\n", key, [self objectForKey: key]];
-//       key = [keys nextObject];
-//     }
-//   [dump appendFormat: @"--- end ---\n"];
-
-//   NSLog (dump);
-//   [dump release];
-// }
-
-// @end
-
 @implementation NSString (SOGoExtension)
 
 + (NSString *) generateMessageID: (NSString *) mailOrDomain

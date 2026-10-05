@@ -398,15 +398,6 @@
 
 /* E-Tags */
 
-// - (id) davEntityTag
-// {
-//   NSString *etag;
-
-//   etag = [NSString stringWithFormat: @"<D:getetag>\"gcs%.8d\"</D:getetag>", version];
-
-//   return [SOGoWebDAVValue valueForObject: etag attributes: nil];;
-// }
-
 - (id) davEntityTag
 {
   return [NSString stringWithFormat: @"\"gcs%.8d\"", version];
