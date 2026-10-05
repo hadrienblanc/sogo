@@ -69,10 +69,9 @@ https://www.mozilla.org/en-US/thunderbird/organizations/all-esr.html
 Mozilla Lightning
 ~~~~~~~~~~~~~~~~~
 
-When using Thunderbird, you can use the latest version of Mozilla
-Lightning.  Use the Add-ons manager of Thunderbird or visit:
-
-https://addons.mozilla.org/en-US/thunderbird/addon/lightning/
+The calendar functionality, historically provided by the Mozilla
+Lightning add-on, is built into Thunderbird since version 78. No
+separate installation is required.
 
 SOGo Connector and SOGo Integrator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
