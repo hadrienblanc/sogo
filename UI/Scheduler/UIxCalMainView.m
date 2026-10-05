@@ -86,53 +86,6 @@
     }
 }
 
-- (NSArray *) monthMenuItems
-{
-  static NSMutableArray *monthMenuItems = nil;
-  unsigned int count;
-
-  if (!monthMenuItems)
-    {
-      monthMenuItems = [[NSMutableArray alloc] initWithCapacity: 12];
-      for (count = 1; count < 13; count++)
-        [monthMenuItems addObject:
-                          [NSString stringWithFormat: @"%.2d", count]];
-    }
-
-  return monthMenuItems;
-}
-
-- (void) setMonthMenuItem: (NSString *) aMonthMenuItem
-{
-  monthMenuItem = aMonthMenuItem;
-}
-
-- (NSString *) monthMenuItem
-{
-  return monthMenuItem;
-}
-
-- (NSString *) monthMenuItemLabel
-{
-  return [self localizedNameForMonthOfYear: [monthMenuItem intValue]];
-}
-
-- (NSArray *) yearMenuItems
-{
-  static NSMutableArray *yearMenuItems = nil;
-  int count, year;
- 
-  if (!yearMenuItems)
-    {
-      year = [[NSCalendarDate date] yearOfCommonEra];
-      yearMenuItems = [[NSMutableArray alloc] initWithCapacity: 11];
-      for (count = -5; count < 6; count++)
-        [yearMenuItems addObject: [NSNumber numberWithInt: year + count]];
-    }
-
-  return yearMenuItems;
-}
-
 - (NSArray *) tasksFilters
 {
   return [NSArray arrayWithObjects: @"view_all", @"view_today", @"view_next7",
@@ -155,16 +108,6 @@
     selectedFilter = @"view_today";
   
   return selectedFilter;
-}
-
-- (void) setYearMenuItem: (NSNumber *) aYearMenuItem
-{
-  yearMenuItem = aYearMenuItem;
-}
-
-- (NSNumber *) yearMenuItem
-{
-  return yearMenuItem;
 }
 
 - (NSString *) verticalDragHandleStyle

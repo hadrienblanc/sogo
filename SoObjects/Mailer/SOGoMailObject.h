@@ -67,8 +67,7 @@ extern NSArray *SOGoMailCoreInfoKeys;
 /* core infos */
 
 - (BOOL) doesMailExist;
-- (id) fetchCoreInfos; // TODO: what does it do?
-- (void) setCoreInfos: (NSDictionary *) newCoreInfos;
+- (id) fetchCoreInfos;
 
 - (NGImap4Envelope *) envelope;
 - (NSString *) subject;
@@ -119,7 +118,6 @@ extern NSArray *SOGoMailCoreInfoKeys;
 - (NSException *) addFlags:(id)_f;
 - (NSException *) removeFlags:(id)_f;
 
-- (BOOL) isNewMail;   /* \Recent */
 - (BOOL) flagged;     /* \Flagged */
 - (BOOL) read;        /* \Unseen */
 - (BOOL) replied;     /* \Answered */
@@ -128,10 +126,6 @@ extern NSArray *SOGoMailCoreInfoKeys;
 - (BOOL) isSigned;       /* S/MIME signed message (detached signature) */
 - (BOOL) isOpaqueSigned; /* S/MIME signed message (embedded content) */
 - (BOOL) isEncrypted; /* S/MIME encrypted message */
-
-/* deletion */
-
-- (BOOL) isDeletionAllowed;
 
 - (void) addRequiredKeysOfStructure: (NSDictionary *) info
                                path: (NSString *) p

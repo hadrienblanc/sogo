@@ -194,7 +194,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
     {
       [self _adjustOwner];
       mailboxACL = nil;
-      prefetchedInfos = nil;
     }
 
   return self;
@@ -205,7 +204,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
   [filenames release];
   [folderType release];
   [mailboxACL release];
-  [prefetchedInfos release];
   [super dealloc];
 }
 
@@ -411,58 +409,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
                                   userInfo: nil];
 
   return error;
-}
-
-/* messages */
-- (void) prefetchCoreInfosForMessageKeys: (NSArray *) keys
-{
-  NSUInteger count, max, keyLength;
-  NSMutableArray *uids;
-  NSDictionary *infos;
-  NSArray *allValues;
-  NSString *key;
-
-  if (!SOGoMailCoreInfoKeys)
-    {
-      /* ensure SOGoMailCoreInfoKeys is initialized */
-      [SOGoMailObject class];
-    }
-
-  [prefetchedInfos release];
-
-  max = [keys count];
-  if (max > 0)
-    {
-      uids = [NSMutableArray arrayWithCapacity: max];
-      for (count = 0; count < max; count++)
-        {
-          key = [keys objectAtIndex: count];
-          if ([key hasSuffix: @".eml"])
-            {
-              keyLength = [key length];
-              [uids addObject: [key substringToIndex: keyLength - 4]];
-            }
-          else
-            [uids addObject: key];
-        }
-      infos = (NSDictionary *) [self fetchUIDs: uids parts: SOGoMailCoreInfoKeys];
-
-      prefetchedInfos = [[NSMutableDictionary alloc] initWithCapacity: max];
-
-      // We MUST NOT use setObjects:forKeys here as the fetch's array does NOT
-      // necessarily have the same order!
-      allValues = [infos objectForKey: @"fetch"];
-      max = [allValues count];
-
-      for (count = 0; count < max ; count++)
-	{
-	  infos = [allValues objectAtIndex: count];
-          key = [NSString stringWithFormat: @"%@", [infos objectForKey: @"uid"]];
-	  [prefetchedInfos setObject: infos forKey: key];
-	}
-    }
-  else
-    prefetchedInfos = nil;
 }
 
 - (NSException *) deleteUIDs: (NSArray *) uids
@@ -1301,9 +1247,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
     else if (isdigit ([_key characterAtIndex: 0]) && [self exists])
     {
       obj = [SOGoMailObject objectWithName: _key inContainer: self];
-      if ([_key hasSuffix: @".eml"])
-        _key = [_key substringToIndex: [_key length] - 4];
-      [obj setCoreInfos: [prefetchedInfos objectForKey: _key]];
     }
   }
 

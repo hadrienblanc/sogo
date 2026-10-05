@@ -32,7 +32,6 @@
 
 @interface UIxContactEditor : SOGoDirectAction
 {
-  id addressBookItem;
   NGVCard *card;
   NSString *item;
   NSMutableDictionary *ldifRecord; /* contains the values for editing */
@@ -41,13 +40,9 @@
 
 - (NSMutableDictionary *) ldifRecord;
 
-- (void) setAddressBookItem: (id) _item;
-- (id) addressBookItem;
-
 - (BOOL) isNew;
 - (NSArray *) addressBooksList;
 - (id <SOGoContactFolder>) componentAddressBook;
-- (NSString *) addressBookDisplayName;
 
 @end
 

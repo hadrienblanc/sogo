@@ -77,7 +77,6 @@
 {
   [componentsData release];
   [appointments release];
-  [allDayApts release];
   [appointment release];
   [currentDay release];
   [aptFormatter release];
@@ -357,80 +356,12 @@
 
 /* current day related */
 
-- (void) setCurrentDay:(NSCalendarDate *) _day
-{
-  [_day setTimeZone: timeZone];
-  ASSIGN (currentDay, _day);
-}
-
 - (NSCalendarDate *) currentDay
 {
   return currentDay;
 }
 
-- (id) holidayInfo
-{
-  return nil;
-}
-
-- (NSArray *) allDayApts
-{
-  NSArray        *apts;
-  NSMutableArray *filtered;
-  NSUInteger     i, count;
-
-  if (allDayApts)
-    return allDayApts;
-
-  apts = [self appointments];
-  count = [apts count];
-  filtered = [[NSMutableArray alloc] initWithCapacity: 3];
-  for (i = 0; i < count; i++)
-    {
-      id       apt;
-      NSNumber *bv;
-
-      apt = [apts objectAtIndex: i];
-      bv = [apt valueForKey: @"isallday"];
-      if ([bv boolValue])
-        [filtered addObject: apt];
-    }
-
-  ASSIGN(allDayApts, filtered);
-  [filtered release];
-  return allDayApts;
-}
-
-
-/* special appointments */
-
-- (BOOL) hasDayInfo
-{
-  return [self hasHoldidayInfo] || [self hasAllDayApts];
-}
-
-- (BOOL) hasHoldidayInfo
-{
-  return [self holidayInfo] != nil;
-}
-
-- (BOOL) hasAllDayApts
-{
-  return [[self allDayApts] count] != 0;
-}
-
-
 /* defaults */
-
-- (BOOL) showFullNames
-{
-  return YES;
-}
-
-- (BOOL) showAMPMDates
-{
-  return NO;
-}
 
 - (unsigned) dayStartHour
 {

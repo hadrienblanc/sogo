@@ -261,11 +261,6 @@ static BOOL debugSoParts       = NO;
   return coreInfos;
 }
 
-- (void) setCoreInfos: (NSDictionary *) newCoreInfos
-{
-  ASSIGN (coreInfos, newCoreInfos);
-}
-
 - (id) bodyStructure
 {
   id bodyStructure;
@@ -1143,17 +1138,6 @@ static BOOL debugSoParts       = NO;
 
 /* permissions */
 
-- (BOOL) isDeletionAllowed
-{
-  NSArray *parentAcl;
-  NSString *login;
-
-  login = [[context activeUser] login];
-  parentAcl = [[self container] aclsForUser: login];
-
-  return [parentAcl containsObject: SOGoRole_ObjectEraser];
-}
-
 /* name lookup */
 
 - (id) lookupImap4BodyPartKey: (NSString *) _key
@@ -1658,11 +1642,6 @@ static BOOL debugSoParts       = NO;
 - (BOOL) hasAttachment
 {
   return ([[self fetchFileAttachmentKeys] count] > 0);
-}
-
-- (BOOL) isNewMail
-{
-  return [self _hasFlag: @"recent"];
 }
 
 - (BOOL) read

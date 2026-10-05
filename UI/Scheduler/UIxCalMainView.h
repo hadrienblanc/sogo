@@ -31,22 +31,10 @@
 
 @interface UIxCalMainView : UIxCalView
 {
-  NSString *monthMenuItem;
-  NSNumber *yearMenuItem;
   SOGoUserSettings *us;
   NSMutableDictionary *moduleSettings;
   BOOL contextIsSetup;
 }
-
-- (NSArray *) monthMenuItems;
-- (NSArray *) yearMenuItems;
-
-- (void) setMonthMenuItem: (NSString *) aMonthMenuItem;
-- (NSString *) monthMenuItem;
-- (NSString *) monthMenuItemLabel;
-
-- (void) setYearMenuItem: (NSNumber *) aYearMenuItem;
-- (NSNumber *) yearMenuItem;
 
 - (NSString *) verticalDragHandleStyle;
 - (NSString *) horizontalDragHandleStyle;

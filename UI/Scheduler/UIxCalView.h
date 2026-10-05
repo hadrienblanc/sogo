@@ -45,7 +45,6 @@
   NSArray *appointments;
   NSMutableDictionary *componentsData;
   NSArray *tasks;
-  NSArray *allDayApts;
   NSArray *enabledWeekDays;
   id appointment;
   NSCalendarDate *currentDay;
@@ -79,10 +78,6 @@
 - (BOOL) isMyApt;
 - (BOOL) canAccessApt; /* protection */
 
-- (BOOL) hasDayInfo;
-- (BOOL) hasHoldidayInfo;
-- (BOOL) hasAllDayApts;
-
 - (NSDictionary *) aptTypeDict;
 - (NSString *) aptTypeLabel;
 - (NSString *) aptTypeIcon;
@@ -93,15 +88,10 @@
 - (NSString *) tooltipForApt;
 - (NSString *) appointmentViewURL;
 
-- (id) holidayInfo;
-
 /* related to current day */
-- (void) setCurrentDay: (NSCalendarDate *) _day;
 - (NSCalendarDate *) currentDay;
 
 /* defaults */
-- (BOOL) showFullNames;
-- (BOOL) showAMPMDates;
 - (unsigned) dayStartHour;
 - (unsigned) dayEndHour;
 - (BOOL) shouldDisplayRejectedAppointments;

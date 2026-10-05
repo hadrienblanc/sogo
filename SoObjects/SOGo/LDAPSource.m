@@ -1854,11 +1854,6 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
   return _groupObjectClasses;
 }
 
-- (BOOL) groupExpansionEnabled
-{
-  return _groupExpansionEnabled;
-}
-
 static NSArray *
 _convertRecordToLDAPAttributes (LDAPSourceSchema *schema, NSDictionary *ldifRecord)
 {

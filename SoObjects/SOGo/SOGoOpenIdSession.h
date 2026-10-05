@@ -98,7 +98,6 @@ size_t curl_body_function(void *ptr, size_t size, size_t nmemb, void *buffer);
 
 - (void) initialize;
 - (void) initializeWithConfig: (NSDictionary *) _config;
-- (BOOL) sessionIsOK;
 - (SimpleOpenIdResponse *) _performOpenIdRequest: (NSString *) endpoint
                         method: (NSString *) method
                        headers: (NSDictionary *) headers

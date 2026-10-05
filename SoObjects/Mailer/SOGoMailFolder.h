@@ -43,13 +43,9 @@
   NSMutableArray *filenames;
   NSString *folderType;
   NSDictionary *mailboxACL;
-  NSMutableDictionary *prefetchedInfos;
 }
 
 - (NSString *) absoluteImap4Name;
-
-/* messages */
-- (void) prefetchCoreInfosForMessageKeys: (NSArray *) keys;
 
 - (NSArray *) toOneRelationshipKeys;
 - (NSArray *) toManyRelationshipKeys;
