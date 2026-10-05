@@ -1823,7 +1823,7 @@ FIXME
 
         if (more_available)
           {
-            [folderMetadata setObject: [NSNumber numberWithInt: YES]  forKey: @"MoreAvailable"];
+            [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
             [folderMetadata setObject: *theLastServerKey  forKey: @"SyncKey"];
           }
         else
