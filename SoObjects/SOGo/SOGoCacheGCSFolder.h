@@ -32,11 +32,8 @@
 
 @interface SOGoCacheGCSFolder : SOGoCacheGCSObject
 {
-  NSString *pathPrefix; /* for root folders */
   SOGoCacheGCSObject *aclMessage;
 }
-
-- (void) setPathPrefix: (NSString *) newPathPrefix;
 
 - (NSMutableString *) pathForChild: (NSString *) childName;
 

@@ -88,11 +88,6 @@ static const NSString *kJwtKey = @"jwt";
   return @"";
 }
 
-//- (NSString *) connectURL
-//{
-//  return [NSString stringWithFormat: @"%@/connect", [self applicationPath]];
-//}
-
 - (NSString *) cookieUsername
 {
   NSString *value;
@@ -629,7 +624,7 @@ static const NSString *kJwtKey = @"jwt";
 {
   WOResponse *response;
   NSString *login, *redirectLocation, *serverUrl;
-  NSString *sessionState, *code, *refreshTokenValue;
+  NSString *code;
   NSURL *newLocation, *oldLocation;
   NSDictionary *formValues;
   SOGoUser *loggedInUser;
@@ -671,13 +666,6 @@ static const NSString *kJwtKey = @"jwt";
     {
       //You get here if this is the callback of openid after you logged in
 
-      //NOT MANDATORY
-      // value = [formValues objectForKey: @"session_state"];
-      // if ([value isKindOfClass: [NSArray class]])
-      //   sessionState = [value lastObject];
-      // else
-      //   sessionState = value;
-
       value = [formValues objectForKey: @"code"];
       if ([value isKindOfClass: [NSArray class]])
         code = [value lastObject];
@@ -710,26 +698,8 @@ static const NSString *kJwtKey = @"jwt";
       openIdCookieLocation = [self _authLocationCookie: YES withName: @"openid-location" withValue: nil];
       domainCookie = [self _domainCookie: YES withDomain: _domain];
     }
-    // else if((formValues = [rq formValues]) && [formValues objectForKey: @"action"])
-    // {
-    //   value = [formValues objectForKey: @"action"];
-    //   if ([value isKindOfClass: [NSArray class]])
-    //     code = [value lastObject];
-    //   else
-    //     code = value;
-    //   if([code isEqualToString:@"redirect"])
-    //   {
-    //     //this action onlye serve to make a redirection to openId server after a GET request
-    //     newLocation = [openIdSession loginUrl: redirectLocation];
-    //   }
-    //}
     else
     {
-      // //You get here the first time you access sogo, it redirect to last location
-      // if([[rq method] isEqualToString: @"POST"])
-      //   //To avoid making a redirection to openid server after a post request, we first redirect to a get method
-      //   newLocation = [NSString stringWithFormat: @"%@?action=redirect", redirectLocation];
-      // else
       if(_domain != nil && [_domain length] > 0)
       {
         //add the domain cookie to get it after the redirect

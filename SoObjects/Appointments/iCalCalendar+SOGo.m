@@ -126,7 +126,6 @@
   }
   else
     {
-      //NSLog(@"ERROR: given calendar contains no elements: %@", self);
       element = nil;
     }
 

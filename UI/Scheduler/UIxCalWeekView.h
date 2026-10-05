@@ -29,17 +29,9 @@
 
 @interface UIxCalWeekView : UIxCalView
 
-- (NSDictionary *) weekBeforePrevWeekQueryParameters;
 - (NSDictionary *) prevWeekQueryParameters;
 - (NSDictionary *) nextWeekQueryParameters;
-- (NSDictionary *) weekAfterNextWeekQueryParameters;
 
-- (NSString *) weekBeforeLastWeekName;
-- (NSString *) lastWeekName;
-- (NSString *) currentWeekName;
-- (NSString *) nextWeekName;
-- (NSString *) weekAfterNextWeekName;
-    
 @end
 
 #endif /* __SOGo_UIxCalWeekView_H__ */

@@ -78,7 +78,6 @@ schemaTokens (NSString *schema)
       switch (characters[count])
         {
         case '(':
-          // NSLog (@"increase");
           parenLevel++;
           parentArray = currentArray;
           currentArray = [NSMutableArray array];
@@ -88,7 +87,6 @@ schemaTokens (NSString *schema)
           [arrayString addObject: currentArray];
           break;
         case ')':
-          // NSLog (@"decrease");
           parenLevel--;
           [arrayString removeLastObject];
           currentArray = [arrayString lastObject];
@@ -100,7 +98,6 @@ schemaTokens (NSString *schema)
                                               length: (count - firstChar)];
               if (![token isEqualToString: @"$"])
                 [currentArray addObject: token];
-              // NSLog (@"added token: %@", token);
               firstChar = (NSUInteger) -1;
             }
           break;

@@ -66,7 +66,6 @@
 
       if (test && [test isKindOfClass: [NSException class]])
         {
-          //NSLog (@"%@ not found", [card reference]);
           cardCopy = [card copy];
           [invalid addObject: cardCopy];
           [cardCopy release];

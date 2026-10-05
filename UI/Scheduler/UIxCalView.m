@@ -368,11 +368,6 @@
   return currentDay;
 }
 
-- (NSString *) currentDayName
-{
-  return [self localizedNameForDayOfWeek: [currentDay dayOfWeek]];
-}
-
 - (id) holidayInfo
 {
   return nil;
@@ -625,7 +620,6 @@
       [uri appendString: @"Groups/_custom_"];
       [uri appendString: uidsString];
       [uri appendString: @"/"];
-      //NSLog (@"Group URI = '%@'", uri);
     }
   else
     {

@@ -28,16 +28,10 @@
 @class NSDictionary;
 @class NSMutableDictionary;
 
-@class SOGoAptFormatter;
-@class SOGoDateFormatter;
-
 @protocol WOActionResults;
 
 @interface UIxCalMonthView : UIxCalView
 {
-  SOGoAptFormatter *monthAptFormatter;
-  SOGoDateFormatter *dateFormatter;
-
   NSCalendarDate *currentTableDay;
   NSMutableArray *weeksToDisplay;
   NSArray *currentWeek;
@@ -48,16 +42,8 @@
   unsigned int *daysNumbersToDisplay;
 }
 
-- (NSDictionary *) monthBeforePrevMonthQueryParameters;
 - (NSDictionary *) prevMonthQueryParameters;
 - (NSDictionary *) nextMonthQueryParameters;
-- (NSDictionary *) monthAfterNextMonthQueryParameters;
-
-- (NSString *) monthNameOfTwoMonthAgo;
-- (NSString *) monthNameOfOneMonthAgo;
-- (NSString *) monthNameOfThisMonth;
-- (NSString *) monthNameOfNextMonth;
-- (NSString *) monthNameOfTheMonthAfterNextMonth;
 
 - (NSArray *) weeksToDisplay;
 

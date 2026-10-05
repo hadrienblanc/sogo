@@ -384,7 +384,6 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
 {
   NSDictionary *contactInfos;
 
-//   NSLog (@"getCNForUID: %@", uid);
   contactInfos = [self contactInfosForUserWithUIDorEmail: uid];
 
   return [contactInfos objectForKey: @"cn"];
@@ -745,7 +744,6 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
   if (useCache && currentUser && dictPassword)
     {
       checkOK = ([dictPassword isEqualToString: [_pwd asSHA1String]]);
-      //NSLog(@"Password cache hit for user %@", _login);
     }
   else if ([self _sourceCheckLogin: _login
                        andPassword: _pwd

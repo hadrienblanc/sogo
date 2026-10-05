@@ -591,7 +591,6 @@ static BOOL debugOn = NO;
   else
     {
       classString = @"SOGoMailBodyPart";
-//       NSLog (@"unhandled mime type: '%@'", mimeType);
     }
 
   klazz = NSClassFromString (classString);

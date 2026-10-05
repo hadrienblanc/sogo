@@ -20,12 +20,12 @@
 
 
 
+#import <Foundation/NSUserDefaults.h> /* for locale string constants */
 #import <NGExtensions/NSCalendarDate+misc.h>
 #import <SoObjects/SOGo/NSCalendarDate+SOGo.h>
 
 #import <SOPE/NGCards/iCalRecurrenceRule.h>
 
-#import <SOGoUI/SOGoAptFormatter.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/WOResourceManager+SOGo.h>
@@ -38,11 +38,6 @@
 {
   if ((self = [super init]))
     {
-//       monthAptFormatter
-//         = [[SOGoAptFormatter alloc] initWithDisplayTimeZone: timeZone];
-//       [monthAptFormatter setShortMonthTitleOnly];
-//       dateFormatter = [[SOGoDateFormatter alloc]
-//                         initWithLocale: [self locale]];
       dayNames = [locale objectForKey: NSWeekDayNameArray];
       [dayNames retain];
       monthNames = [locale objectForKey: NSMonthNameArray];
@@ -154,11 +149,6 @@
   return [self queryParametersBySettingSelectedDate: [self _nextValidDate: date]];
 }
 
-- (NSDictionary *) monthBeforePrevMonthQueryParameters
-{
-  return [self _dateQueryParametersWithOffset: -2];
-}
-
 - (NSDictionary *) prevMonthQueryParameters
 {
   return [self _dateQueryParametersWithOffset: -1];
@@ -167,47 +157,6 @@
 - (NSDictionary *) nextMonthQueryParameters
 {
   return [self _dateQueryParametersWithOffset: 1];
-}
-
-- (NSDictionary *) monthAfterNextMonthQueryParameters
-{
-  return [self _dateQueryParametersWithOffset: 2];
-}
-
-- (NSString *) _monthNameWithOffsetFromThisMonth: (int) monthsOffset
-{
-  NSCalendarDate *date, *firstDay;
-
-  firstDay = [[self selectedDate] firstDayOfMonth];
-  date = [firstDay dateByAddingYears: 0 months: monthsOffset
-		   days: 0 hours: 0 minutes: 0 seconds: 0];
-
-  return [self localizedNameForMonthOfYear: [date monthOfYear]];
-}
-
-- (NSString *) monthNameOfTwoMonthAgo
-{
-  return [self _monthNameWithOffsetFromThisMonth: -2];
-}
-
-- (NSString *) monthNameOfOneMonthAgo
-{
-  return [self _monthNameWithOffsetFromThisMonth: -1];
-}
-
-- (NSString *) monthNameOfThisMonth
-{
-  return [self _monthNameWithOffsetFromThisMonth: 0];
-}
-
-- (NSString *) monthNameOfNextMonth
-{
-  return [self _monthNameWithOffsetFromThisMonth: 1];
-}
-
-- (NSString *) monthNameOfTheMonthAfterNextMonth
-{
-  return [self _monthNameWithOffsetFromThisMonth: 2];
 }
 
 /* template accessors */

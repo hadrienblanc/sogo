@@ -2102,8 +2102,6 @@ static NSArray *childRecordFields = nil;
   unsigned int count, max, currentSize, queryNameLength;
   NSString *currentName;
 
-//   NSLog (@"fetching components matching names");
-
   currentNames = [NSMutableArray array];
   currentSize = baseQuerySize;
 
@@ -2129,8 +2127,6 @@ static NSArray *childRecordFields = nil;
       records = [self _fetchComponentsWithNames: currentNames fields: fields];
       [components addObjectsFromArray: records];
     }
-
-//   NSLog (@"/fetching components matching names");
 
   return components;
 }
@@ -2228,13 +2224,9 @@ static NSArray *childRecordFields = nil;
   NSString **values, **currentValue;
   SEL methodSel;
 
-//   NSLog (@"_properties:ofObject:: %@", [NSDate date]);
-
   values = NSZoneMalloc (NULL,
                          (propertiesCount + 1) * sizeof (NSString *));
   *(values + propertiesCount) = nil;
-
-  //c = [self objectClassForComponentName: [object objectForKey: @"c_component"]];
 
   sogoObject = [self createChildComponentWithRecord: object];
   currentProperty = properties;
@@ -2249,8 +2241,6 @@ static NSArray *childRecordFields = nil;
       currentValue++;
     }
 
-//    NSLog (@"/_properties:ofObject:: %@", [NSDate date]);
-
   return values;
 }
 
@@ -2261,8 +2251,6 @@ static NSArray *childRecordFields = nil;
   NSMutableArray *propstats, *properties200, *properties404, *propDict;
   NSString **property, **values, **currentValue;
   NSString *propertyValue, *nodeTag;
-
-//   NSLog (@"_propstats:ofObject:: %@", [NSDate date]);
 
   propstats = [NSMutableArray array];
 
@@ -2308,7 +2296,6 @@ static NSArray *childRecordFields = nil;
 					  properties404, @"properties",
 					@"HTTP/1.1 404 Not Found", @"status",
 					nil]];
-//    NSLog (@"/_propstats:ofObject:: %@", [NSDate date]);
 
   return propstats;
 }
@@ -2348,14 +2335,12 @@ static NSArray *childRecordFields = nil;
   [r appendString: [[object objectForKey: @"c_name"] stringByEscapingURL]];
   [r appendString: @"</D:href>"];
 
-//   NSLog (@"(appendPropstats...): %@", [NSDate date]);
   propstats = [self _propstats: properties count: propertiesCount
                       ofObject: object];
   max = [propstats count];
   for (count = 0; count < max; count++)
     [self _appendPropstat: [propstats objectAtIndex: count]
 	  toBuffer: r];
-//   NSLog (@"/(appendPropstats...): %@", [NSDate date]);
 
   [r appendString: @"</D:response>"];
 }
@@ -2406,7 +2391,6 @@ static NSArray *childRecordFields = nil;
 
   components = [self _fetchComponentsMatchingURLs: urls fields: fields];
   max = [urls count];
-//   NSLog (@"adding properties with url");
   buffer = [NSMutableString stringWithCapacity: max*512];
   for (count = 0; count < max; count++)
     {
@@ -2423,7 +2407,6 @@ static NSArray *childRecordFields = nil;
                             toBuffer: buffer];
     }
   [response appendContentString: buffer];
-//   NSLog (@"/adding properties with url");
 
   NSZoneFree (NULL, propertiesArray);
 }

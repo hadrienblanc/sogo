@@ -217,7 +217,6 @@
       startDate = [[currentRule objectAtIndex: 0] asCalendarDate];
       endDate = [startDate dateByAddingYears: 0 months: 0 days: 0 hours: 1 minutes: 0 seconds: 0];
       recurrenceRule = [iCalRecurrenceRule recurrenceRuleWithICalRepresentation: [currentRule objectAtIndex: 1]];
-//       NSLog(@"%@: %@", startDate, recurrenceRule);
 
       firRange = [NGCalendarDateRange calendarDateRangeWithStartDate: startDate
 							     endDate: endDate];

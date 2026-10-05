@@ -327,7 +327,6 @@
       filename = [NSString stringWithFormat: @"js/%@.js", NSStringFromClass([page class])];
       url = [self urlForResourceFilename: filename];
     }
-  //NSLog(@"pageJavaScript => %@", filename);
 
   return url;
 }
@@ -351,7 +350,6 @@
       filename = [NSString stringWithFormat: @"js/%@.js", [page frameworkName]];
       url = [self urlForResourceFilename: filename];
     }
-  //NSLog(@"productJavaScript => %@", filename);
   
   return url;
 }
@@ -680,10 +678,6 @@
   WEClientCapabilities *cc;
 
   cc = [[context request] clientCapabilities];
-
-  //NSLog(@"Browser = %@", [cc description]);
-  //NSLog(@"User agent = %@", [cc userAgent]);
-  //NSLog(@"Browser major version = %i", [cc majorVersion]);
 
   return (([[cc userAgentType] isEqualToString: @"IE"]
 	   && [cc majorVersion] >= 7)

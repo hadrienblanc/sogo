@@ -35,11 +35,6 @@
 
 /* URLs */
 
-- (NSDictionary *) dayBeforePrevDayQueryParameters
-{
-  return [self _dateQueryParametersWithOffset: -2];
-}
-
 - (NSDictionary *) prevDayQueryParameters
 {
   return [self _dateQueryParametersWithOffset: [self _nextValidOffset: -1]];
@@ -48,26 +43,6 @@
 - (NSDictionary *) nextDayQueryParameters
 {
   return [self _dateQueryParametersWithOffset: [self _nextValidOffset: +1]];
-}
-
-- (NSDictionary *) dayAfterNextDayQueryParameters
-{
-  return [self _dateQueryParametersWithOffset: 2];
-}
-
-- (NSDictionary *) currentDateQueryParameters
-{
-  NSMutableDictionary *qp;
-  NSString *hmString;
-  NSCalendarDate *date;
-
-  date = [self selectedDate];
-  hmString = [NSString stringWithFormat:@"%.2d%.2d",
-                       (int)[date hourOfDay], (int)[date minuteOfHour]];
-  qp = [[self queryParameters] mutableCopy];
-  [self setSelectedDateQueryParameter:date inDictionary:qp];
-  [qp setObject: hmString forKey:@"hm"];
-  return [qp autorelease];
 }
 
 /* fetching */
@@ -90,29 +65,14 @@
   return [self localizedNameForDayOfWeek: [date dayOfWeek]];
 }
 
-- (NSString *) dayBeforeYesterdayName
-{
-  return [self _dayNameWithOffsetFromToday: -2];
-}
-
 - (NSString *) yesterdayName
 {
   return [self _dayNameWithOffsetFromToday: [self _nextValidOffset: -1]];
 }
 
-- (NSString *) currentDayName
-{
-  return [self _dayNameWithOffsetFromToday: 0];
-}
-
 - (NSString *) tomorrowName
 {
   return [self _dayNameWithOffsetFromToday: [self _nextValidOffset: +1]];
-}
-
-- (NSString *) dayAfterTomorrowName
-{
-  return [self _dayNameWithOffsetFromToday: 2];
 }
 
 @end

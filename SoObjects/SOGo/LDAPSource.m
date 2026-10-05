@@ -290,7 +290,6 @@ static Class NSStringK;
 
 - (void) setBindDN: (NSString *) theDN
 {
-  //NSLog(@"Setting bind DN to %@", theDN);
   ASSIGN(_bindDN, theDN);
 }
 
@@ -474,7 +473,6 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
 
   NS_DURING
     {
-      //NSLog(@"Creating NGLdapConnection instance for bindDN '%@'", _bindDN);
       ldapConnection = [[NGLdapConnection alloc] initWithHostName: _hostname
                                                              port: _port];
       [ldapConnection autorelease];
@@ -2037,15 +2035,6 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
     {
       name = [origAttributeNames objectAtIndex: count];
       origAttribute = [origAttributes objectForKey: name];
-      /* the attribute must only have string values, otherwise it will anyway
-         be missing from the new record */
-      // allStrings = YES;
-      // values = [origAttribute allValues];
-      // valueMax = [values count];
-      // for (valueCount = 0; allStrings && valueCount < valueMax; valueCount++)
-      //   if (![[values objectAtIndex: valueCount] isKindOfClass: NSStringK])
-      //     allStrings = NO;
-      // if (allStrings)
       [changes
         addObject: [NGLdapModification deleteModification: origAttribute]];
     }
