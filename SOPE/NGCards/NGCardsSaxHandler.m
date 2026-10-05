@@ -138,7 +138,6 @@ static NSArray *privilegedTagNames = nil;
   unsigned int count, max;
   Class elementClass;
 
-//   NSLog (@"startElement localName: '%@'", _localName);
 
   if ([_localName isEqualToString: @"vCardSet"])
     [self startVCardSet];
@@ -176,7 +175,6 @@ static NSArray *privilegedTagNames = nil;
           namespace: (NSString *)_ns
             rawName: (NSString *)_rawName
 {
-//   NSLog (@"endElement localName: '%@'", _localName);
   if ([_localName isEqualToString: @"vCardSet"])
     [self endVCardSet];
   else if ([_localName isEqualToString: @"group"])
@@ -213,7 +211,6 @@ static NSArray *privilegedTagNames = nil;
                     length: contentLength];
       free (content);
       content = NULL;
-      //NSLog(@"content: '%@'", s);
       if ([privilegedTagNames containsObject: [currentElement tag]])
         contentValues = [s vCardSubvalues];
       else
@@ -258,7 +255,6 @@ static NSArray *privilegedTagNames = nil;
   CardGroup *newGroup;
   Class groupClass;
 
-//   NSLog (@"startGroupElement localName: '%@'", _localName);
 
   if (currentCardGroup)
     {
@@ -286,7 +282,6 @@ static NSArray *privilegedTagNames = nil;
 
 - (void) endGroupElement
 {
-//   NSLog (@"endGroupElement localName: '%@'", _localName);
 
   if (currentCardGroup)
     currentCardGroup = [currentCardGroup parent];

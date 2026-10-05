@@ -304,7 +304,6 @@ static NSCharacterSet *whitespaceCharSet = nil;
   NSString *ret;
   NSRange  r;
 
-  //NSLog(@"Unknown Key: %@ in %@",_tagName,elementMapping);
   ret = _tagName;
   
   /*

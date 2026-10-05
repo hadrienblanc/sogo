@@ -290,10 +290,6 @@
 	    }
 	}
     }
-  else
-    {
-      //NSLog(@"Cannot parse iCal duration value: '%@'", self);
-    }
 
   if (isNegative)
     ti = -ti;

@@ -55,8 +55,7 @@
       fprintf(stderr, "Error: could not load a vCard SAX driver bundle!\n");
       exit(2);
     }
-    //NSLog(@"Using parser: %@", self->parser);
-    
+
     self->sax = [[MySAXHandler alloc] init];
     [parser setContentHandler:self->sax];
     [parser setErrorHandler:self->sax];

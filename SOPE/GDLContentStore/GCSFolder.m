@@ -551,9 +551,7 @@ static GCSStringFormatter *stringFormatter = nil;
   [sql appendString:@" OFFSET "]; // index from 0
 #endif
 
-//   NSLog(@"/queryForFields...");
 
-//   NSLog (@"query:\n/%@/", sql);
 
   return sql;
 }
@@ -574,7 +572,6 @@ static GCSStringFormatter *stringFormatter = nil;
   if (channel)
     {
       /* run SQL */
-//       NSLog(@"running query...");
 
       error = [channel evaluateExpressionX:sql];
       if (error)
@@ -596,7 +593,6 @@ static GCSStringFormatter *stringFormatter = nil;
 
 	}
       [self releaseChannel: channel];
-//         NSLog(@"/running query");
     }
   else
     {

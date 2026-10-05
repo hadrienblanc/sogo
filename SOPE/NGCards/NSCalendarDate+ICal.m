@@ -76,8 +76,6 @@ static NSString *gmtcalfmt = @"%Y%m%dT%H%M%SZ";
     return [self icalStringInGMT];
   else {
     /* not in GMT */
-    //NSLog(@"WARNING(%s): arbitary timezones not supported yet: %@",
-    //      __PRETTY_FUNCTION__, _tz);
     return [self icalStringInGMT];
   }
 }
