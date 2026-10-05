@@ -175,6 +175,21 @@
   return [NSString stringWithFormat: @"(\"x-originating-ip\" \"%@\")", address];
 }
 
+- (NGImap4Connection *) _connectionFromManager: (id) manager
+                                            url: (NSURL *) url
+                                       password: (NSString *) password
+                           preLoginIDParameters: (NSString *) idParameters
+{
+  if ([manager respondsToSelector:
+                @selector(connectionForURL:password:preLoginIDParameters:)])
+    return [manager connectionForURL: url
+                            password: password
+                preLoginIDParameters: idParameters];
+
+  return [manager connectionForURL: url
+                          password: password];
+}
+
 - (NGImap4Connection *) _createIMAP4Connection
 {
   NGImap4ConnectionManager *manager;
@@ -213,17 +228,19 @@
 
       idParameters = [self _preLoginIDParameters];
 
-      newConnection = [manager connectionForURL: imap4URL
-                                       password: password
-                           preLoginIDParameters: idParameters];
+      newConnection = [self _connectionFromManager: manager
+                                                url: imap4URL
+                                           password: password
+                               preLoginIDParameters: idParameters];
       if (!newConnection)
         {
           [self logWithFormat: @"renewing imap4 password"];
           password = [self imap4PasswordRenewed: YES];
           if (password)
-            newConnection = [manager connectionForURL: imap4URL
-                                             password: password
-                                 preLoginIDParameters: idParameters];
+            newConnection = [self _connectionFromManager: manager
+                                                      url: imap4URL
+                                                 password: password
+                                     preLoginIDParameters: idParameters];
         }
     }
   else
