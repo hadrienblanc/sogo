@@ -272,7 +272,6 @@ static void appendDecodedData(NSMutableString *result, NSData *data,
       else
         {
           decodedData = nil;
-          //NSLog (@"encoding '%@' unknown, returning nil data", realEncoding);
         }
     }
   else
@@ -535,7 +534,6 @@ static void appendDecodedData(NSMutableString *result, NSData *data,
                       if ([tag caseInsensitiveCompare: found_tag] == NSOrderedSame)
                         {
                           // Remove the leading slash
-                          //NSLog(@"Found void tag with invalid leading slash: </%@>", found_tag);
                           i--;
                           [d replaceBytesInRange: NSMakeRange(i, 1)
                                        withBytes: NULL

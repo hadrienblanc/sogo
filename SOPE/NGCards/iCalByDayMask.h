@@ -62,7 +62,6 @@ typedef iCalWeekOccurrence iCalWeekOccurrences[7];
       withWeekNumber: (int) week;
 - (BOOL) isWeekDays;
 
-//- (iCalWeekOccurrences *) allDays;
 - (iCalWeekDay) firstDay;
 - (int) firstOccurrence;
 

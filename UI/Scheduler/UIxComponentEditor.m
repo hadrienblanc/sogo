@@ -226,10 +226,6 @@ static NSArray *reminderValues = nil;
 	    }
 	  [component setAttendees: newAttendees];
 	}
-      else
-        {
-	  //NSLog(@"Error scanning following JSON:\n%@", json);  
-        }
     }
 }
 
@@ -239,7 +235,6 @@ static NSArray *reminderValues = nil;
   iCalPerson *organizer;
   BOOL isOwner;
 
-  //owner = [[self clientObject] ownerInContext: context];
   owner = [componentCalendar ownerInContext: context];
   login = [[context activeUser] login];
   isOwner = [owner isEqualToString: login];

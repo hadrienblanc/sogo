@@ -81,7 +81,6 @@
     [children addObject: @"Contacts"];
   if ([currentUser canAccessModule: @"Mail"])
     [children addObject: @"Mail"];
-  // [children addObject: @"Preferences"];
 
   return children;
 }

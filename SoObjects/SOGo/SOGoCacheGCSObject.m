@@ -86,7 +86,6 @@ static EOAttribute *textColumn = nil;
 
 - (void) dealloc
 {
-  //NSLog(@"SOGoCacheGCSObject: -dealloc for name: %@", nameInContainer);
   [tableUrl release];
   [super dealloc];
 }
@@ -113,7 +112,6 @@ static EOAttribute *textColumn = nil;
   if (!o)
     {
       o = [super objectWithName: key  inContainer: theContainer];
-      //NSLog(@"Caching object with key: %@", key);
       [cache registerObject: o withName: key inContainer: theContainer];
     }
 

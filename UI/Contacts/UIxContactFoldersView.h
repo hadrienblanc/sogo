@@ -30,18 +30,12 @@
   NSDictionary *currentContact;
   NSString *selectorComponentClass;
   NSMutableDictionary *moduleSettings;
-  //id currentFolder;
   BOOL contextIsSetup;
 }
 
 - (NSArray *) contactFolders;
 
 - (NSArray *) personalContactInfos;
-
-// - (NSString *) currentContactFolderId;
-// - (NSString *) currentContactFolderOwner;
-// - (NSString *) currentContactFolderName;
-// - (NSString *) currentContactFolderClass;
 
 - (WOResponse *) saveDragHandleStateAction;
 

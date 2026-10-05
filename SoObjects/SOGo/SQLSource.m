@@ -1369,7 +1369,6 @@
               while ((row = [channel fetchAttributes: attrs withZone: NULL]))
                 {
                   mutableRow = [row mutableCopy];
-                  // [mutableRow setObject: self forKey: @"source"];
                   [results addObject: mutableRow];
                   [mutableRow release];
                 }
