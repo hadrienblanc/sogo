@@ -1680,8 +1680,8 @@ void handle_eas_terminate(int signum)
 
                   if ([[theResponse headerForKey: @"Content-Type"] isEqualToString:@"application/vnd.ms-sync.multipart"])
                     {
-                      [context setObject: parts  forKey: @"MultiParts"];
-                      [context setObject: partLength  forKey: @"MultiPartsLen"];
+                      [context setObject: parts forKey: @"MultiParts"];
+                      [context setObject: partLength forKey: @"MultiPartsLen"];
                     }
 
                   [s appendString: [mailObject activeSyncRepresentationInContext: context]];
