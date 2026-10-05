@@ -59,7 +59,6 @@ static Class SOGoContactGCSEntryK = Nil;
   if ((self = [super init]))
     {
       ldifRecord = nil;
-      addressBookItem = nil;
       item = nil;
       componentAddressBook = nil;
     }
@@ -70,7 +69,6 @@ static Class SOGoContactGCSEntryK = Nil;
 - (void) dealloc
 {
   [ldifRecord release];
-  [addressBookItem release];
   [item release];
   [componentAddressBook release];
   [super dealloc];
@@ -96,16 +94,6 @@ static Class SOGoContactGCSEntryK = Nil;
    }
 
   return ldifRecord;
-}
-
-- (void) setAddressBookItem: (id) _item
-{
-  ASSIGN (addressBookItem, _item);
-}
-
-- (id) addressBookItem
-{
-  return addressBookItem;
 }
 
 - (NSArray *) htmlMailFormatList
@@ -182,11 +170,6 @@ static Class SOGoContactGCSEntryK = Nil;
 - (void) setComponentAddressBook: (id <SOGoContactFolder>) _componentAddressBook
 {
   ASSIGN (componentAddressBook, _componentAddressBook);
-}
-
-- (NSString *) addressBookDisplayName
-{
-  return [addressBookItem displayName];
 }
 
 /* actions */

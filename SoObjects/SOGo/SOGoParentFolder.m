@@ -477,11 +477,6 @@ static SoSecurityManager *sm = nil;
   return error;
 }
 
-- (void) removeSubFolder: (NSString *) subfolderName
-{
-  [subFolders removeObjectForKey: subfolderName];
-}
-
 - (NSException *) initSubscribedSubFolders
 {
   NSException *error;

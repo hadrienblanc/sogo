@@ -228,8 +228,6 @@ static SoProduct      *commonProduct      = nil;
               url = [url hostlessURL];
           [pageToURL setObject: url forKey: filename];
         }
-
-//   NSLog (@"url for '%@': '%@'", filename, url);
     }
   else
     url = @"";

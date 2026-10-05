@@ -30,11 +30,6 @@
 - (void) setItem: (NSString *) newItem;
 - (NSString *) item;
 
-- (NSArray *) zoomList;
-- (void) setZoom: (NSString *) zoom;
-- (NSString *) zoom;
-- (NSString *) itemZoomText;
-
 @end
 
 #endif /* UIXATTENDEESEDITOR_H */

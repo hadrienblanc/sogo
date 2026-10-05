@@ -240,7 +240,6 @@
   for (count = 0; count < max; count++)
     {
       folder = [NSString stringWithFormat: @"%@/%@", basePath, [folders objectAtIndex: count]];
-      //NSLog (@"folder %d: %@", count, folder);
       [self cleanupFolder: folder withFM: fm];
     }
 

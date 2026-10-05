@@ -56,16 +56,12 @@
 
   ex = [dispatcher dispatchRequest: request  inResponse: response  context: context];
 
-  //[[self class] memoryStatistics];
-
   if (ex)
     {
       return [NSException exceptionWithHTTPStatus: 500];
     }
 
   RELEASE(dispatcher);
-
-  //[[SOGoCache sharedCache] killCache];
 
   return response;
 }

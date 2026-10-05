@@ -381,7 +381,6 @@ Class SOGoContactSourceFolderK;
         }
     }
 
-  // NSLog (@"setting categories to : %@", categories);
   ownerUser = [SOGoUser userWithLogin: owner];
   ud = [ownerUser userDefaults];
   [ud setContactsCategories: categories];
@@ -469,7 +468,6 @@ Class SOGoContactSourceFolderK;
   for (i = 0; i < max; i++)
     {
       folder = [sortedFolders objectAtIndex: i];
-      //NSLog(@"  Address book: %@ (%@)", [folder displayName], [folder class]);
       contacts = [folder lookupContactsWithFilter: theFilter
                                        onCriteria: nil
                                            sortBy: @"c_cn"

@@ -370,7 +370,6 @@
     {
       folder = [NSString stringWithFormat: @"%@/%@",
                          basePath, [folders objectAtIndex: count]];
-      // NSLog (@"folder %d: %@", count, folder);
       [self extractFolder: folder withFM: fm
                intoRecord: tables];
     }

@@ -46,36 +46,6 @@
   return item;
 }
 
-- (NSArray *) zoomList
-{
-  static NSArray *zoomItems = nil;
-
-  if (!zoomItems)
-    {
-      zoomItems = [NSArray arrayWithObjects: @"400", @"200", @"100",
-			   @"50", @"25", nil];
-      [zoomItems retain];
-    }
-
-  return zoomItems;
-}
-
-- (void) setZoom: (NSString *) zoom
-{
-//   ASSIGN (zoom, _zoom);
-}
-
-- (NSString *) zoom
-{
-  return @"100";
-//   return zoom;
-}
-
-- (NSString *) itemZoomText
-{
-  return [self labelForKey: [NSString stringWithFormat: @"zoom_%@", item]];
-}
-
 - (unsigned int) dayStartHour
 {
   SOGoUserDefaults *ud;

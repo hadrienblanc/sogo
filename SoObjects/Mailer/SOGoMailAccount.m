@@ -270,11 +270,6 @@ static NSString *inboxFolderName = @"INBOX";
   return [self hasCapability: @"quota"];
 }
 
-- (BOOL) supportsQResync
-{
-  return [self hasCapability: @"qresync"];
-}
-
 - (BOOL) supportsMove
 {
   return [self hasCapability: @"move"];

@@ -33,13 +33,9 @@
 @interface UIxCalendarSelector : UIxComponent
 {
   NSMutableArray *calendars;
-  NSDictionary *currentCalendar;
 }
 
 - (NSArray *) calendars;
-
-- (void) setCurrentCalendar: (NSDictionary *) newCalendar;
-- (NSDictionary *) currentCalendar;
 
 - (WOResponse *) calendarsListAction;
 

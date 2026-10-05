@@ -131,8 +131,6 @@ andMultipleBookingsField: (NSString *) newMultipleBookingsField;
 
 - (void) updateBaseDNFromLogin: (NSString *) theLogin;
 
-- (BOOL) groupExpansionEnabled;
-
 @end
 
 #endif /* LDAPSOURCE_H */

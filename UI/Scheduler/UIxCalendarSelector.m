@@ -35,35 +35,6 @@
 
 #import "UIxCalendarSelector.h"
 
-static inline unsigned int
-_intValueFromHexChar (unichar hexChar)
-{
-  unichar base;
-
-  if (hexChar >= '0' && hexChar <= '9')
-    base = '0';
-  else if (hexChar >= 'A' && hexChar <= 'F')
-    base = 'A' - 10;
-  else
-    base = 'a' - 10;
-
-  return (hexChar - base);
-}
-
-static inline unsigned int
-_intValueFromHex (NSString *hexString)
-{
-  unsigned int value, count, max;
-
-  value = 0;
-  max = [hexString length];
-  for (count = 0; count < max; count++)
-    value = (value * 16
-	     + _intValueFromHexChar([hexString characterAtIndex: count]));
-
-  return value;
-}
-
 @implementation UIxCalendarSelector
 
 - (id) init
@@ -71,7 +42,6 @@ _intValueFromHex (NSString *hexString)
   if ((self = [super init]))
     {
       calendars = nil;
-      currentCalendar = nil;
     }
 
   return self;
@@ -80,7 +50,6 @@ _intValueFromHex (NSString *hexString)
 - (void) dealloc
 {
   [calendars release];
-  [currentCalendar release];
   [super dealloc];
 }
 
@@ -260,44 +229,6 @@ _intValueFromHex (NSString *hexString)
     }
 
   return calendars;
-}
-
-- (void) setCurrentCalendar: (NSDictionary *) newCalendar
-{
-  ASSIGN (currentCalendar, newCalendar);
-}
-
-- (NSDictionary *) currentCalendar
-{
-  return currentCalendar;
-}
-
-- (NSString *) currentCalendarClass
-{
-  return [currentCalendar
-	   keysWithFormat: @"colorBox calendarFolder%{folder}"];
-}
-
-- (NSString *) currentCalendarStyle
-{
-  return [currentCalendar
-	   keysWithFormat: @"color: %{color}; background-color: %{color};"];
-}
-
-/* code taken from Lightning 0.7 */
-- (NSString *) contrastingTextColor
-{
-  NSString *bgColor;
-  unsigned int red, green, blue;
-  float brightness;
-
-  bgColor = [[currentCalendar objectForKey: @"color"] substringFromIndex: 1];
-  red = _intValueFromHex ([bgColor substringFromRange: NSMakeRange (0, 2)]);
-  green = _intValueFromHex ([bgColor substringFromRange: NSMakeRange (2, 2)]);
-  blue = _intValueFromHex ([bgColor substringFromRange: NSMakeRange (4, 2)]);
-  brightness = (0.299 * red) + (0.587 * green) + (0.114 * blue);
-
-  return ((brightness < 144) ? @"white" : @"black");
 }
 
 /**
