@@ -118,22 +118,6 @@ static BOOL NGMonthDaySet_fillWithByMonthDay (NGMonthDaySet *positiveDaySet,
   return ok;
 }
 
-static inline unsigned iCalDoWForNSDoW (int dow) 
-{
-  switch (dow)
-    {
-    case 0: return iCalWeekDaySunday;
-    case 1: return iCalWeekDayMonday;
-    case 2: return iCalWeekDayTuesday;
-    case 3: return iCalWeekDayWednesday;
-    case 4: return iCalWeekDayThursday;
-    case 5: return iCalWeekDayFriday;
-    case 6: return iCalWeekDaySaturday;
-    case 7: return iCalWeekDaySunday;
-    default: return 0;
-    }
-}
-
 - (BOOL) _addInstanceWithStartDate: (NSCalendarDate *)_startDate
 			 limitDate: (NSCalendarDate *)_until
 			limitRange: (NGCalendarDateRange *)_r

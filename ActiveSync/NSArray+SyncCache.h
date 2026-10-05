@@ -42,8 +42,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 @interface NSArray (SyncCache)
 
-- (NSDictionary *) dictionaryValue;
-
 - (BOOL) syncKeyAdvancesAfterIndex: (int) theIndex;
 
 @end

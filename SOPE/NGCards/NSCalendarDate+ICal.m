@@ -126,8 +126,4 @@ static NSString *gmtcalfmt = @"%Y%m%dT%H%M%SZ";
   /* start and end in same year, calculate plain diff */
   return [end monthOfYear] - [start monthOfYear];
 }
-
-- (unsigned)daysBetweenDate:(NSCalendarDate *)_date {
-  return ABS([self julianNumber] - [_date julianNumber]);
-}
 @end /* NSCalendarDate (iCalRecurrenceCalculatorExtensions) */
