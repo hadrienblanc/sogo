@@ -551,8 +551,6 @@ static GCSStringFormatter *stringFormatter = nil;
   [sql appendString:@" OFFSET "]; // index from 0
 #endif
 
-
-
   return sql;
 }
 

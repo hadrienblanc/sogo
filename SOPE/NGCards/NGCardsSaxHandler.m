@@ -138,7 +138,6 @@ static NSArray *privilegedTagNames = nil;
   unsigned int count, max;
   Class elementClass;
 
-
   if ([_localName isEqualToString: @"vCardSet"])
     [self startVCardSet];
   else if ([_localName isEqualToString: @"group"])
@@ -254,7 +253,6 @@ static NSArray *privilegedTagNames = nil;
 {
   CardGroup *newGroup;
   Class groupClass;
-
 
   if (currentCardGroup)
     {

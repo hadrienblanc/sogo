@@ -226,7 +226,7 @@ static NSString *Test5912Unquote(NSString *quoted)
       NSString *tag, *command, *arguments;
 
       parts = [line componentsSeparatedByString: @" "];
-      tag = ([parts count] > 0) ? [parts objectAtIndex: 0] : @"";
+      tag = [parts objectAtIndex: 0];
       command = ([parts count] > 1)
         ? [[parts objectAtIndex: 1] uppercaseString]
         : @"";
