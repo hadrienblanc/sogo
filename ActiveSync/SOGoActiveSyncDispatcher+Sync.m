@@ -1165,7 +1165,7 @@ FIXME
 
           if (softdelete_count >= theWindowSize || (theMaxSyncResponseSize > 0 && [s length] >= theMaxSyncResponseSize))
             {
-              [folderMetadata setObject: [NSNumber numberWithBool: YES]  forKey: @"MoreAvailable"];
+              [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
               [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
 
               more_available = YES;
@@ -1174,7 +1174,7 @@ FIXME
               // Since WindowSize is reached don't even try to add more to the response, let's just
               // jump to the end and return the response immediately
               goto return_response;
-          }
+            }
         }
 
       [folderMetadata removeObjectForKey: @"MoreAvailable"];
