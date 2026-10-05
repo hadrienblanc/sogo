@@ -236,7 +236,7 @@ static NSString *Test5912Unquote(NSString *quoted)
         : @"";
 
       if ([command isEqualToString: @"SELECT"]
-       || [command isEqualToString: @"EXAMINE"])
+          || [command isEqualToString: @"EXAMINE"])
         {
           [self _recordSelect: arguments];
           [self _writeTo: fd string:
@@ -248,7 +248,7 @@ static NSString *Test5912Unquote(NSString *quoted)
                      [NSString stringWithFormat: @"%@ OK [READ-WRITE] SELECT completed\r\n", tag]];
         }
       else if ([command isEqualToString: @"LIST"]
-            || [command isEqualToString: @"LSUB"])
+               || [command isEqualToString: @"LSUB"])
         {
           if ([arguments isEqualToString: @"\"\" \"\""])
             [self _writeTo: fd string: @"* LIST (\\Noselect) \".\" \"\"\r\n"];
@@ -258,7 +258,7 @@ static NSString *Test5912Unquote(NSString *quoted)
                      [NSString stringWithFormat: @"%@ OK LIST completed\r\n", tag]];
         }
       else if ([command isEqualToString: @"LOGIN"]
-            || [command isEqualToString: @"AUTHENTICATE"])
+               || [command isEqualToString: @"AUTHENTICATE"])
         [self _writeTo: fd string:
                    [NSString stringWithFormat: @"%@ OK LOGIN completed\r\n", tag]];
       else if ([command isEqualToString: @"CAPABILITY"])
