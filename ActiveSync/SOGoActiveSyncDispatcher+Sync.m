@@ -1262,7 +1262,7 @@ FIXME
                   {
                     if (debugOn)
                       [self logWithFormat: @"EAS - Cache cleanup: DELETE %@", uid];
- 
+
                     // For deletes we have to recreate a cache entry to make sure the delete is sent again.
                     [syncCache setObject: @"0" forKey: uid];
                   }
@@ -1647,7 +1647,7 @@ FIXME
                   }
               }
           }
-        
+
         if (!cleanup_needed &&
             [folderMetadata objectForKey: @"MoreAvailable"] &&
             lastCacheObject && 
@@ -1799,7 +1799,7 @@ FIXME
                     [syncCache setObject: [aCacheObject sequence] forKey: [aCacheObject uid]];
                     [dateCache setObject: [NSCalendarDate date] forKey: [aCacheObject uid]];
 
-                    // Save the frist UID we add. We will use it for the synckey late.
+                    // Save the first UID we add. We will use it for the synckey later.
                     if (!firstUIDAdded)
                       {
                         firstUIDAdded = [aCacheObject uid];
@@ -2159,7 +2159,7 @@ FIXME
           [self _setFolderMetadata: folderMetadata forKey: folderKey];
         }
     }
-  
+
   [context setObject: bodyPreferenceType forKey: @"BodyPreferenceType"];
   [context setObject: mimeSupport forKey: @"MIMESupport"];
   [context setObject: mimeTruncation forKey: @"MIMETruncation"];
