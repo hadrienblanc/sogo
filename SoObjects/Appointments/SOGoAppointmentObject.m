@@ -1916,10 +1916,10 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
           else
             attendees = [occurence attendeesWithoutUser: ownerUser];
         }
-       else
-         attendees = [[event parent] attendeesWithoutUser: currentUser];
+      else
+        attendees = [[event parent] attendeesWithoutUser: currentUser];
 
-       if ([attendees count])
+      if ([attendees count])
         {
           // Remove the event from all attendees calendars
           // and send them an email.
