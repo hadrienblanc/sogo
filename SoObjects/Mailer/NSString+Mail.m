@@ -26,7 +26,6 @@
 #import <SaxObjC/SaxXMLReaderFactory.h>
 #import <NGExtensions/NGHashMap.h>
 #import <NGExtensions/NSString+misc.h>
-#import <NGExtensions/NSObject+Logs.h>
 #import <NGMime/NGMimeBodyPart.h>
 #import <NGMime/NGMimeFileData.h>
 

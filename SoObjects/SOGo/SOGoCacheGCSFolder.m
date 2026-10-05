@@ -40,11 +40,6 @@ Class SOGoCacheGCSObjectK = Nil;
   SOGoCacheGCSObjectK = [SOGoCacheGCSObject class];
 }
 
-- (id) init
-{
-  return [super init];
-}
-
 - (id) initWithName: (NSString *) name inContainer: (id) newContainer
 {
   if ((self = [super initWithName: name inContainer: newContainer]))
