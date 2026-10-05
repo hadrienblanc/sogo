@@ -217,12 +217,18 @@
 	 fetchSpecification: (EOFetchSpecification *) spec
 	     ignoreDeleted: (BOOL) ignoreDeleted
 {
-  [fetchesValue addObject: [NSDictionary dictionaryWithObjectsAndKeys:
-				      fields, @"fields",
-				      [[spec qualifier] allQualifierKeys], @"qualifierKeys",
-				      [NSNumber numberWithBool: ignoreDeleted], @"ignoreDeleted",
-				      [spec qualifier], @"qualifier",
-				      nil]];
+  NSMutableDictionary *record;
+
+  record = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+			      fields, @"fields",
+			      [NSNumber numberWithBool: ignoreDeleted], @"ignoreDeleted",
+			      nil];
+  if ([spec qualifier])
+    {
+      [record setObject: [spec qualifier] forKey: @"qualifier"];
+      [record setObject: [[spec qualifier] allQualifierKeys] forKey: @"qualifierKeys"];
+    }
+  [fetchesValue addObject: record];
 
   return [NSArray array];
 }
@@ -386,17 +392,13 @@
                             operator: EOQualifierOperatorEqual] intValue] == 1);
 }
 
-- (void) test_initialLoadFetchExcludesCurrentSecond
+- (void) test_initialLoadFetchReturnsCurrentSecondRecords
 {
   TestSyncOCSFolder *ocsFolder;
   NSDictionary *liveFetch;
   EOQualifier *qualifier;
-  NSNumber *upperBound;
-  int before, after;
 
-  before = (int) [[NSDate date] timeIntervalSince1970];
   ocsFolder = [self _runSyncReportWithThunderbirdUserAgent: NO syncToken: @""];
-  after = (int) [[NSDate date] timeIntervalSince1970];
 
   test([[ocsFolder recordedFetches] count] == 1);
   liveFetch = [[ocsFolder recordedFetches] objectAtIndex: 0];
@@ -404,12 +406,10 @@
   test([self _syncValueForQualifier: qualifier
                                 key: @"c_lastmodified"
                            operator: EOQualifierOperatorGreaterThan] == nil);
-  upperBound = [self _syncValueForQualifier: qualifier
-                                        key: @"c_lastmodified"
-                                   operator: EOQualifierOperatorLessThan];
-  test(upperBound != nil);
-  test([upperBound intValue] >= before);
-  test([upperBound intValue] <= after);
+  test([self _syncValueForQualifier: qualifier
+                                key: @"c_lastmodified"
+                           operator: EOQualifierOperatorLessThan] == nil);
+  test([[liveFetch objectForKey: @"ignoreDeleted"] boolValue] == YES);
 }
 
 @end
