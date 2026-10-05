@@ -137,8 +137,6 @@ parseSchema (NSString *schema)
 
   schemaDict = [NSMutableDictionary dictionaryWithCapacity: 6];
   tokens = schemaTokens (schema);
-  // [schemaDict setObject: [tokens objectAtIndex: 0]
-  //                forKey: @"oid"];
   value = schemaValue (tokens, @"NAME");
   if (value)
     {

@@ -602,7 +602,6 @@ unsigned char GetRruleMonthNum(unsigned char a, unsigned char b) {
                   NSMutableString *rrule = [NSMutableString string];
                   unsigned char *recurData = filedata->data;
 
-                  // [vcalendar appendString: @"RRULE:FREQ="];
                   if (recurData[0x04] == 0x0A)
                     {
                       [rrule appendString: @"DAILY"];

@@ -135,11 +135,10 @@ static NSDictionary *BSONTypes()
 
 	[components addObject: [NSData dataWithBytes: "\x00" length: 1]];
 
-	// Ensure ordered keys. not in BSON spec, but ensures all BSONRepresentations
-	// of the same dict will be the same.
+	// Keys are encoded in dictionary order, so the BSON representation of
+	// the same dict is not guaranteed to be stable.
 	NSMutableArray *keys = [[NSMutableArray alloc] init];
         [keys addObjectsFromArray: [self allKeys]];
-	//[keys sortUsingSelector: @selector(caseInsensitiveCompare:)];
 
 	// Encode data.- (NSData *) BSONEncode;
 	uint8_t elementType = 0;
