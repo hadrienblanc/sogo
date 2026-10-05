@@ -65,11 +65,6 @@
 
 /* URLs */
 
-- (NSDictionary *) weekBeforePrevWeekQueryParameters
-{
-  return [self _dateQueryParametersWithOffset: -14];
-}
-
 - (NSDictionary *) prevWeekQueryParameters
 {
   return [self _dateQueryParametersWithOffset: -7];
@@ -78,53 +73,6 @@
 - (NSDictionary *) nextWeekQueryParameters
 {
   return [self _dateQueryParametersWithOffset: 7];
-}
-
-- (NSDictionary *) weekAfterNextWeekQueryParameters
-{
-  return [self _dateQueryParametersWithOffset: 14];
-}
-
-- (NSString *) _weekNumberWithOffsetFromToday: (int) offset
-{
-  NSCalendarDate *date;
-  NSString *format;
-  unsigned int weekNbr;
-  SOGoUser *user;
-
-  user = [context activeUser];
-  date = [[self startDate] dateByAddingYears: 0 months: 0
-			   days: (offset * 7) + 6
-			   hours: 0 minutes: 0 seconds: 0];
-  weekNbr = [user weekNumberForDate: date];
-  format = [self labelForKey: @"Week %d"];
-
-  return [NSString stringWithFormat: format, weekNbr];
-}
-
-- (NSString *) weekBeforeLastWeekName
-{
-  return [self _weekNumberWithOffsetFromToday: -2];
-}
-
-- (NSString *) lastWeekName
-{
-  return [self _weekNumberWithOffsetFromToday: -1];
-}
-
-- (NSString *) currentWeekName
-{
-  return [self _weekNumberWithOffsetFromToday: 0];
-}
-
-- (NSString *) nextWeekName
-{
-  return [self _weekNumberWithOffsetFromToday: 1];
-}
-
-- (NSString *) weekAfterNextWeekName
-{
-  return [self _weekNumberWithOffsetFromToday: 2];
 }
 
 @end /* UIxCalWeekView */

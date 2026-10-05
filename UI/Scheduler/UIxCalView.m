@@ -368,11 +368,6 @@
   return currentDay;
 }
 
-- (NSString *) currentDayName
-{
-  return [self localizedNameForDayOfWeek: [currentDay dayOfWeek]];
-}
-
 - (id) holidayInfo
 {
   return nil;

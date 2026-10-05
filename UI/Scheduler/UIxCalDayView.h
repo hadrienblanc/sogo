@@ -27,19 +27,13 @@
 
 @interface UIxCalDayView : UIxCalView
 
-- (NSDictionary *) dayBeforePrevDayQueryParameters;
 - (NSDictionary *) prevDayQueryParameters;
 - (NSDictionary *) nextDayQueryParameters;
-- (NSDictionary *) dayAfterNextDayQueryParameters;
-- (NSDictionary *) currentDateQueryParameters;
 
 - (NSCalendarDate *) startDate;
 
-- (NSString *) dayBeforeYesterdayName;
 - (NSString *) yesterdayName;
-- (NSString *) currentDayName;
 - (NSString *) tomorrowName;
-- (NSString *) dayAfterTomorrowName;
 
 @end
 

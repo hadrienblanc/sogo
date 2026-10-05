@@ -31,17 +31,13 @@
 @class NSNumber;
 @class NSString;
 
-@class SOGoDateFormatter;
-
 @interface UIxCalDayTable : UIxCalView
 {
-  SOGoDateFormatter *dateFormatter;
   NSArray *weekDays;
   NSString *currentView, *timeFormat;
   NSNumber *currentTableHour;
   NSCalendarDate *startDate, *currentTableDay;
-  NSMutableArray *daysToDisplay, *calendarsToDisplay, *hoursToDisplay;
-  NSMutableDictionary *currentCalendar;
+  NSMutableArray *daysToDisplay, *hoursToDisplay;
   unsigned int numberOfDays;
   unsigned int *daysNumbersToDisplay;
 }
@@ -55,10 +51,8 @@
 - (NSCalendarDate *) endDate;
 
 - (NSArray *) daysToDisplay;
-- (NSArray *) calendarsToDisplay;
 - (void) setCurrentTableDay: (NSCalendarDate *) aTableDay;
 - (NSCalendarDate *) currentTableDay;
-- (NSMutableDictionary *) currentCalendar;
 
 @end
 

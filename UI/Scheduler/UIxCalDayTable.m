@@ -27,13 +27,9 @@
 #import <SOPE/NGCards/iCalRecurrenceRule.h>
 
 #import <SOGo/NSCalendarDate+SOGo.h>
-#import <SOGo/SOGoDateFormatter.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/WOResourceManager+SOGo.h>
-
-#import <SoObjects/Appointments/SOGoAppointmentFolder.h>
-#import <SoObjects/Appointments/SOGoAppointmentFolders.h>
 
 #import "UIxCalDayTable.h"
 
@@ -53,18 +49,14 @@
       ASSIGN (timeFormat, [ud timeFormat]);
 
       daysToDisplay = nil;
-      calendarsToDisplay = nil;
       hoursToDisplay = nil;
       numberOfDays = 1;
       startDate = nil;
       currentView = nil;
-      currentCalendar = nil;
       currentTableDay = nil;
       currentTableHour = nil;
       weekDays = [locale objectForKey: NSWeekDayNameArray];
       [weekDays retain];
-      dateFormatter = [user dateFormatterInContext: context];
-      [dateFormatter retain];
     }
 
   return self;
@@ -74,10 +66,8 @@
 {
   [weekDays release];
   [daysToDisplay release];
-  [calendarsToDisplay release];
   [currentView release];
   [hoursToDisplay release];
-  [dateFormatter release];
   [timeFormat release];
   free(daysNumbersToDisplay);
   [super dealloc];
@@ -189,50 +179,6 @@
   return daysToDisplay;
 }
 
-- (NSArray *) calendarsToDisplay
-{
-  if (!calendarsToDisplay)
-  {
-    NSArray *folders;
-    SOGoAppointmentFolders *co;
-    SOGoAppointmentFolder *folder;
-    NSMutableDictionary *calendar;
-    unsigned int count, foldersCount;
-    NSString *folderName, *fDisplayName;
-    BOOL isActive;
-
-    co = [self clientObject];
-    folders = [co subFolders];
-    foldersCount = [folders count];
-    calendarsToDisplay = [[NSMutableArray alloc] initWithCapacity: foldersCount];
-    for (count = 0; count < foldersCount; count++)
-    {
-      folder = [folders objectAtIndex: count];
-      isActive = [folder isActive];
-      if (isActive != NO) {
-        calendar = [NSMutableDictionary dictionary];
-        folderName = [folder nameInContainer];
-        fDisplayName = [folder displayName];
-        if (fDisplayName == nil)
-          fDisplayName = @"";
-        if ([fDisplayName isEqualToString: [co defaultFolderName]])
-          fDisplayName = [self labelForKey: fDisplayName];
-        [calendar setObject: [NSString stringWithFormat: @"/%@", folderName]
-                     forKey: @"id"];
-        [calendar setObject: fDisplayName forKey: @"displayName"];
-        [calendar setObject: folderName forKey: @"folder"];
-        [calendar setObject: [folder calendarColor] forKey: @"color"];
-        [calendar setObject: [NSNumber numberWithBool:isActive] forKey: @"active"];
-        [calendar setObject: [folder ownerInContext: context]
-                     forKey: @"owner"];
-        [calendarsToDisplay addObject: calendar];
-      }
-    }
-  }
-
-  return calendarsToDisplay;
-}
-
 - (void) setCurrentTableDay: (NSCalendarDate *) aTableDay
 {
   currentTableDay = aTableDay;
@@ -241,16 +187,6 @@
 - (NSCalendarDate *) currentTableDay
 {
   return currentTableDay;
-}
-
-- (void) setCurrentCalendar: (NSMutableDictionary *) aCalendar
-{
-  ASSIGN(currentCalendar, aCalendar);
-}
-
-- (NSMutableDictionary *) currentCalendar
-{
-  return currentCalendar;
 }
 
 - (void) setCurrentTableHour: (NSNumber *) aTableHour
@@ -338,27 +274,6 @@
   return isFirstDay? [currentTableDay descriptionWithCalendarFormat: calendarFormat locale: locale] : nil;
 }
 
-- (NSString *) labelForDate
-{
-  return [dateFormatter shortFormattedDate: currentTableDay];
-}
-
-- (NSString *) labelForCalendar
-{
-  return [currentCalendar objectForKey: @"displayName"];
-}
-
-- (NSString *) colorForCalendar
-{
-  return [currentCalendar objectForKey:@"color"];
-}
-
-- (NSString *) appointmentsClasses
-{
-  return [NSString stringWithFormat: @"appointments appointmentsFor%dDays",
-                   numberOfDays];
-}
-
 - (NSString *) dayClasses
 {
   NSMutableString *classes;
@@ -397,14 +312,6 @@
 - (BOOL) isMultiColumnView
 {
   if ([currentView isEqualToString:@"multicolumndayview"])
-    return YES;
-
-  return NO;
-}
-
-- (BOOL) isNotMultiColumnView
-{
-  if ([currentView isEqualToString:@"dayview"] || [currentView isEqualToString:@"weekview"])
     return YES;
 
   return NO;

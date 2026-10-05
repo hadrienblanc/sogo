@@ -98,7 +98,6 @@
 /* related to current day */
 - (void) setCurrentDay: (NSCalendarDate *) _day;
 - (NSCalendarDate *) currentDay;
-- (NSString *) currentDayName; /* localized */
 
 /* defaults */
 - (BOOL) showFullNames;
