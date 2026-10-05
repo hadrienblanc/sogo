@@ -301,7 +301,7 @@ Thunderbird
 * Settings that are pushed upon every restart (ie., forced) of
 Thunderbird
 
-Settings that pushed are pushed during initial configuration are
+Settings that are pushed during initial configuration are
 controlled by the `./defaults/preferences/site.js` file from SOGo
 Integrator. Here is an example:
 
@@ -319,7 +319,7 @@ Here is an example:
 ----
 force_int_pref("changequote.replyformat.format", 0);
 force_bool_pref("changequote.headers.withcc", true);
-force_char_pref(“foo.bar”, “zot”);
+force_char_pref("foo.bar", "zot");
 ----
 
 include::includes/additional-info.asciidoc[]
