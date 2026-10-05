@@ -858,7 +858,7 @@ void handle_eas_terminate(int signum)
       first_sync = YES;
       syncKey = @"1";
     }
-    else if (![metadata objectForKey: @"FolderSyncKey"])
+  else if (![metadata objectForKey: @"FolderSyncKey"])
     {
       // Synchronization key mismatch or invalid synchronization key
       [s appendFormat: @"<FolderSync xmlns=\"FolderHierarchy:\"><Status>9</Status></FolderSync>"];
@@ -912,7 +912,7 @@ void handle_eas_terminate(int signum)
          [o reloadIfNeeded];
 
          // When the GUID entry exists the name of the entry has to be changed to new name
-           if ([[o properties] objectForKey: @"GUID"])
+         if ([[o properties] objectForKey: @"GUID"])
            {
              key = [NSString stringWithFormat: @"%@+folder%@", [context objectForKey: @"DeviceId"], [[o properties] objectForKey: @"GUID"]];
              [[o properties] removeObjectForKey: @"GUID"];

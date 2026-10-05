@@ -216,7 +216,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       [s appendFormat: @"<Recurrence_Occurrences xmlns=\"%@:\">%@</Recurrence_Occurrences>", t,
          [self flattenedValuesForKey: @"count"]];
     }
-    else if ([self untilDate])
+  else if ([self untilDate])
     {
       NSCalendarDate *date;
       
