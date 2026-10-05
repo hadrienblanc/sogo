@@ -721,10 +721,6 @@ static void _init_fontCws_table()
 
           cw = [self parseControlWord: &len];
 
-          // Skip our control word
-          //if (strncmp(start+1, "colortbl", len) == 0)
-          //  continue;
-
           s = [[NSString alloc] initWithBytesNoCopy: (void *)cw
                                              length: len
                                            encoding: NSASCIIStringEncoding

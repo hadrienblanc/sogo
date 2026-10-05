@@ -1352,11 +1352,6 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
   value = [[ldapEntry attributeWithName: _UIDField] stringValueAtIndex: 0];
   if (!value)
     value = @"";
-//  else
-//    {
-//      Eventually, we could check at this point if the entry is a group
-//      and prefix the UID with a "@"
-//    }
   [ldifRecord setObject: value forKey: @"c_uid"];
   value = [[ldapEntry attributeWithName: _CNField] stringValueAtIndex: 0];
   if (!value)

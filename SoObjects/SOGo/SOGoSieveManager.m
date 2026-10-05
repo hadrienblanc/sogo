@@ -1273,13 +1273,11 @@ static NSString *sieveScriptName = @"sogo";
 
   if (values && [[values objectForKey: @"enabled"] boolValue])
     {
-      // BOOL alwaysSend;
       NSString *notify;
       NSString *message, *notificationTranslated;
       id addresses;
       int i;
 
-      // alwaysSend = [[values objectForKey: @"alwaysSend"] boolValue];
       b = YES;
 
       [req addObjectUniquely: @"enotify"];
