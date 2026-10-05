@@ -797,7 +797,6 @@
       return [NSException exceptionWithDAVStatus: 304 /* Not Modified */
                                            reason: @"object was not modified"];
     }
-    
     return nil;
   }
 
