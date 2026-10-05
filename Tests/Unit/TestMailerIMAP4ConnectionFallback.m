@@ -136,20 +136,17 @@
 {
   Class baseObjectClass;
 
-  baseObject = nil;
-  baseObjectClass = ([SOGoTest loadSOGoBundle: @"Mailer"
-                                  markerClass: @"SOGoMailBaseObject"]
-                     ? NSClassFromString (@"SOGoMailBaseObject")
-                     : Nil);
-  testWithMessage (baseObjectClass != Nil,
+  testWithMessage ([SOGoTest loadSOGoBundle: @"Mailer"
+                                markerClass: @"SOGoMailBaseObject"],
                    @"SOGoMailBaseObject class unavailable (Mailer.SOGo bundle missing)");
+  baseObjectClass = NSClassFromString (@"SOGoMailBaseObject");
   if (baseObjectClass)
     baseObject = [[baseObjectClass alloc] init];
 }
 
 - (void) tearDown
 {
-  [baseObject release];
+  ASSIGN (baseObject, nil);
   [super tearDown];
 }
 
