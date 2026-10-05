@@ -1038,7 +1038,6 @@ struct GlobalObjectId {
               break;
             default:
               className = @"IPM.Appointment";
-              NSLog(@"unhandled part stat");
             }
         }
       else if ([method isEqualToString: @"COUNTER"])
