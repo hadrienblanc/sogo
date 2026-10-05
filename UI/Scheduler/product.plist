@@ -18,11 +18,6 @@
           protectedBy = "View";
           pageName    = "UIxCalMainView";
         };
-        printView = {
-          protectedBy = "<public>";
-          pageName    = "UIxCalViewPrint";
-          actionClass = "UIxCalViewPrint";
-        };
         addWebCalendar = {
           protectedBy = "View";
           actionClass = "UIxCalMainActions";

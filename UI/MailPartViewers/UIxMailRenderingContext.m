@@ -98,7 +98,6 @@ static BOOL showNamedTextAttachmentsInline = NO;
     {
       flatContents = [[viewer clientObject] fetchPlainTextParts];
       [flatContents retain];
-//       [self debugWithFormat:@"CON: %@", flatContents];
     }
 
   return flatContents;

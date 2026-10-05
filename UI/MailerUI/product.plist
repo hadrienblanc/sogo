@@ -357,10 +357,6 @@
           pageName    = "UIxMailMainFrame";
           actionName  = "saveColumnsState";
         };
-        search = {
-          protectedBy = "View";
-          pageName    = "UIxMailSearch";
-        };
         unseenCount = {
           protectedBy = "View";
           actionClass = "UIxMailMainFrame";

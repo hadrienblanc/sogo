@@ -21,14 +21,12 @@ MailerUI_OBJC_FILES += \
 	UIxMailView.m			\
 	UIxMailSourceView.m		\
 	UIxMailPopupView.m		\
-	UIxMailMoveToPopUp.m		\
 	\
 	UIxMailAccountActions.m		\
 	UIxMailFolderActions.m		\
 	UIxMailFolderSubscriptions.m	\
 	UIxMailActions.m		\
 	UIxMailEditor.m			\
-	UIxMailWindowCloser.m		\
 	\
 	UIxMailUserRightsEditor.m	\
 	UIxMailUserDelegationEditor.m

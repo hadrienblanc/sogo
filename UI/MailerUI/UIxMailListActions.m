@@ -807,36 +807,9 @@
   messageNbrs = [self getSortedUIDsInFolder: [self clientObject]];
   index
     = [messageNbrs indexOfObject: [NSNumber numberWithInt: messageNbr]];
-//   if (index < 0)
-//     index = 0;
 
   return index;
 }
-
-/* error redirects */
-
-/*
-- (id) redirectToViewWithError: (id) _error 
-{
-  // TODO: DUP in UIxMailAccountView
-  // TODO: improve, localize
-  // TODO: there is a bug in the treeview which preserves the current URL for
-  //       the active object (displaying the error again)
-  id url;
-  
-  if (![_error isNotNull])
-    return [self redirectToLocation:@"view"];
-  
-  if ([_error isKindOfClass:[NSException class]])
-    _error = [_error reason];
-  else if ([_error isKindOfClass:[NSString class]])
-    _error = [_error stringValue];
-  
-  url = [_error stringByEscapingURL];
-  url = [@"view?error=" stringByAppendingString:url];
-  return [self redirectToLocation:url];
-}
-*/
 
 - (NSDictionary *) getUIDsInFolder: (SOGoMailFolder *) folder
                        withHeaders: (BOOL) includeHeaders

@@ -19,7 +19,6 @@ CommonUI_OBJC_FILES +=			\
 	UIxUserRightsEditor.m		\
 	\
 	UIxTopnavToolbar.m      	\
-	UIxToolbar.m			\
 
 CommonUI_RESOURCE_FILES += \
 	product.plist
