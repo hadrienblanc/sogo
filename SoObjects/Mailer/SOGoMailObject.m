@@ -202,10 +202,7 @@ static BOOL debugSoParts       = NO;
 
 - (id) fetchParts: (NSArray *) _parts
 {
-  // TODO: explain what it does
-  /*
-    Called by -fetchPlainTextParts:
-  */
+  /* called by -fetchPlainTextParts: */
   return [[self imap4Connection] fetchURL: [self imap4URL] parts:_parts];
 }
 
