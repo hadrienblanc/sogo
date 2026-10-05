@@ -716,7 +716,7 @@ FIXME
 		    [sogoObject saveComponent: o];
 
 		    if ([syncCache objectForKey: serverId])
-		      [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]]  forKey: serverId];
+		      [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]] forKey: serverId];
 		  }
 		// Trigger a change-command to override client changes since we don't have permissions
 		else
@@ -749,7 +749,7 @@ FIXME
 			  }
 
 			if ([syncCache objectForKey: serverId])
-			  [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]]  forKey: serverId];
+			  [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]] forKey: serverId];
 		      }
 		    // Trigger a change-command to override client changes since we don't have permissions
 		    else
@@ -787,7 +787,7 @@ FIXME
                           [sogoObject saveComponent: o];
 
 			if ([syncCache objectForKey: serverId])
-			  [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]]  forKey: serverId];
+			  [syncCache setObject: [NSString stringWithFormat: @"%f", [[sogoObject lastModified] timeIntervalSince1970]] forKey: serverId];
 		      }
 		    // Trigger a change-command to override client changes since we don't have permissions
 		    else
@@ -825,11 +825,11 @@ FIXME
                 modseq = [[[result objectForKey: @"RawResponse"] objectForKey: @"fetch"] objectForKey: @"modseq"];
 
                 if (modseq && [syncCache objectForKey: serverId])
-                  [syncCache setObject: [modseq stringValue]  forKey: serverId];
+                  [syncCache setObject: [modseq stringValue] forKey: serverId];
               }
             }
 
-          [self _setFolderMetadata: folderMetadata  forKey: [self _getNameInCache: theCollection withType: theFolderType]];
+          [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
 
           [theBuffer appendString: @"<Change>"];
           [theBuffer appendFormat: @"<ServerId>%@</ServerId>", [origServerId activeSyncRepresentationInContext: context]];
