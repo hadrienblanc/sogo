@@ -966,7 +966,7 @@ static BOOL debugSoParts       = NO;
   WOResponse *response;
   unsigned int max, count;
   SOGoZipArchiver *archiver;
-  NSFileHandle *zipFileHandle;;
+  NSFileHandle *zipFileHandle;
 
   if (!archiveName)
     archiveName = @"attachments.zip";

@@ -3294,7 +3294,7 @@ void handle_eas_terminate(int signum)
       if (total < startRange)
         {
           begin -= total;
-          continue;;
+          continue;
         }
 
       for (j = begin; j < total && maxResults >= 0; j++)

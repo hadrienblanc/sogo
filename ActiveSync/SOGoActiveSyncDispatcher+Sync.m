@@ -87,7 +87,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 {
   SOGoCacheGCSObject *o;
   NSNumber *processIdentifier;
-  NSString *key, *collectionId;;
+  NSString *key, *collectionId;
   int i;
 
   processIdentifier = [NSNumber numberWithInt: [[NSProcessInfo processInfo] processIdentifier]];
