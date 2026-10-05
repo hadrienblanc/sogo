@@ -131,8 +131,6 @@ size_t curl_body_function_freebusy(void *ptr, size_t size, size_t nmemb, void *i
           curl_easy_setopt(curl, CURLOPT_URL, [url UTF8String]);
           curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
           curl_easy_setopt(curl, CURLOPT_POSTFIELDS, [rawRequest UTF8String]);
-          //curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curlHeaderFunction);
-          //curl_easy_setopt(curl, CURLOPT_HEADER, 1);
           curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20L);
           curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
           curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -167,7 +165,6 @@ size_t curl_body_function_freebusy(void *ptr, size_t size, size_t nmemb, void *i
                   }
                   sax = [[SaxObjectDecoder alloc] initWithMappingAtPath: mapFile];
                   [parser setContentHandler:sax];
-                  //[parser setErrorHandler:sax];
                 }
               
               body =  [[NSString alloc] initWithData:curlBody encoding:NSASCIIStringEncoding];

@@ -2073,7 +2073,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
 
   color = [[self calendarColor] uppercaseString];
 
-  //   return color;
   return [NSString stringWithFormat: @"%@FF", color];
 }
 

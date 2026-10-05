@@ -78,10 +78,8 @@
 /* Private API */
 - (iCalFreeBusyType) _fbTypeForEventStatus: (int) eventStatus
 {
-  //unsigned int status;
   iCalFreeBusyType fbType;
 
-  //status = [eventStatus unsignedIntValue];
   if (eventStatus == 0)
     fbType = iCalFBBusyTentative;
   else if (eventStatus == 1)
