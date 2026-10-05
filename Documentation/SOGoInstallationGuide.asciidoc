@@ -27,7 +27,7 @@ at https://www.sogo.nu/support.html#/documentation.
 
 SOGo is a free and modern scalable groupware server. It offers shared
 calendars, address books, and emails through your favourite Web browser
-and by using a native client such as Mozilla Thunderbird and Lightning.
+and by using a native client such as Mozilla Thunderbird.
 
 SOGo is standard-compliant. It supports CalDAV, CardDAV, GroupDAV, iMIP
 and iTIP and reuses existing IMAP, SMTP and database servers - making
@@ -38,8 +38,8 @@ SOGo features:
 * Scalable architecture suitable for deployments from dozens to many
 thousands of users
 * Rich Web-based interface that shares the look and feel, the features
-and the data of Mozilla Thunderbird and Lightning
-* Improved integration with Mozilla Thunderbird and Lightning by using
+and the data of Mozilla Thunderbird
+* Improved integration with Mozilla Thunderbird by using
 the SOGo Connector and the SOGo Integrator
 * Two-way synchronization support with any Microsoft ActiveSync-capable
 device, or Outlook 2013/2016
@@ -466,7 +466,7 @@ terminate the client's single sign-on C.A.S. session.
 
 |S |SOGoAddressBookDAVAccessEnabled
 |Parameter controlling WebDAV access to the Contacts collections.
-This can be used to deny access to these resources from Lightning for
+This can be used to deny access to these resources from Thunderbird for
 example.
 
 Defaults to `YES` when unset.
@@ -474,7 +474,7 @@ Defaults to `YES` when unset.
 |S |SOGoCalendarDAVAccessEnabled
 |Parameter controlling WebDAV access to the Calendar collections.
 
-This can be used to deny access to these resources from Lightning for
+This can be used to deny access to these resources from Thunderbird for
 example.
 
 Defaults to `YES` when unset.
@@ -3484,14 +3484,14 @@ Log in using the "jdoe" user and the "qwerty" password. The underlying
 database tables will automatically be created by SOGo.
 
 
-=== Mozilla Thunderbird and Lightning
+=== Mozilla Thunderbird
 
 Alternatively, you can access SOGo with a GroupDAV and a CalDAV client.
-A typical well-integrated setup is to use Mozilla Thunderbird and
-Mozilla Lightning along with Alinto's _SOGo Connector_ plug in to
-synchronize your address books and the Alinto's _SOGo Integrator_ plug
-in to provide a complete integration of the features of SOGo into
-Thunderbird and Lightning. Refer to the documentation of Thunderbird to
+A typical well-integrated setup is to use Mozilla Thunderbird - whose
+calendar is built in since version 78 - along with Alinto's _SOGo
+Connector_ plug in to synchronize your address books and Alinto's _SOGo
+Integrator_ plug in to provide a complete integration of the features of
+SOGo into Thunderbird. Refer to the documentation of Thunderbird to
 configure an initial IMAP account pointing to your SOGo server and using
 the user name and password mentioned above.
 

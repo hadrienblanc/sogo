@@ -114,43 +114,42 @@
   unsigned i;
 
   if (theTimeZone)
-  {
-    allDayEvent = [self isKindOfClass: [iCalEvent class]]
-      && [(iCalEvent *) self isAllDay];
-    dates = [NSMutableArray array];
-    dateList = [[self childrenWithTag: @"rdate"] objectEnumerator];
+    {
+      allDayEvent = [self isKindOfClass: [iCalEvent class]]
+        && [(iCalEvent *) self isAllDay];
+      dates = [NSMutableArray array];
+      dateList = [[self childrenWithTag: @"rdate"] objectEnumerator];
 
-    while ((dateString = [dateList nextObject]))
-	  {
-      
-      rDates = [(iCalDateTime*) dateString dateTimes];
-      for (i = 0; i < [rDates count]; i++)
-	    {
-	      rDate = [rDates objectAtIndex: i];
+      while ((dateString = [dateList nextObject]))
+        {
+          rDates = [(iCalDateTime*) dateString dateTimes];
+          for (i = 0; i < [rDates count]; i++)
+            {
+              rDate = [rDates objectAtIndex: i];
 
-        /*
-        VERY VERY STRANGE
-        Sogo seems to handle the date and timezone very strangely
-        The first event date will be in gmt BUT at the timezone hour
-        Ex: the event is at 09h15 +0200, the date in sogo will be 09h15 +0000...
-        So for the rdates, even if they are correct (meaning 07h15 +0000 which is 09h15 +0200)
-        We will have to set them to have 09h15 +0000 (in thas case it will be 11h15 +0200)...
-        */
-        if ([theTimeZone isKindOfClass: [iCalTimeZone class]])
-        {
-          rDate = [(iCalTimeZone *) theTimeZone computedDateForDate: rDate];
+              /*
+                VERY VERY STRANGE
+                Sogo seems to handle the date and timezone very strangely
+                The first event date will be in gmt BUT at the timezone hour
+                Ex: the event is at 09h15 +0200, the date in sogo will be 09h15 +0000...
+                So for the rdates, even if they are correct (meaning 07h15 +0000 which is 09h15 +0200)
+                We will have to set them to have 09h15 +0000 (in thas case it will be 11h15 +0200)...
+              */
+              if ([theTimeZone isKindOfClass: [iCalTimeZone class]])
+                {
+                  rDate = [(iCalTimeZone *) theTimeZone computedDateForDate: rDate];
+                }
+              else if (!(allDayEvent
+                         && ([rDate hourOfDay] != 0 || [rDate minuteOfHour] != 0
+                             || [rDate secondOfMinute] != 0)))
+                {
+                  offset = [(NSTimeZone *) theTimeZone secondsFromGMTForDate: rDate];
+                  rDate = (NSCalendarDate *) [rDate dateByAddingYears:0 months:0 days:0 hours:0 minutes:0 seconds:-offset];
+                }
+              [(NSMutableArray *) dates addObject: rDate];
+            }
         }
-        else if (!(allDayEvent
-                   && ([rDate hourOfDay] != 0 || [rDate minuteOfHour] != 0
-                       || [rDate secondOfMinute] != 0)))
-        {
-          offset = [(NSTimeZone *) theTimeZone secondsFromGMTForDate: rDate];
-          rDate = (NSCalendarDate *) [rDate dateByAddingYears:0 months:0 days:0 hours:0 minutes:0 seconds:-offset];
-        }
-	      [(NSMutableArray *) dates addObject: rDate];
-      }
-	  }
-  }
+    }
   else
     dates = [self recurrenceDates];
 
