@@ -344,7 +344,6 @@ FIXME
           if (![allValues count])
             continue;
 
-          
           switch (theFolderType)
             {
             case ActiveSyncContactFolder:
@@ -2085,11 +2084,11 @@ FIXME
       davCollectionTag = @"0";
       first_sync = YES;
       *changeDetected = YES;
-      
+
       if (!([folderMetadata objectForKey: @"displayName"]))
         status = 12;  // need folderSync
-      else 
-        status = 3;   // do a complete resync 
+      else
+        status = 3;   // do a complete resync
     }
 
   // We check our sync preferences and we stash them
@@ -2663,7 +2662,7 @@ FIXME
 
   // If the request doesn't contain "HeartbeatInterval" there is no reason to delay the response.
   if (heartbeatInterval == 0)
-     heartbeatInterval = internalInterval = 1;
+    heartbeatInterval = internalInterval = 1;
 
   // We check to see if our heartbeat interval falls into the supported ranges.
   if (heartbeatInterval > defaultInterval || heartbeatInterval < 1)

@@ -1449,7 +1449,7 @@ static NSArray *reminderValues = nil;
                   return error; // Break
                 }
               }
-              
+
               // Check if replyTo has been changed (unauthorized)
               if ([identity objectForKey:@"replyTo"]) {
                 found = NO;
