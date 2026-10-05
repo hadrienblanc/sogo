@@ -404,40 +404,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
   return response;
 }
 
-// - (NSString *) currentContactFolderId
-// {
-//   return [NSString stringWithFormat: @"/%@", [currentFolder nameInContainer]];
-// }
-
-// - (NSString *) currentContactFolderName
-// {
-//   return [currentFolder displayName];
-// }
-
-// - (NSString *) currentContactFolderOwner
-// {
-//   return [currentFolder ownerInContext: context];
-//}
-
-// - (NSString *) currentContactFolderClass
-// {
-//   return (([currentFolder isKindOfClass: SOGoContactSourceFolderK]
-//            && ![currentFolder isPersonalSource])
-//           ? @"remote" : @"local");
-// }
-
-// - (NSString *) currentContactFolderAclEditing
-// {
-//   return ([currentFolder isKindOfClass: SOGoGCSFolderK]
-//           ? @"available": @"unavailable");
-// }
-
-// - (NSString *) currentContactFolderListEditing
-// {
-//   return ([currentFolder isKindOfClass: SOGoGCSFolderK]
-//           ? @"available": @"unavailable");
-//}
-
 - (NSString *) verticalDragHandleStyle
 {
   NSString *vertical;

@@ -273,22 +273,6 @@ static BOOL debugOn = NO;
   return [partInfo filename];
 }
 
-/* We overwrite the super's class method in order to make sure
-   we aren't dealing with our actual filename as the _key. That
-   could lead to problems if we weren't doing this as our filename
-   could start with a digit, leading to a wrong assumption in
-   the super class
-*/
-// - (BOOL)isBodyPartKey:(NSString *)_key inContext:(id)_ctx
-// {
-//   NSString *s;
-
-//   s = [self filename];
-//   if (s && [s isEqualToString: _key]) return NO;
-
-//   return [super isBodyPartKey: _key  inContext: _ctx];
-// }
-
 - (id) lookupName: (NSString *) _key
 	inContext: (id) _ctx
 	  acquire: (BOOL) _flag

@@ -26,7 +26,6 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 
-#import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NSString+misc.h>
 
 #import "iCalCalendar.h"
@@ -39,13 +38,6 @@
 @interface CardElement (iCalXMLExtension)
 
 - (NSString *) xmlRender;
-
-@end
-
-@interface iCalXMLRenderer (PrivateAPI)
-
-- (NSString *) renderElement: (CardElement *) anElement;
-- (NSString *) renderGroup: (CardGroup *) aGroup;
 
 @end
 
@@ -253,40 +245,6 @@
 
 @end
 
-// @implementation iCalRecurrenceRule (iCalXMLExtension)
-
-// - (NSString *) _xmlRenderValue
-// {
-//   NSMutableString *rendering;
-//   NSArray *valueParts;
-//   NSString *valueTag, *currentValue;
-//   int count, max;
-
-//   max = [values count];
-//   rendering = [NSMutableString stringWithCapacity: 64];
-//   for (count = 0; count < max; count++)
-//     {
-//       currentValue = [[values objectAtIndex: count]
-//                        stringByEscapingXMLString];
-//       if ([currentValue length] > 0)
-//         {
-//           valueParts = [currentValue componentsSeparatedByString: @"="];
-//           if ([valueParts count] == 2)
-//             {
-//               valueTag = [[valueParts objectAtIndex: 0] lowercaseString];
-//               [rendering appendFormat: @"<%@>%@</%@>",
-//                          valueTag,
-//                          [valueParts objectAtIndex: 1],
-//                          valueTag];
-//             }
-//         }
-//     }
-
-//   return rendering;
-// }
-
-// @end
-
 @implementation iCalUTCOffset (iCalXMLExtension)
 
 - (NSString *) xmlValueTag
@@ -340,105 +298,3 @@
 }
 
 @end
-
-// - (NSString *) renderElement: (CardElement *) anElement
-// {
-//   NSMutableString *rendering;
-//   NSDictionary *attributes;
-//   NSEnumerator *keys;
-//   NSArray *values, *renderedAttrs;
-//   NSString *key, *finalRendering, *tag;
-
-//   if (![anElement isVoid])
-//     {
-//       rendering = [NSMutableString string];
-//       if ([anElement group])
-//         [rendering appendFormat: @"%@.", [anElement group]];
-//       tag = [anElement tag];
-//       if (!(tag && [tag length]))
-//         {
-//           tag = @"<no-tag>";
-//           [self warnWithFormat: @"card element of class '%@' has an empty tag",
-//                 NSStringFromClass([anElement class])];
-//         }
-
-//       [rendering appendString: [tag uppercaseString]];
-//       attributes = [anElement attributes];
-//       keys = [[attributes allKeys] objectEnumerator];
-//       while ((key = [keys nextObject]))
-//         {
-// 	  NSString *s;
-// 	  int i, c;
-
-//           renderedAttrs = [[attributes objectForKey: key] renderedForCards];
-// 	  c = [renderedAttrs count];
-//           if (c > 0)
-//             {
-//               [rendering appendFormat: @";%@=", [key uppercaseString]];
-
-//               for (i = 0; i < c; i++)
-//                 {
-//                   s = [renderedAttrs objectAtIndex: i];
-	      
-//                   /* We MUST quote attribute values that have a ":" in them
-//                      and that not already quoted */
-//                   if ([s length] > 2 && [s rangeOfString: @":"].length &&
-//                       [s characterAtIndex: 0] != '"' && ![s hasSuffix: @"\""])
-//                     s = [NSString stringWithFormat: @"\"%@\"", s];
-	      
-//                   [rendering appendFormat: @"%@", s];
-
-//                   if (i+1 < c)
-//                     [rendering appendString: @","];
-//                 }
-//             }
-//         }
-
-//       values = [anElement values];
-//       if ([values count] > 0)
-//         [rendering appendFormat: @":%@",
-//                    [[values renderedForCards] componentsJoinedByString: @";"]];
-
-//       if ([rendering length] > 0)
-//         [rendering appendString: @"\r\n"];
-
-//       finalRendering = [rendering foldedForVersitCards];
-//     }
-//   else
-//     finalRendering = @"";
-
-//   return finalRendering;
-// }
-
-// - (NSString *) renderGroup: (CardGroup *) aGroup
-// {
-//   NSEnumerator *children;
-//   CardElement *currentChild;
-//   NSMutableString *rendering;
-//   NSString *groupTag;
-
-//   rendering = [NSMutableString string];
-
-//   groupTag = [aGroup tag];
-//   if (!(groupTag && [groupTag length]))
-//     {
-//       groupTag = @"<no-tag>";
-//       [self warnWithFormat: @"card group of class '%@' has an empty tag",
-//             NSStringFromClass([aGroup class])];
-//     }
-
-//   groupTag = [groupTag uppercaseString];
-//   [rendering appendFormat: @"BEGIN:%@\r\n", groupTag];
-//   children = [[aGroup children] objectEnumerator];
-//   currentChild = [children nextObject];
-//   while (currentChild)
-//     {
-//       [rendering appendString: [self render: currentChild]];
-//       currentChild = [children nextObject];
-//     }
-//   [rendering appendFormat: @"END:%@\r\n", groupTag];
-
-//   return rendering;
-// }
-
-// @end

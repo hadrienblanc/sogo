@@ -24,18 +24,7 @@
 
 #import "UIxCalDayView.h"
 
-// @interface UIxCalDayView (PrivateAPI)
-// - (BOOL)isCurrentDateInApt:(id)_apt;
-// - (NSArray *)_getDatesFrom:(NSCalendarDate *)_from to:(NSCalendarDate *)_to;
-// @end
-
 @implementation UIxCalDayView
-
-// - (void) dealloc
-// {
-//   [self->currentDate release];
-//   [super dealloc];
-// }
 
 - (id <WOActionResults>) defaultAction
 {
@@ -43,85 +32,6 @@
 
   return self;
 }
-
-// - (void) setCurrentDate: (NSCalendarDate *) _date
-// {
-//   ASSIGN(self->currentDate, _date);
-// }
-
-// - (NSCalendarDate *) currentDate
-// {
-//   return self->currentDate;
-// }
-
-// - (BOOL) isCurrentDateInApt
-// {
-//   return [self isCurrentDateInApt: [self appointment]];
-// }
-
-// - (BOOL) isCurrentDateInApt: (id) _apt
-// {
-//   NSCalendarDate *dateStart, *dateEnd, *aptStart, *aptEnd;
-//   NGCalendarDateRange *dateRange, *aptRange;
-
-//   dateStart = self->currentDate;
-//   dateEnd   = [dateStart dateByAddingYears:0 months:0 days:0
-//                          hours:1 minutes:0 seconds:0];
-//   dateRange = [NGCalendarDateRange calendarDateRangeWithStartDate:dateStart
-//                                    endDate:dateEnd];
-//   aptStart = [self->appointment valueForKey:@"startDate"];
-//   aptEnd   = [self->appointment valueForKey:@"endDate"];
-//   aptRange = [NGCalendarDateRange calendarDateRangeWithStartDate:aptStart
-//                                   endDate:aptEnd];
-
-//   return [dateRange doesIntersectWithDateRange:aptRange];
-// }
-
-// - (NSArray *) dateRange
-// {
-//   /* default range is from dayStartHour to dayEndHour. Any values before
-//      or after are also fine */
-
-//   NSCalendarDate *min, *max;
-//   NSArray        *aptDateRanges;
-
-//   min = [[self startDate] hour:[self dayStartHour] minute:0];
-//   max = [[self startDate] hour:[self dayEndHour]   minute:0];
-
-//   aptDateRanges = [[self appointments] valueForKey: @"startDate"];
-//   if([aptDateRanges count] != 0) {
-//     NSCalendarDate *d;
-
-//     aptDateRanges
-//       = [aptDateRanges sortedArrayUsingSelector: @selector(compareAscending:)];
-//     d   = [aptDateRanges objectAtIndex:0];
-//     if ([d isDateOnSameDay:min])
-//       min = (NSCalendarDate *)[d earlierDate:min];
-//     d   = [aptDateRanges objectAtIndex:[aptDateRanges count] - 1];
-//     if ([d isDateOnSameDay:max])
-//       max = (NSCalendarDate *)[d laterDate:max];
-//   }
-
-//   return [self _getDatesFrom:min to:max];
-// }
-
-// - (NSArray *) _getDatesFrom: (NSCalendarDate *) _from
-//                          to: (NSCalendarDate *) _to
-// {
-//   NSMutableArray *dates;
-//   unsigned       i, count, offset;
-
-//   offset = [_from hourOfDay];
-//   count  = ([_to hourOfDay] + 1) - offset;
-//   dates  = [[NSMutableArray alloc] initWithCapacity:count];
-//   for(i = 0; i < count; i++) {
-//     NSCalendarDate *date;
-
-//     date = [_from hour:offset + i minute:0];
-//     [dates addObject:date];
-//   }
-//   return [dates autorelease];
-// }
 
 /* URLs */
 
@@ -168,48 +78,6 @@
 }
 
 /* appointments */
-
-// - (NSArray *)allDayApts {
-//   NSCalendarDate *start;
-//   NSArray        *apts;
-//   NSMutableArray *filtered;
-//   unsigned       i, count;
-
-//   if (self->allDayApts)
-//     return self->allDayApts;
-
-//   start    = [self startDate];
-//   apts     = [self appointments];
-//   filtered = [[NSMutableArray alloc] initWithCapacity:1];
-//   count    = [apts count];
-//   for (i = 0; i < count; i++) {
-//     id       apt;
-//     NSNumber *bv;
-
-//     apt = [apts objectAtIndex:i];
-//     bv  = [apt valueForKey:@"isallday"];
-//     if ([bv boolValue]) {
-//       [filtered addObject:apt];
-//     }
-//     else {
-//       NSCalendarDate *aptStartDate;
-
-//       aptStartDate = [apt valueForKey:@"startDate"];
-//       if([aptStartDate isLessThan:start]) {
-//         [filtered addObject:apt];
-//       }
-//     }
-//   }
-
-//   ASSIGN(self->allDayApts, filtered);
-//   [filtered release];
-//   return self->allDayApts;
-// }
-
-// - (BOOL) hasAptsForCurrentDate
-// {
-//   return [[self aptsForCurrentDate] count] != 0;
-// }
 
 - (NSString *) _dayNameWithOffsetFromToday: (int) offset
 {

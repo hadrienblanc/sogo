@@ -548,8 +548,6 @@ static NSString    *userAgent      = nil;
       infos = [NSDictionary dictionaryWithContentsOfFile: p];
       if (infos)
 	[self _loadInfosFromDictionary: infos];
-//       else
-// 	[self errorWithFormat: @"draft info dictionary broken at path: %@", p];
     }
   else
     [self debugWithFormat: @"Note: info object does not yet exist: %@", p];
@@ -2076,7 +2074,6 @@ static NSString    *userAgent      = nil;
 
   if (map)
     {
-      //[self debugWithFormat: @"MIME Envelope: %@", map];
       allBodyParts = [self bodyPartsForAllAttachments];
 
       if (!allBodyParts) {
@@ -2084,8 +2081,6 @@ static NSString    *userAgent      = nil;
       } else {
         [self addTmpFiles: allBodyParts];
       }
-
-      //[self debugWithFormat: @"attachments: %@", bodyParts];
 
       if ([extractedBodyParts count] == 0 && [allBodyParts count] == 0)
         {
@@ -2098,7 +2093,6 @@ static NSString    *userAgent      = nil;
                                          extractedBodyParts: extractedBodyParts
                                                andBodyParts: allBodyParts
                                                    bodyOnly: _bodyOnly];
-          //[self debugWithFormat: @"message: %@", message];
         }
     }
 

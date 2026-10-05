@@ -100,33 +100,6 @@
   return @"vtodo";
 }
 
-// /* descriptions */
-
-// - (NSString *)description {
-//   NSMutableString *ms;
-
-//   ms = [NSMutableString stringWithCapacity:128];
-//   [ms appendFormat:@"<0x%p[%@]:", self, NSStringFromClass([self class])];
-
-//   if (uid)       [ms appendFormat:@" uid=%@", uid];
-//   if (startDate) [ms appendFormat:@" start=%@", startDate];
-//   if (due)       [ms appendFormat:@" due=%@", due];
-//   if (priority)  [ms appendFormat:@" pri=%@", priority];
-
-//   if (completed) 
-//     [ms appendFormat:@" completed=%@", completed];
-//   if (percentComplete) 
-//     [ms appendFormat:@" complete=%@", percentComplete];
-//   if (accessClass) 
-//     [ms appendFormat:@" class=%@", accessClass];
-  
-//   if (summary)
-//     [ms appendFormat:@" summary=%@", summary];
-
-//   [ms appendString:@">"];
-//   return ms;
-// }
-
 - (NSCalendarDate *) lastPossibleRecurrenceStartDate
 {
   NGCalendarDateRange *fir;

@@ -289,7 +289,6 @@ static memcached_st *handle = NULL;
   NSData *keyData, *valueData;
   memcached_return error;
 
-  //[self logWithFormat: @"setValue: '%@' forKey: '%@'", value, key];
   if (handle)
     {
       keyData = [key dataUsingEncoding: NSUTF8StringEncoding];
@@ -302,9 +301,6 @@ static memcached_st *handle = NULL;
         [self logWithFormat:
                 @"an error occurred when caching value for key '%@':"
               @" \"%s\"", key, memcached_strerror(handle, error)];
-      //else
-      //[self logWithFormat: @"memcached: cached values (%s) with subtype %@
-      //for user %@", value, theType, theLogin];
     }
    else
      [self errorWithFormat: (@"attempting to cache value for key '%@' while"
@@ -356,8 +352,6 @@ static memcached_st *handle = NULL;
       [self errorWithFormat: @"attempting to retrieved cached value for key"
             @" '%@' while no handle exists", key];
     }
-
-  // [self logWithFormat: @"valueForKey: '%@' -> '%@'", key, valueString];
 
   return valueString;
 }

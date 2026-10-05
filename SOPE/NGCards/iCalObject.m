@@ -58,10 +58,6 @@ static NSTimeZone *defTZ = nil;
   if ([_key hasPrefix:@"X-"]) {
     [self takeValue:_value forXKey:_key];
   }
-  else {
-    //NSLog(@"0x%08x[%@]: ignoring attempt to set unbound key '%@'",
-    //	  self, NSStringFromClass([self class]), _key);
-  }
 }
 
 @end /* iCalObject */
