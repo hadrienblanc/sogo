@@ -521,7 +521,7 @@ FIXME
             easId = serverId;
 
           [syncCache setObject: [NSString stringWithFormat:@"%f", [[sogoObject lastModified] timeIntervalSince1970]] forKey: serverId];
-          [dateCache setObject: [NSCalendarDate date]  forKey: serverId];
+          [dateCache setObject: [NSCalendarDate date] forKey: serverId];
 
           // make sure to pickup the delete immediately if we don't have proper permission to add
           if (![roles containsObject: SOGoRole_ObjectCreator] && ![[sogoObject ownerInContext: context] isEqualToString: [[context activeUser] login]])
@@ -1464,7 +1464,7 @@ FIXME
         if (more_available)
           {
             [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
-            [folderMetadata setObject: *theLastServerKey  forKey: @"SyncKey"];
+            [folderMetadata setObject: *theLastServerKey forKey: @"SyncKey"];
           }
         else
           {
@@ -1823,7 +1823,7 @@ FIXME
         if (more_available)
           {
             [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
-            [folderMetadata setObject: *theLastServerKey  forKey: @"SyncKey"];
+            [folderMetadata setObject: *theLastServerKey forKey: @"SyncKey"];
           }
         else
           {
