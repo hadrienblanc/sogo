@@ -36,8 +36,6 @@
 @class NSString;
 @class NSTimeZone;
 
-@class SOGoAppointmentFolder;
-
 @interface UIxCalView : UIxComponent
 {
   NSArray *enabledWeekDays;
