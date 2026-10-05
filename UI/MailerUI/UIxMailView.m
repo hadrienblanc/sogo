@@ -86,7 +86,6 @@ static NSString *mailETag = nil;
                                SOGO_MAJOR_VERSION,
                                SOGO_MINOR_VERSION,
                                SOGO_SUBMINOR_VERSION];
-  //NSLog (@"Note: using constant etag for mail viewer: '%@'", mailETag);
 }
 
 - (void) dealloc
@@ -335,41 +334,6 @@ static NSString *mailETag = nil;
   [context pushMailRenderingContext: mctx];
   [mctx release];
 
-  /* check etag to see whether we really must rerender */
-  /*
-    Note: There is one thing which *can* change for an existing message,
-    those are the IMAP4 flags (and annotations, which we do not use).
-    Since we don't render the flags, it should be OK, if this changes
-    we must embed the flagging into the etag.
-
-    2015-12-09: We disable caching for now. Let's do this right soon
-    by taking into account IMAP flags and the Accepted/Declined/etc.
-    state of an even with an IMIP invitation. We should perhaps even
-    store the state as an IMAP flag.
-  */
-  //s = [[context request] headerForKey: @"if-none-match"];
-  //if (s)
-  // if (0)
-  //   {
-  //     if ([s rangeOfString:mailETag].length > 0) /* not perfectly correct */
-  //       {
-  //         /* client already has the proper entity */
-  //         // [self logWithFormat:@"MATCH: %@ (tag %@)", s, mailETag];
-	  
-  //         if (![co doesMailExist])
-  //           {
-  //             data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Message got deleted"]
-  //                                                forKey: @"message"];
-  //             return [self responseWithStatus: 404 /* Not Found */
-  //                       andJSONRepresentation: data];
-  //           }
-          
-  //         response = [self responseWithStatus: 304];
-
-  //         return response;
-  //       }
-  //   }
-  
   if (![self message]) // TODO: redirect to proper error
     {
       data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Did not find specified message"]

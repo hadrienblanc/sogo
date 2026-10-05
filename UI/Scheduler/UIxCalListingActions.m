@@ -1022,21 +1022,6 @@ static inline void _feedBlockWithDayBasedData (NSMutableDictionary *block, unsig
             forKey: @"length"];
 }
 
-// static inline void _feedBlockWithMonthBasedData (NSMutableDictionary *block, unsigned int start,
-//                                                  NSTimeZone *userTimeZone,
-//                                                  SOGoDateFormatter *dateFormatter)
-// {
-//   NSCalendarDate *eventStartDate;
-//   NSString *startHour;
-
-//   eventStartDate = [NSCalendarDate dateWithTimeIntervalSince1970: start];
-//   [eventStartDate setTimeZone: userTimeZone];
-//   startHour = [dateFormatter formattedTime: eventStartDate];
-//   [block setObject: startHour forKey: @"starthour"];
-//   [block setObject: [NSNumber numberWithUnsignedInt: start]
-//             forKey: @"start"];
-// }
-
 - (void) _addStartHour: (NSMutableDictionary *) theRecord
 {
   NSCalendarDate *eventStartDate;
@@ -1063,8 +1048,6 @@ static inline void _feedBlockWithDayBasedData (NSMutableDictionary *block, unsig
 
   if (dayBasedView)
     _feedBlockWithDayBasedData (block, start, end, dayStart);
-  // else
-  //   _feedBlockWithMonthBasedData (block, start, userTimeZone, dateFormatter);
   [block setObject: number forKey: @"nbr"];
   if (recurrenceTime)
     [block setObject: [NSNumber numberWithInt: recurrenceTime]
@@ -1310,55 +1293,17 @@ static inline void _computeBlockPosition (NSArray *block)
   NSZoneFree (NULL, positions);
 }
 
-// static inline void
-// _addBlockMultipliers (NSArray *block, NSMutableDictionary **positions)
-// {
-//   unsigned int count, max, limit, multiplier;
-//   NSMutableDictionary *currentEvent, *event;
-
-//   max = [block count];
-//   event = [block objectAtIndex: 0];
-//   limit = [[event objectForKey: @"siblings"] unsignedIntValue];
-
-//   if (max < limit)
-//     {
-//       currentEvent = nil;
-//       for (count = 0; count < limit; count++)
-// 	{
-// 	  multiplier = 1;
-// 	  event = positions[count];
-// 	  if ([[event objectForKey: @"realSiblings"] unsignedIntValue]
-// 	      < limit)
-// 	    {
-// 	      if (event)
-// 		{
-// 		  if (currentEvent && multiplier > 1)
-// 		    [currentEvent setObject: [NSNumber numberWithUnsignedInt: multiplier]
-// 				  forKey: @"multiplier"];
-// 		  currentEvent = event;
-// 		  multiplier = 1;
-// 		}
-// 	      else
-// 		multiplier++;
-// 	    }
-// 	}
-//     }
-// }
-
 static inline void
 _computeBlocksPosition (NSArray *blocks)
 {
   NSArray *block;
   unsigned int count, max;
-  //   NSMutableDictionary **positions;
 
   max = [blocks count];
   for (count = 0; count < max; count++)
   {
     block = [blocks objectAtIndex: count];
     _computeBlockPosition (block);
-    //       _addBlockMultipliers (block, positions);
-    //       NSZoneFree (NULL, positions);
   }
 }
 
