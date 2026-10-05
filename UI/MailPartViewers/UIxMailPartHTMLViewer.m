@@ -101,7 +101,7 @@ static NSString *_sanitizeHtmlForDisplay(NSString *content)
 {
   // Sometimes, the mail contains SOGo mail template in the content, and broke mail display
   // replace the responsible css
-  return [content stringByReplacingOccurrencesOfString: @"sg-face layout-fill layout-column" withString:@""];;
+  return [content stringByReplacingOccurrencesOfString: @"sg-face layout-fill layout-column" withString: @""];
 }
 
 @implementation UIxMailPartHTMLViewer
