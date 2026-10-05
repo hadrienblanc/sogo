@@ -98,11 +98,7 @@ static NSMutableArray      *filters           = nil;
 
 - (NSString *) filterLabel
 {
-#if 1
   return [[[self context] page] labelForKey: @"filter"];
-#else
-  return [self valueForKey: @"filter"];
-#endif
 }
 
 - (NSString *) selectedFilter
