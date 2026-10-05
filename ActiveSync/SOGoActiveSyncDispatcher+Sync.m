@@ -432,7 +432,7 @@ FIXME
 
                      [syncCache setObject: [modseq stringValue] forKey: serverId];
 
-                     [self _setFolderMetadata: folderMetadata  forKey: [self _getNameInCache: theCollection withType: theFolderType]];
+                     [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
 
                      continue;
                    }
@@ -1758,7 +1758,7 @@ FIXME
                         return_count++;
                       }
 
-                    [syncCache setObject: [aCacheObject sequence]  forKey: [aCacheObject uid]];
+                    [syncCache setObject: [aCacheObject sequence] forKey: [aCacheObject uid]];
                   }
               }
             else
@@ -1796,8 +1796,8 @@ FIXME
                     [s appendString: @"</ApplicationData>"];
                     [s appendString: @"</Add>"];
 
-                    [syncCache setObject: [aCacheObject sequence]  forKey: [aCacheObject uid]];
-                    [dateCache setObject: [NSCalendarDate date]  forKey: [aCacheObject uid]];
+                    [syncCache setObject: [aCacheObject sequence] forKey: [aCacheObject uid]];
+                    [dateCache setObject: [NSCalendarDate date] forKey: [aCacheObject uid]];
 
                     // Save the frist UID we add. We will use it for the synckey late.
                     if (!firstUIDAdded)
