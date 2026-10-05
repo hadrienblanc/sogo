@@ -932,7 +932,7 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
     }
   else
     {
-      fieldFormat = [NSString stringWithFormat: @"(%%@='*%@*')", escapedFilter];
+      fieldFormat = [NSString stringWithFormat: @"(%%@='%@*')", escapedFilter];
       if (criteria)
         criteriaList = [criteria objectEnumerator];
       else

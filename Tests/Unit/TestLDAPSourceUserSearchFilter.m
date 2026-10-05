@@ -52,7 +52,7 @@
   return [LDAPSource sourceFromUDSource: udSource inDomain: nil];
 }
 
-- (void) test_defaultSearchFieldsMatchSubstringsWithoutUIDField
+- (void) test_defaultSearchFieldsMatchPrefixesWithoutUIDField
 {
   LDAPSource *source;
   NSString *description;
@@ -60,19 +60,19 @@
   source = [self _sourceWithSearchFields: nil];
   description = [[source _qualifierForFilter: @"jsmith" onCriteria: nil] description];
 
-  testWithMessage ([description rangeOfString: @"sn = '*jsmith*'"].location != NSNotFound,
-                   @"default search fields expand 'name' to sn substring clause");
-  testWithMessage ([description rangeOfString: @"displayname = '*jsmith*'"].location != NSNotFound,
-                   @"default search fields expand 'name' to displayname substring clause");
-  testWithMessage ([description rangeOfString: @"cn = '*jsmith*'"].location != NSNotFound,
-                   @"default search fields expand 'name' to cn substring clause");
-  testWithMessage ([description rangeOfString: @"mail = '*jsmith*'"].location != NSNotFound,
-                   @"default search fields expand 'mail' to mail substring clause");
+  testWithMessage ([description rangeOfString: @"sn = 'jsmith*'"].location != NSNotFound,
+                   @"default search fields expand 'name' to sn prefix clause");
+  testWithMessage ([description rangeOfString: @"displayname = 'jsmith*'"].location != NSNotFound,
+                   @"default search fields expand 'name' to displayname prefix clause");
+  testWithMessage ([description rangeOfString: @"cn = 'jsmith*'"].location != NSNotFound,
+                   @"default search fields expand 'name' to cn prefix clause");
+  testWithMessage ([description rangeOfString: @"mail = 'jsmith*'"].location != NSNotFound,
+                   @"default search fields expand 'mail' to mail prefix clause");
   testWithMessage ([description rangeOfString: @"uid"].location == NSNotFound,
                    @"default search fields do not match the uid attribute (bug 6002)");
 }
 
-- (void) test_customSearchFieldsStillMatchSubstrings
+- (void) test_customSearchFieldsStillMatchPrefixes
 {
   LDAPSource *source;
   NSString *description;
@@ -80,9 +80,24 @@
   source = [self _sourceWithSearchFields: [NSArray arrayWithObject: @"uid"]];
   description = [[source _qualifierForFilter: @"jsmith" onCriteria: nil] description];
 
-  testWithMessage ([description rangeOfString: @"uid = '*jsmith*'"].location != NSNotFound,
-                   @"a uid sent to usersSearch is matched as a substring, never "
-                   @"as an exact value (bug 6002)");
+  testWithMessage ([description rangeOfString: @"uid = 'jsmith*'"].location != NSNotFound,
+                   @"a uid sent to usersSearch is matched from the beginning of "
+                   @"the value, never with a leading wildcard (bug 5903)");
+}
+
+- (void) test_searchFilterIsAnchoredAtTheStart
+{
+  LDAPSource *source;
+  NSString *description;
+
+  source = [self _sourceWithSearchFields: nil];
+  description = [[source _qualifierForFilter: @"me" onCriteria: nil] description];
+
+  testWithMessage ([description rangeOfString: @"'*me*'"].location == NSNotFound,
+                   @"'me' must not match 'meetingroom' with a wildcard in front "
+                   @"of the pattern (bug 5903)");
+  testWithMessage ([description rangeOfString: @"cn = 'me*'"].location != NSNotFound,
+                   @"'me' must match 'meetingroom' from the beginning (bug 5903)");
 }
 
 @end
