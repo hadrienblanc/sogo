@@ -3211,9 +3211,9 @@ void handle_eas_terminate(int signum)
     }
 
   bodyPreferenceType = [[(id)[[(id)[theDocumentElement getElementsByTagName: @"BodyPreference"] lastObject] getElementsByTagName: @"Type"] lastObject] textValue];
-  [context setObject: bodyPreferenceType  forKey: @"BodyPreferenceType"];
+  [context setObject: bodyPreferenceType forKey: @"BodyPreferenceType"];
   mimeSupport = [[(id)[theDocumentElement getElementsByTagName: @"MIMESupport"] lastObject] textValue];
-  [context setObject: mimeSupport  forKey: @"MIMESupport"];
+  [context setObject: mimeSupport forKey: @"MIMESupport"];
 
   [context setObject: @"8" forKey: @"MIMETruncation"];
 
