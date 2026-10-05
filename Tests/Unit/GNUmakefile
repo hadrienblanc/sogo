@@ -137,6 +137,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxJSONPreferences.m \
 	TestMailerUnseenCountReset.m \
 	TestMailerSortListLocalization.m \
+	TestMailerIMAP4ConnectionFallback.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\
