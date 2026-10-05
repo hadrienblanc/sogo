@@ -511,6 +511,9 @@
       records = [source lookupContactsWithQualifier: qualifier
                                     andSortOrdering: ordering
                                            inDomain: domain];
+      [childRecords setObjects: records
+                      forKeys: [records objectsForKey: @"c_name"
+                                        notFoundMarker: nil]];
       records = [self _flattenedRecords: records];
     }
 
