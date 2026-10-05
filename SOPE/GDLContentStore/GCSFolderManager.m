@@ -70,12 +70,7 @@ static BOOL       debugPathTraversal        = NO;
 static int        quickPathCount            = 4;
 static int        randInc = 0;
 static NSArray    *emptyArray               = nil;
-#if 0
-static NSString   *GCSPathColumnName        = @"c_path";
-static NSString   *GCSTypeColumnName        = @"c_folder_type";
-static NSString   *GCSTypeRecordName        = @"c_folder_type";
-#endif
-static NSString   *GCSPathRecordName        = @"c_path";
+static NSString    *GCSPathRecordName        = @"c_path";
 static NSString   *GCSGenericFolderTypeName = @"Container";
 static const char *GCSPathColumnPattern     = "c_path%i";
 static NSCharacterSet *asciiAlphaNumericCS  = nil;
@@ -717,10 +712,6 @@ static BOOL       _singleStoreMode           = NO;
 	    {
 	      record = [_records objectAtIndex: i];
 	      recName = [record objectForKey: GCSPathRecordName];
-#if 0
-	      [self logWithFormat:@"check '%@' vs '%@' (%@)...", 
-		    name, recName, [_records objectAtIndex:i]];
-#endif
 	      
 	      if ([name isEqualToString: recName])
 		matchRecord = record;

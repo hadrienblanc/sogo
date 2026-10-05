@@ -178,9 +178,6 @@
           case ',':
             [string appendString: @"\\,"];
             continue;
-            //case ':':
-            // [string appendString: @"\\:"];
-            //break;
           case ';':
             [string appendString:  @"\\;"];
             continue;

@@ -29,24 +29,9 @@
 
 @implementation VSCardSaxDriver
 
-static NSSet *defElementNames = nil;
-
-+ (void)initialize {
-  static BOOL didInit = NO;
-  
-  if(didInit)
-    return;
-  didInit = YES;
-  
-  defElementNames = [[NSSet alloc] initWithObjects:
-    @"class", @"prodid", @"rev", @"uid", @"version", nil];
-}
-
 - (id)init {
   if ((self = [super init]) != nil) {
     [self setPrefixURI:XMLNS_VSvCard];
-//     [self setElementMapping:[[self class] xcardMapping]];
-//     [self setAttributeElements:defElementNames];
   }
   return self;
 }

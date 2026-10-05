@@ -53,9 +53,6 @@
       break;
     case iCalPersonPartStatExperimental:
     case iCalPersonPartStatOther:
-//       [NSException raise:NSInternalInconsistencyException
-//                    format:@"Attempt to set meaningless "
-//                           @"participationStatus (%d)!", _status];
       stat = nil; /* keep compiler happy */
       break;
     default:
@@ -289,8 +286,6 @@
     return NO;
   if(!IS_EQUAL([self role], [_other role], isEqualToString:))
     return NO;
-//   if(!IS_EQUAL([self xuid], [_other xuid], isEqualToString:))
-//     return NO;
   return YES;
 }
 
