@@ -1133,8 +1133,6 @@ static BOOL debugSoParts       = NO;
   return [[self imap4Connection] removeFlags:_flags toURL: [self imap4URL]];
 }
 
-/* permissions */
-
 /* name lookup */
 
 - (id) lookupImap4BodyPartKey: (NSString *) _key

@@ -7,7 +7,6 @@
   xmlns:label="OGo:label"
   className="UIxPageFrame"
   const:popup="YES"
-  const:toolbar="none"
   var:title="filename">
   <var:string value="cssContent" const:escapeHTML="NO" />
   <div class="SOGoHTMLMail-CSS-Delimiter mailer_htmlcontent"

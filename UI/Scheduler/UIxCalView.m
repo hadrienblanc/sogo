@@ -33,7 +33,6 @@
 #import <SOGo/SOGoUserSettings.h>
 #import <SOGo/SOGoMobileProvision.h>
 
-
 #import "UIxCalView.h"
 
 @interface UIxCalView (PrivateAPI)
