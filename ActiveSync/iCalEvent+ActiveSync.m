@@ -567,7 +567,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   userTimeZone = [[[context activeUser] userDefaults] timeZone];
   tz = [iCalTimeZone timeZoneForName: [userTimeZone name]];
   [(iCalCalendar *) parent addTimeZone: tz];
-  
+
   // FIXME: merge with iCalToDo
   if ([[context objectForKey: @"ASProtocolVersion"] isEqualToString: @"2.5"])
     {

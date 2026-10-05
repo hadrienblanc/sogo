@@ -1111,7 +1111,7 @@ FIXME
       [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
     }
 
-  if ((theFolderType == ActiveSyncMailFolder || theFolderType == ActiveSyncEventFolder || theFolderType == ActiveSyncTaskFolder) && 
+  if ((theFolderType == ActiveSyncMailFolder || theFolderType == ActiveSyncEventFolder || theFolderType == ActiveSyncTaskFolder) &&
       (cleanup_needed ||
        ( !([folderMetadata objectForKey: @"MoreAvailable"]) && // previous sync operation reached the windowSize or maximumSyncReponseSize
          !([folderMetadata objectForKey: @"InitialLoadSequence"]))) &&
@@ -1120,16 +1120,16 @@ FIXME
     {
       NSArray *allKeys;
       NSString *key;
-      
+
       int softdelete_count;
 
       softdelete_count = 0;
-          
+
       allKeys = [dateCache allKeys];
       for (i = 0; i < [allKeys count]; i++)
         {
           key = [allKeys objectAtIndex: i];
-              
+
           if ([[dateCache objectForKey:key] compare: theFilterType] == NSOrderedAscending)
             {
               if ([syncCache objectForKey:key])
@@ -1162,25 +1162,25 @@ FIXME
                   [dateCache removeObjectForKey: key];
                 }
             }
-          
+
           if (softdelete_count >= theWindowSize || (theMaxSyncResponseSize > 0 && [s length] >= theMaxSyncResponseSize))
             {
               [folderMetadata setObject: [NSNumber numberWithBool: YES]  forKey: @"MoreAvailable"];
               [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
-              
+
               more_available = YES;
               *theLastServerKey = theSyncKey;
-              
+
               // Since WindowSize is reached don't even try to add more to the response, let's just
               // jump to the end and return the response immediately
               goto return_response;
           }
         }
-          
+
       [folderMetadata removeObjectForKey: @"MoreAvailable"];
       [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
     }
-  
+
   //
   // No changes in the collection - 2.2.2.19.1.1 Empty Sync Request.
   // We check this and we don't generate any commands if we don't have to.
