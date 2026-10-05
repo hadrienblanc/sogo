@@ -1650,9 +1650,9 @@ void handle_eas_terminate(int signum)
                     serverId = [[(id)[aFetch getElementsByTagName: @"ServerId"] lastObject] textValue];
 
                   bodyPreferenceType = [[(id)[[(id)[aFetch getElementsByTagName: @"BodyPreference"] lastObject] getElementsByTagName: @"Type"] lastObject] textValue];
-                  [context setObject: bodyPreferenceType  forKey: @"BodyPreferenceType"];
+                  [context setObject: bodyPreferenceType forKey: @"BodyPreferenceType"];
                   mimeSupport = [[(id)[aFetch getElementsByTagName: @"MIMESupport"] lastObject] textValue];
-                  [context setObject: mimeSupport  forKey: @"MIMESupport"];
+                  [context setObject: mimeSupport forKey: @"MIMESupport"];
 
                   // https://msdn.microsoft.com/en-us/library/gg675490%28v=exchg.80%29.aspx
                   // The fetch element is used to request the application data of an item that was truncated in a synchronization response from the server.
@@ -3289,7 +3289,7 @@ void handle_eas_terminate(int signum)
                                                 sortOrdering: @"REVERSE ARRIVAL"
                                                     threaded: NO];
       total = [sortedUIDs count];
-      overallTotal+=total;
+      overallTotal += total;
 
       if (total < startRange)
         {
