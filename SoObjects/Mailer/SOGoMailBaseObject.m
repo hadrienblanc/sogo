@@ -250,7 +250,7 @@
     {
       sogoCache = [SOGoCache sharedCache];
       // The cacheKey *MUST* be prefixed by the username here as
-      // the cache is shared across OpenChange users and not necessarily
+      // the cache is shared across users and not necessarily
       // flushed between requests. This could lead us to using the wrong
       // IMAP connection.
       //

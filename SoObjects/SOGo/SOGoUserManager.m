@@ -1044,11 +1044,6 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
           if ([userEntry objectForKey: @"numberOfSimultaneousBookings"])
             [theCurrentUser setObject: [userEntry objectForKey: @"numberOfSimultaneousBookings"]
                                forKey: @"numberOfSimultaneousBookings"];
-
-          // This is Active Directory specific attribute (needed on OpenChange/* layer)
-          if ([userEntry objectForKey: @"samaccountname"])
-            [theCurrentUser setObject: [userEntry objectForKey: @"samaccountname"]
-                               forKey: @"sAMAccountName"];
         }
     }
 

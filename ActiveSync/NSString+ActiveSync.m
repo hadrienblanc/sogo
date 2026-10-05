@@ -380,9 +380,6 @@ static NSArray *easCommandParameters = nil;
 }
 
 
-//
-// FIXME: combine with our OpenChange code.
-//
 - (char) _decodeHexByte: (char) byteChar
 {
   char newByte;
@@ -399,9 +396,6 @@ static NSArray *easCommandParameters = nil;
   return newByte;
 }
 
-//
-// FIXME: combine with our OpenChange code.
-//
 - (BOOL) _decodeHexByte: (uint8_t *) byte
                   atPos: (NSUInteger) pos
 {
@@ -424,9 +418,6 @@ static NSArray *easCommandParameters = nil;
   return error;
 }
 
-//
-// FIXME: combine with our OpenChange code.
-//
 - (BOOL) _decodeHexPair: (uint8_t *) byte
                   atPos: (NSUInteger) pos
 {
@@ -444,9 +435,6 @@ static NSArray *easCommandParameters = nil;
   return error;
 }
 
-//
-// FIXME: combine with our OpenChange code.
-//
 - (NSData *) convertHexStringToBytes
 {
   NSUInteger count, strLen, bytesLen;

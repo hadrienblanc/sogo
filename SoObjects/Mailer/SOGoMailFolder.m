@@ -2317,9 +2317,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
   return tag;
 }
 
-//
-// FIXME - see below for code refactoring with MAPIStoreMailFolder.
-//
 - (EOQualifier *) _nonDeletedQualifier
 {
   static EOQualifier *nonDeletedQualifier = nil;
@@ -2388,9 +2385,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
 //
 // . uid fetch 1:* (FLAGS) (changedsince 176 vanished)
 // * VANISHED (EARLIER) 36
-//
-// 
-// FIXME: refactor MAPIStoreMailFolder.m - synchroniseCache to use this method
 //
 - (NSArray *) syncTokenFieldsWithProperties: (NSDictionary *) theProperties
                           matchingSyncToken: (NSString *) theSyncToken
