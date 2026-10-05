@@ -46,7 +46,6 @@ Administrative tool for SOGo that provides the following internal commands:
   backup          -- backup user folders
   restore         -- restore user folders
   remove-doubles  -- remove duplicate contacts from the user addressbooks
-  check-doubles   -- list user addressbooks with duplicate contacts
 
 %package -n sogo-slapd-sockd
 Summary:      SOGo backend for slapd and back-sock

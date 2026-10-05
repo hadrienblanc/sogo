@@ -2211,7 +2211,6 @@ inRecurrenceExceptionsForEvent: (iCalEvent *) theEvent
 //
 // This method is meant to be the common point of any save operation from web
 // and DAV requests, as well as from code making use of SOGo as a library
-// (OpenChange)
 //
 - (NSException *) updateContentWithCalendar: (iCalCalendar *) calendar
                                 fromRequest: (WORequest *) rq

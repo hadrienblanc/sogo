@@ -707,7 +707,7 @@ static Class iCalEventK = nil;
   WOContext *localContext;
 
   /* FIXME: The stored context from initialisation may have changed
-     by setContext by other operations in OpenChange library,
+     by setContext through other operations,
      so we keep tighly to use the current session one. Without
      this, the login is set to nil and a NSException is raised
      at [SOGoAppointmentFolder:roleForComponentsWithAccessClass:forUser]
