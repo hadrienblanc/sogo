@@ -332,7 +332,6 @@ FIXME
 
 -> lastObject returns the ClientId in Attachments element -> try with objectAtIndex: 0 -> is this correct?
 */
-          //clientId = [[(id)[anAddition getElementsByTagName: @"ClientId"] lastObject] textValue];
           clientIds = (id)[anAddition getElementsByTagName: @"ClientId"];
           if (![clientIds count])
             continue;
@@ -341,7 +340,7 @@ FIXME
 
           allValues = [NSMutableDictionary dictionaryWithDictionary: [[(id)[anAddition getElementsByTagName: @"ApplicationData"]  lastObject] applicationData]];
 
-          // FIXME: ignore the <Add> elements of Attachemnts - above  (id)[theDocumentElement getElementsByTagName: @"Add"]; return any <Add> elements instead of only the direct childs of the <commands> element ..
+          // FIXME: ignore the <Add> elements of Attachments - above  (id)[theDocumentElement getElementsByTagName: @"Add"]; return any <Add> elements instead of only the direct childs of the <commands> element ..
           if (![allValues count])
             continue;
 
