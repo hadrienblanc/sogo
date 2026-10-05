@@ -3126,16 +3126,17 @@ A commented out example should have been installed in
 As a reference, the _cronjob_ should de defined like this:
 
 ----
-* * * * *     /usr/sbin/sogo-ealarms-notify
+* * * * *     /usr/sbin/sogo-ealarms-notify
 ----
 
-If your mail server requires use of SMTP AUTH, you can use the following parameters in the configuration file :
+If your mail server requires SMTP AUTH for outgoing mail, specify the
+credentials to use with `-p /path/to/credFile`. The file must contain
+the username and password, separated by a colon (`username:password`),
+in the same format as the sieve credentials:
 
-```
-SOGoSMTPMasterUserEnabled = YES;
-SOGoSMTPMasterUserUsername = "foo";
-SOGoSMTPMasterUserPassword = "bar";
-```
+----
+* * * * *     /usr/sbin/sogo-ealarms-notify -p /etc/sogo/smtp.creds
+----
 
 
 === _Cronjob_ — Vacation messages activation and expiration
@@ -4323,7 +4324,7 @@ h|5.8.2
 |Changes in Mac OS X Ventura 13.3. For mac Apple's Calendar users, the account must be removed and re-added (https://bugs.sogo.nu/view.php?id=5639#c16901). This can be achived in  `` / `System Settings` / `Internet Accounts`.
 
 h|5.8.1
-|New options `SOGoSMTPMasterUserEnabled`, `SOGoSMTPMasterUserUsername` and `SOGoSMTPMasterUserPassword` has been added. Those parameters replace the `-p` option for sogo-ealarms-notify.
+|New options `SOGoSMTPMasterUserEnabled`, `SOGoSMTPMasterUserUsername` and `SOGoSMTPMasterUserPassword` have been added. The `-p` option of sogo-ealarms-notify remains supported for SMTP AUTH.
 
 h|5.6.0
 |The session table (`OCSSessionsFolderURL`) must be dropped prior to restart sogod.

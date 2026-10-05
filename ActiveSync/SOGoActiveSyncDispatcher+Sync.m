@@ -332,7 +332,6 @@ FIXME
 
 -> lastObject returns the ClientId in Attachments element -> try with objectAtIndex: 0 -> is this correct?
 */
-          //clientId = [[(id)[anAddition getElementsByTagName: @"ClientId"] lastObject] textValue];
           clientIds = (id)[anAddition getElementsByTagName: @"ClientId"];
           if (![clientIds count])
             continue;
@@ -341,7 +340,7 @@ FIXME
 
           allValues = [NSMutableDictionary dictionaryWithDictionary: [[(id)[anAddition getElementsByTagName: @"ApplicationData"]  lastObject] applicationData]];
 
-          // FIXME: ignore the <Add> elements of Attachemnts - above  (id)[theDocumentElement getElementsByTagName: @"Add"]; return any <Add> elements instead of only the direct childs of the <commands> element ..
+          // FIXME: ignore the <Add> elements of Attachments - above  (id)[theDocumentElement getElementsByTagName: @"Add"]; return any <Add> elements instead of only the direct childs of the <commands> element ..
           if (![allValues count])
             continue;
 
@@ -1165,7 +1164,7 @@ FIXME
 
           if (softdelete_count >= theWindowSize || (theMaxSyncResponseSize > 0 && [s length] >= theMaxSyncResponseSize))
             {
-              [folderMetadata setObject: [NSNumber numberWithBool: YES]  forKey: @"MoreAvailable"];
+              [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
               [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
 
               more_available = YES;
@@ -1174,7 +1173,7 @@ FIXME
               // Since WindowSize is reached don't even try to add more to the response, let's just
               // jump to the end and return the response immediately
               goto return_response;
-          }
+            }
         }
 
       [folderMetadata removeObjectForKey: @"MoreAvailable"];
