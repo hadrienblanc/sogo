@@ -109,7 +109,6 @@ static SoSecurityManager *sm = nil;
       OCSPath = nil;
       subscribedSubFolders = nil;
       subFolderClass = Nil;
-//       hasSubscribedSources = NO;
     }
 
   return self;
