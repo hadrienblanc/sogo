@@ -176,10 +176,10 @@
     {
       rDates = [(iCalDateTime*) dateString dateTimes];
       for (i = 0; i < [rDates count]; i++)
-	{
-	  rDate = [rDates objectAtIndex: i];
+        {
+          rDate = [rDates objectAtIndex: i];
           [dates addObject: rDate];
-	}
+        }
     }
 
   return dates;
@@ -220,7 +220,7 @@
 }
 
 /**
- * Returns a new set of rules, but with "until dates" adjusted to the 
+ * Returns a new set of rules, but with "until dates" adjusted to the
  * specified timezone.
  * Used when calculating a recurrence/exception rule.
  * @param theRules the iCalRecurrenceRule instances
@@ -243,14 +243,14 @@
     {
       max = [rules count];
       if (max)
-	{
-	  fixedRules = [NSMutableArray arrayWithCapacity: max];
-	  for (count = 0; count < max; count++)
-	    {
-	      currentRule = [rules objectAtIndex: count];
-	      untilDate = [currentRule untilDate];
-	      if (untilDate)
-		{
+        {
+          fixedRules = [NSMutableArray arrayWithCapacity: max];
+          for (count = 0; count < max; count++)
+            {
+              currentRule = [rules objectAtIndex: count];
+              untilDate = [currentRule untilDate];
+              if (untilDate)
+                {
                   if ([theTimeZone isKindOfClass: [iCalTimeZone class]])
                     untilDate = [(iCalTimeZone *) theTimeZone computedDateForDate: untilDate];
                   else
@@ -259,12 +259,12 @@
                       untilDate = (NSCalendarDate *) [untilDate dateByAddingYears:0 months:0 days:0 hours:0 minutes:0
                                                                           seconds:-offset];
                     }
-		  [currentRule setUntilDate: untilDate];
-		}
-	      [fixedRules addObject: currentRule];
-	    }
-	  rules = fixedRules;
-	}
+                  [currentRule setUntilDate: untilDate];
+                }
+              [fixedRules addObject: currentRule];
+            }
+          rules = fixedRules;
+        }
     }
 
   return rules;
@@ -327,21 +327,21 @@
   dates = [NSMutableArray array];
   seenDates = [NSMutableSet set];
   dateList = [[self childrenWithTag: @"exdate"] objectEnumerator];
-  
+
   while ((dateString = [dateList nextObject]))
     {
       exDates = [(iCalDateTime*) dateString dateTimes];
       for (i = 0; i < [exDates count]; i++)
-	{
-	  exDate = [exDates objectAtIndex: i];
-	  dateString = [NSString stringWithFormat: @"%@Z",
-				 [exDate iCalFormattedDateTimeString]];
-	  if (![seenDates containsObject: dateString])
-	    {
-	      [seenDates addObject: dateString];
-	      [dates addObject: dateString];
-	    }
-	}
+        {
+          exDate = [exDates objectAtIndex: i];
+          dateString = [NSString stringWithFormat: @"%@Z",
+                         [exDate iCalFormattedDateTimeString]];
+          if (![seenDates containsObject: dateString])
+            {
+              [seenDates addObject: dateString];
+              [dates addObject: dateString];
+            }
+        }
     }
 
   return dates;
@@ -364,32 +364,32 @@
   unsigned i;
 
   if (theTimeZone)
-  {
-    dates = [NSMutableArray array];
-    dateList = [[self childrenWithTag: @"exdate"] objectEnumerator];
-      
-    while ((dateString = [dateList nextObject]))
-	  {
-      exDates = [(iCalDateTime*) dateString dateTimes];
-      for (i = 0; i < [exDates count]; i++)
-	    {
-	      exDate = [exDates objectAtIndex: i];
+    {
+      dates = [NSMutableArray array];
+      dateList = [[self childrenWithTag: @"exdate"] objectEnumerator];
 
-        // Example: timezone is -0400, date is 2012-05-24 (00:00:00 +0000),
-        //                      and changes to 2012-05-24 04:00:00 +0000
-        if ([theTimeZone isKindOfClass: [iCalTimeZone class]])
+      while ((dateString = [dateList nextObject]))
         {
-          exDate = [(iCalTimeZone *) theTimeZone computedDateForDate: exDate];
+          exDates = [(iCalDateTime*) dateString dateTimes];
+          for (i = 0; i < [exDates count]; i++)
+            {
+              exDate = [exDates objectAtIndex: i];
+
+              // Example: timezone is -0400, date is 2012-05-24 (00:00:00 +0000),
+              //                      and changes to 2012-05-24 04:00:00 +0000
+              if ([theTimeZone isKindOfClass: [iCalTimeZone class]])
+                {
+                  exDate = [(iCalTimeZone *) theTimeZone computedDateForDate: exDate];
+                }
+              else
+                {
+                  offset = [(NSTimeZone *) theTimeZone secondsFromGMTForDate: exDate];
+                  exDate = (NSCalendarDate *) [exDate dateByAddingYears:0 months:0 days:0 hours:0 minutes:0 seconds:-offset];
+                }
+              [(NSMutableArray *) dates addObject: exDate];
+            }
         }
-        else
-        {
-          offset = [(NSTimeZone *) theTimeZone secondsFromGMTForDate: exDate];
-          exDate = (NSCalendarDate *) [exDate dateByAddingYears:0 months:0 days:0 hours:0 minutes:0 seconds:-offset];
-        }
-	      [(NSMutableArray *) dates addObject: exDate];
-   	  }
-	  }
-  }
+    }
   else
     dates = [self exceptionDates];
 
@@ -409,7 +409,7 @@
     firstInstanceCalendarDateRange: (NGCalendarDateRange *) _fir
 {
   NSArray *ranges;
-  
+
   ranges = [self recurrenceRangesWithinCalendarDateRange:_range
                  firstInstanceCalendarDateRange:_fir];
   return [ranges count] > 0;

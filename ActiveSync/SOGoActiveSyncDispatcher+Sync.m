@@ -526,7 +526,7 @@ FIXME
 
           // make sure to pickup the delete immediately if we don't have proper permission to add
           if (![roles containsObject: SOGoRole_ObjectCreator] && ![[sogoObject ownerInContext: context] isEqualToString: [[context activeUser] login]])
-            [folderMetadata setObject: [NSNumber numberWithBool: YES]  forKey: @"MoreAvailable"];
+            [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
 
           [self _setFolderMetadata: folderMetadata forKey: [self _getNameInCache: theCollection withType: theFolderType]];
 
@@ -1464,7 +1464,7 @@ FIXME
 
         if (more_available)
           {
-            [folderMetadata setObject: [NSNumber numberWithBool: YES]  forKey: @"MoreAvailable"];
+            [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
             [folderMetadata setObject: *theLastServerKey  forKey: @"SyncKey"];
           }
         else
@@ -2434,7 +2434,7 @@ FIXME
               if (*changeDetected)
                 {
                   // Set MoreAvailable to make sure we come back and check remaining folders.
-                  [folderMetadata setObject: [NSNumber numberWithBool: YES]  forKey: @"MoreAvailable"];
+                  [folderMetadata setObject: [NSNumber numberWithBool: YES] forKey: @"MoreAvailable"];
 
                   break;
                 }

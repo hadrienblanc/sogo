@@ -3050,7 +3050,7 @@ dictionary.
 
 Defaults to an empty array, which means that no domains appear on the
 login page. If you prefer having the domain names listed, just use these
-as keys for the the `domains` dictionary.
+as keys for the `domains` dictionary.
 
 |S |SOGoDomainsVisibility
 |Parameter used to set domains visible among themselves. This parameter
@@ -3123,7 +3123,7 @@ be run every minute.
 A commented out example should have been installed in
 `/etc/cron.d/sogo`, to enable it, simply uncomment it.
 
-As a reference, the _cronjob_ should de defined like this:
+As a reference, the _cronjob_ should be defined like this:
 
 ----
 * * * * *     /usr/sbin/sogo-ealarms-notify
@@ -4365,7 +4365,7 @@ h|2.3.0
 `sql-update-2.2.17_to_2.3.0-mysql.sh` (if you use MySQL).
 
 This will grow the "participant states" field of calendar quick tables to a larger
-size and add the the "c_description" column to calendar quick tables.
+size and add the "c_description" column to calendar quick tables.
 
 Moreover, if you are using a multi-domain configuration, make sure the keys for
 your domains match the email domains you have defined.
