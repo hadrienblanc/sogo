@@ -109,7 +109,6 @@
   NSEnumerator *dateList;
   NSCalendarDate *rDate;
   NSString *dateString;
-  NSTimeZone *rdateTimezone;
   BOOL allDayEvent;
   int offset;
   unsigned i;
@@ -128,8 +127,6 @@
       for (i = 0; i < [rDates count]; i++)
 	    {
 	      rDate = [rDates objectAtIndex: i];
-
-
 
         /*
         VERY VERY STRANGE
