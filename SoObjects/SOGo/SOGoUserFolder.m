@@ -564,10 +564,6 @@
           && (!isDAVRequest || [sd isAddressBookDAVAccessEnabled]))
         obj = [self privateContacts: _key inContext: _ctx];
 
-      // else if ([_key isEqualToString: @"Preferences"])
-      //   obj = [$(@"SOGoPreferencesFolder") objectWithName: _key
-      //   	inContainer: self];
-
       if (!obj)
         obj = [self exceptionWithHTTPStatus: 404 /* Not Found */];
     }

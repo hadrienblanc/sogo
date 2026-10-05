@@ -341,11 +341,6 @@ _convertLDAPAtomToNSDictionary (_SOGoLDAPValue *atom)
   return ldapObject;
 }
 
-// dn = "cn=admin,dc=inverse,dc=ca";
-// password = "qwerty";
-// uri = "ldap://127.0.0.1";
-// configDN = "cn=sogo-config,dc=inverse,dc=ca";
-
 static _SOGoLDAPValue *
 _initLDAPDefaults ()
 {

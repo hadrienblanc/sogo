@@ -474,10 +474,6 @@
   NSArray *containerAcls;
 
   acls = [NSMutableArray array];
-  /* this is unused... */
-//   ownAcls = [container aclsForUser: uid
-// 		       forObjectAtPath: [self pathArrayToSOGoObject]];
-//   [acls addObjectsFromArray: ownAcls];
   containerAcls = [container aclsForUser: uid];
   if ([containerAcls count] > 0)
     {

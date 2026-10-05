@@ -136,11 +136,6 @@
 
   /* ORGANIZER - strictly required but missing for now */
 
-  /* ATTENDEE */
-//   person = [self iCalPersonWithUid: login];
-//   [person setTag: @"ATTENDEE"];
-//   [ms appendString: [person versitString]];
-
   /* FREEBUSY */
   events = [_infos objectEnumerator];
   while ((info = [events nextObject]))

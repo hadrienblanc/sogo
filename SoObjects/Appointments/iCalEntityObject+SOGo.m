@@ -355,13 +355,6 @@ NSNumber *iCalDistantFutureNumber = nil;
   if ([o isKindOfClass: [NSArray class]])
     [self _setAttendees: o];
 
-  // o = [data objectForKey: @"alarm"];
-  // if ([o isKindOfClass: [NSDictionary class]])
-  //   {
-  //     owner = [data objectForKey: @"owner"];
-  //     [self _setAlarm: o forOwner: owner];
-  //   }
-
   // Other attributes depend on the client object and therefore are set in [UIxComponentEditor setAttributes:]:
   // - organizer & "created-by"
   // - timestamps (creation/modification)

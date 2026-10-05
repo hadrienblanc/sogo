@@ -2037,15 +2037,6 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
     {
       name = [origAttributeNames objectAtIndex: count];
       origAttribute = [origAttributes objectForKey: name];
-      /* the attribute must only have string values, otherwise it will anyway
-         be missing from the new record */
-      // allStrings = YES;
-      // values = [origAttribute allValues];
-      // valueMax = [values count];
-      // for (valueCount = 0; allStrings && valueCount < valueMax; valueCount++)
-      //   if (![[values objectAtIndex: valueCount] isKindOfClass: NSStringK])
-      //     allStrings = NO;
-      // if (allStrings)
       [changes
         addObject: [NGLdapModification deleteModification: origAttribute]];
     }

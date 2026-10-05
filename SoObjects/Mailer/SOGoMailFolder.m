@@ -1431,11 +1431,8 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
   }
   
   /* build IMAP4 URL for target */
-  
+
   destImapURL = [_target imap4URL];
-// -  destImapURL = [NSURL URLWithString:[[destImapURL path] 
-// -				       stringByAppendingPathComponent:_name]
-// -		       relativeToURL:destImapURL];
   destImapURL = [NSURL URLWithString: _name
 		       relativeToURL: destImapURL];
   

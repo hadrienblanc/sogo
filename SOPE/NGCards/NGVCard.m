@@ -427,16 +427,6 @@
 - (void) appendAttributesToDescription: (NSMutableString *) _ms
 {
   if ([self uid]) [_ms appendFormat:@" uid='%@'", [self uid]];
-  
-//   if ([[self tel] count] > 0) [_ms appendFormat:@" tel=%@", [self tel];
-//   if ([[self adr] count])
-//     [_ms appendFormat:@" adr=%@", [self adr]];
-//   if ([[self email] count])
-//     [_ms appendFormat:@" email=%@", [self email]];
-//   if ([[self label] count])
-//     [_ms appendFormat:@" label=%@", [self label]];
-//   if ([[self x] count])
-//     [_ms appendFormat:@" x=%@", [self x]];
 }
 
 - (NSString *) description

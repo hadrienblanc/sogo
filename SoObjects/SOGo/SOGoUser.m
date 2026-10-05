@@ -64,23 +64,6 @@
 
 @implementation SOGoUser
 
-// + (NSString *) language
-// {
-//   NSArray *bLanguages;
-//   WOContext *context;
-//   NSString *lng;
-
-//   context = [[WOApplication application] context];
-//   bLanguages = [[context request] browserLanguages];
-//   if ([bLanguages count] > 0)
-//     lng = [bLanguages objectAtIndex: 0];
-
-//   if (![lng length])
-//     lng = defaultLanguage;
-
-//   return lng;
-// }
-
 + (SOGoUser *) userWithLogin: (NSString *) newLogin
 {
   return [self userWithLogin: newLogin  roles: nil];
