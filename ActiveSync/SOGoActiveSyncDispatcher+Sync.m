@@ -1142,7 +1142,7 @@ FIXME
                   [s appendString: @"</SoftDelete>"];
 
                   [syncCache removeObjectForKey: key];
-            
+
                   softdelete_count++;
                 }
               else if (cleanup_needed)
