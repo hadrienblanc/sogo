@@ -623,7 +623,6 @@ static NSArray *VoidTags = nil;
                   lastAnchorOpenEnd = 0;
                 }
 
-              //NSLog (@"%@", _localName);
               [result appendFormat: @"</%@>", _localName];
 
               if (anchorWrapTag != nil

@@ -290,7 +290,6 @@ static Class NSStringK;
 
 - (void) setBindDN: (NSString *) theDN
 {
-  //NSLog(@"Setting bind DN to %@", theDN);
   ASSIGN(_bindDN, theDN);
 }
 
@@ -474,7 +473,6 @@ groupObjectClasses: (NSArray *) newGroupObjectClasses
 
   NS_DURING
     {
-      //NSLog(@"Creating NGLdapConnection instance for bindDN '%@'", _bindDN);
       ldapConnection = [[NGLdapConnection alloc] initWithHostName: _hostname
                                                              port: _port];
       [ldapConnection autorelease];

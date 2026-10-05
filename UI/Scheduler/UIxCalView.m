@@ -620,7 +620,6 @@
       [uri appendString: @"Groups/_custom_"];
       [uri appendString: uidsString];
       [uri appendString: @"/"];
-      //NSLog (@"Group URI = '%@'", uri);
     }
   else
     {

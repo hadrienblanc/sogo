@@ -58,7 +58,6 @@ static NSNumber *yesObject = nil;
 		defaultRolesForPermission: permission];
       if ([roles firstObjectCommonWithArray: userRoles])
 	{
- 	  // NSLog (@"matched '%@': %@", permission, roles);
 	  result = YES;
 	}
       else
@@ -171,8 +170,6 @@ static NSNumber *yesObject = nil;
   NSEnumerator *children;
   BOOL appended, childrenAppended;
 
-  // NSLog (@"attempt to add permission: %@",
-  //        [permission objectForKey: @"permission"]);
   appended = YES;
   if (matchSOGoPerms)
     {
@@ -182,7 +179,6 @@ static NSNumber *yesObject = nil;
 	[davPermissions addObject: [permission objectForKey: @"permission"]];
       else
 	appended = NO;
-      // NSLog (@"permission '%@' appended: %d", sogoPermission, appended);
     }
   else
     [davPermissions
@@ -201,8 +197,6 @@ static NSNumber *yesObject = nil;
                                                && !appended)];
       if (childrenAppended && !appended)
 	{
-          // NSLog (@"  adding perm '%@' because children were appended",
-          //        [permission objectForKey: @"permission"]);
 	  [davPermissions
 	    addObject: [permission objectForKey: @"permission"]];
 	  appended = YES;
