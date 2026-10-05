@@ -1,7 +1,7 @@
 # Sogod cronjobs
 
 # Vacation messages expiration
-# The credentials file should contain the sieve admin credentials (username:passwd)
+# The credentials file should contain the sieve admin credentials (username:password)
 #*/5 * * * *    sogo	/usr/sbin/sogo-tool update-autoreply -p /etc/sogo/sieve.creds
 
 # Session cleanup - runs every minute
