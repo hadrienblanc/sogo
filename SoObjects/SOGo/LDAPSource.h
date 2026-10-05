@@ -70,7 +70,6 @@
 
   NSString *_domain;
   NSString *_contactInfoAttribute;
-  BOOL _groupExpansionEnabled;
 
   NSDictionary *_contactMapping;
   NSArray *_contactObjectClasses;
