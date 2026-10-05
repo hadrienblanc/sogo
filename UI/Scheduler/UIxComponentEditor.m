@@ -41,7 +41,7 @@
 #import <Appointments/iCalPerson+SOGo.h>
 #import <Appointments/SOGoWebAppointmentFolder.h>
 #import <Appointments/SOGoAppointmentFolders.h>
-#import <Appointments/SOGoTaskObject.h>
+#import <Appointments/SOGoCalendarComponent.h>
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
