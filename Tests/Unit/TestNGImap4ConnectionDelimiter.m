@@ -349,7 +349,7 @@ static NSString *Test5912Unquote(NSString *quoted)
   running = YES;
   thread = [[NSThread alloc] initWithTarget: self
                                    selector: @selector (_serve)
-                                       object: nil];
+                                     object: nil];
   [thread start];
 }
 
