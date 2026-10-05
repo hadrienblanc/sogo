@@ -7,12 +7,6 @@
 
   categories = {
     SOGoContactFolders = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoContactFolder.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "View";
@@ -56,12 +50,6 @@
     /* both following class should be "reparented" so as to only have
        SOGoContactFolder here... */
     SOGoContactGCSFolder = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoContactFolder.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "View";
@@ -119,12 +107,6 @@
     };
 
     SOGoContactSourceFolder = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoContactFolder.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "<public>";

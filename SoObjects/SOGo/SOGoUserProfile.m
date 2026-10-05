@@ -326,8 +326,6 @@
 - (BOOL) synchronize
 {
   BOOL rc;
-//   if (!defFlags.modified) /* was not modified */
-//     return YES;
 
   rc = NO;
 
@@ -339,8 +337,6 @@
       if ([self primaryStoreProfile])
         {
           rc = YES;
-          // /* refetch */
-          // [self primaryFetchProfile];
         }
       else
         {

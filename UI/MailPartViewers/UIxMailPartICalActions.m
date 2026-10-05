@@ -318,7 +318,6 @@
 
 - (WOResponse *) delegateAction
 {
-//  BOOL receiveUpdates;
   NSString *delegatedEmail, *delegatedUid;
   iCalPerson *delegatedAttendee;
   NSDictionary *content;
@@ -349,10 +348,6 @@
       [delegatedAttendee setParticipationStatus: iCalPersonPartStatNeedsAction];
       [delegatedAttendee setDelegatedFrom:
 	       [NSString stringWithFormat: @"mailto:%@", [[user allEmails] objectAtIndex: 0]]];
-      
-//      receiveUpdates = [[content objectForKey: @"receiveUpdates"] boolValue];
-//      if (receiveUpdates)
-//	[delegatedAttendee setRole: @"NON-PARTICIPANT"];
 
       response = [self _changePartStatusAction: @"DELEGATED"
 				  withDelegate: delegatedAttendee];

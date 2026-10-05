@@ -7,12 +7,6 @@
 
   categories = {
     SOGoAppointmentFolders = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoAppointmentFolders.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "View";
@@ -215,12 +209,6 @@
     };
 
     SOGoAppointmentObject = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoAppointmentObject.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "ViewAllComponent";
@@ -266,12 +254,6 @@
     };
 
     SOGoTaskObject = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoAppointmentObject.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "ViewAllComponent";
@@ -297,12 +279,6 @@
     };
 
     SOGoAppointmentOccurence = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoAppointmentObject.toolbar";
-        };
-      };
       methods = {
         save = { 
           protectedBy = "ModifyComponent";
@@ -323,12 +299,6 @@
     };
 
     SOGoTaskOccurence = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoTaskObject.toolbar";
-        };
-      };
       methods = {
         save = { 
           protectedBy = "ModifyComponent";

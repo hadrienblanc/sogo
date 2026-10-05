@@ -31,8 +31,6 @@
 
 - (id) defaultAction
 {
-  [[self parent] setToolbar: @""];
-
   return self;
 }
 
