@@ -259,7 +259,7 @@ The syntax is:
 
 The path of the filename, specified in the `filename` parameter, is
 relative to the location of the `updates.php` script. For extensions
-that are dependant on the architecture and operating system (Microsoft
+that are dependent on the architecture and operating system (Microsoft
 Windows, Apple Mac OS X, etc.), they can be placed in subdirectories
 relative again to the `updates.php` script (but the filename must be
 identical in all subdirectories). For example, for a platform-specific
