@@ -328,8 +328,6 @@
   gcsFolder = [fm folderAtPath: folder];
 
   tableRecord = [NSMutableDictionary dictionary];
-  // [tableRecord setObject: 
-  //                  forKey: @"displayname"];
   records = [gcsFolder fetchFields: fields
                 fetchSpecification: nil];
   if (records)
