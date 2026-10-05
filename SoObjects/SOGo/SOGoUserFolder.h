@@ -49,8 +49,6 @@
 
 - (NSArray *) foldersOfType: (NSString *) folderType
 		     forUID: (NSString *) uid;
-- (NSDictionary *) foldersOfType: (NSString *) type
-		     matchingUID: (NSString *) uid;
 
 - (id) freeBusyObject: (NSString *) _key
             inContext: (WOContext *) _ctx;

@@ -42,12 +42,7 @@ Class SOGoCacheGCSObjectK = Nil;
 
 - (id) init
 {
-  if ((self = [super init]))
-    {
-      pathPrefix = nil;
-    }
-
-  return self;
+  return [super init];
 }
 
 - (id) initWithName: (NSString *) name inContainer: (id) newContainer
@@ -67,7 +62,6 @@ Class SOGoCacheGCSObjectK = Nil;
 - (void) dealloc
 {
   [aclMessage release];
-  [pathPrefix release];
   [super dealloc];
 }
 
@@ -76,28 +70,12 @@ Class SOGoCacheGCSObjectK = Nil;
   return YES;
 }
 
-- (void) setPathPrefix: (NSString *) newPathPrefix
-{
-  ASSIGN (pathPrefix, newPathPrefix);
-}
-
 - (NSMutableString *) pathForChild: (NSString *) childName
 {
   NSMutableString *path;
 
   path = [self path];
   [path appendFormat: @"/%@", childName];
-
-  return path;
-}
-
-- (NSMutableString *) path
-{
-  NSMutableString *path;
-
-  path = [super path];
-  if (pathPrefix)
-    [path insertString: pathPrefix atIndex: 0];
 
   return path;
 }
@@ -309,18 +287,6 @@ Class SOGoCacheGCSObjectK = Nil;
     }
   else
     object = nil;
-
-  return object;
-}
-
-- (id) lookupFolder: (NSString *) folderName
-          inContext: (WOContext *) woContext
-{
-  id object;
-
-  object = [SOGoCacheGCSFolder objectWithName: folderName
-                                inContainer: self];
-  [object reloadIfNeeded];
 
   return object;
 }

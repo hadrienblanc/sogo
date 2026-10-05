@@ -217,32 +217,6 @@
   return folders;
 }
 
-- (NSDictionary *) foldersOfType: (NSString *) type
-		     matchingUID: (NSString *) uid
-{
-  NSArray *users, *folders;
-  NSString *domain;
-  NSEnumerator *enumerator;
-  NSDictionary *user;
-  NSMutableDictionary *results;
-
-  results = [NSMutableDictionary dictionary];
-
-  domain = [[SOGoUser userWithLogin: owner] domain];
-  users = [[SOGoUserManager sharedUserManager] fetchUsersMatching: uid
-                                                         inDomain: domain];
-  enumerator = [users objectEnumerator];
-  while ((user = [enumerator nextObject]))
-    {
-      uid = [user objectForKey: @"c_uid"];
-      folders = [self foldersOfType: type
-		      forUID: [user objectForKey: @"c_uid"]];
-      [results setObject: folders forKey: user];
-    }
-
-  return results;
-}
-
 - (NSArray *) davResourceType
 {
   NSMutableArray *rType;

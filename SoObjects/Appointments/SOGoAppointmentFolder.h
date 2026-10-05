@@ -79,10 +79,6 @@ typedef enum {
 - (NSString *) calendarColor;
 - (void) setCalendarColor: (NSString *) newColor;
 
-/* selection */
-
-- (NSArray *) calendarUIDs;
-
 - (NSNumber *) activeTasks;
 
 /* vevent UID handling */
@@ -140,18 +136,7 @@ typedef enum {
 
 /* folder management */
 
-- (id) lookupHomeFolderForUID: (NSString *) _uid
-                    inContext: (id) _ctx;
-
 - (NSArray *) lookupCalendarFoldersForUID: (NSString *) theUID;
-- (NSArray *) lookupCalendarFoldersForUIDs: (NSArray *) _uids
-                                 inContext: (id) _ctx;
-- (NSArray *) lookupFreeBusyObjectsForUIDs: (NSArray *) _uids
-                                 inContext: (id) _ctx;
-
-- (NSArray *) uidsFromICalPersons: (NSArray *) _persons;
-- (NSArray *) lookupCalendarFoldersForICalPerson: (NSArray *) _persons
-                                       inContext: (id) _ctx;
 
 /* bulk fetches */
 
