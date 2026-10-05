@@ -219,12 +219,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   else if ([self untilDate])
     {
       NSCalendarDate *date;
-      
+
       date = [self untilDate];
-      
+
       [s appendFormat: @"<Recurrence_Until xmlns=\"%@:\">%@</Recurrence_Until>", t,
          [date activeSyncRepresentationWithoutSeparatorsInContext: context]];
-    }  
+    }
 
   [s appendString: @"</Recurrence>"];
 
