@@ -335,7 +335,7 @@
 - (void) _removeFolder: (NSString *) srcName
 {
   NGImap4Connection *connection;
-  NSMutableDictionary *moduleSettings, *threadsCollapsed;;
+  NSMutableDictionary *moduleSettings, *threadsCollapsed;
   NSString *keyForMsgUIDs, *currentMailbox, *currentAccount;
   SOGoMailFolder *co;
   SOGoUserSettings *us;

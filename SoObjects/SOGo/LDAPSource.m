@@ -2509,7 +2509,7 @@ _makeLDAPChanges (NGLdapConnection *ldapConnection,
 {
 
   BOOL rc;
-  NSString *key, *value;;
+  NSString *key, *value;
   NSArray *a, *members;
 
   rc = NO;

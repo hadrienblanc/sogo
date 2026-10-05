@@ -229,11 +229,9 @@
     case SOGoTestTextOutputFormat:
       [self displayTextReport];
       break;
-      ;;
     case SOGoTestJUnitOutputFormat:
       [self displayJUnitReport];
       break;
-      ;;
     }
 }
 

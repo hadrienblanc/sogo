@@ -1445,7 +1445,7 @@ static NSArray *reminderValues = nil;
                 if (!found) {
                   error = [NSException exceptionWithName: @"SOGOPreferencesException"
                                       reason: @"Invalid operation"
-                                    userInfo: nil];;
+                                    userInfo: nil];
                   return error; // Break
                 }
               }
@@ -1461,7 +1461,7 @@ static NSArray *reminderValues = nil;
                 if (!found) {
                   error = [NSException exceptionWithName: @"SOGOPreferencesException"
                                       reason: @"Invalid operation"
-                                    userInfo: nil];;
+                                    userInfo: nil];
                   return error; // Break
                 }
               }

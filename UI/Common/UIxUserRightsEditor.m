@@ -256,7 +256,7 @@
   WORequest *request;
   SOGoDomainDefaults *dd;
   NSArray *users;
-  NSDictionary *currentUser, *jsonResponse;;
+  NSDictionary *currentUser, *jsonResponse;
   NSEnumerator *usersList;
   NSString *currentUid;
   NSArray *o, *reqPathArray;

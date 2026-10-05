@@ -619,7 +619,7 @@ size_t curl_body_function(void *ptr, size_t size, size_t nmemb, void *buffer)
 
 -(NSString *) _random_state
 {
-    return [[[NSProcessInfo processInfo] globallyUniqueString] asSHA1String];;
+    return [[[NSProcessInfo processInfo] globallyUniqueString] asSHA1String];
 }
 
 - (NSString*) loginUrl: (NSString *) oldLocation

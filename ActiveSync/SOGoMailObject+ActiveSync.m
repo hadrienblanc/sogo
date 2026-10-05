@@ -1484,7 +1484,7 @@ struct GlobalObjectId {
       if ([o intValue])
         [self addFlags: @"seen"];
       else
-        [self removeFlags: @"seen"];;
+        [self removeFlags: @"seen"];
     }
 
   if ((o = [theValues objectForKey: @"Categories"]))
