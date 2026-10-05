@@ -589,8 +589,6 @@
   NSString **values, **currentValue;
   SEL methodSel;
 
-//   NSLog (@"_properties:ofObject:: %@", [NSDate date]);
-
   values = NSZoneMalloc (NULL,
                          (propertiesCount + 1) * sizeof (NSString *));
   *(values + propertiesCount) = nil;
@@ -614,8 +612,6 @@
       currentProperty++;
     }
 
-//    NSLog (@"/_properties:ofObject:: %@", [NSDate date]);
-
   return values;
 }
 
@@ -626,8 +622,6 @@
   NSMutableArray *propstats, *properties200, *properties404, *propDict;
   NSString **property, **values, **currentValue;
   NSString *propertyValue, *nodeTag;
-
-//   NSLog (@"_propstats:ofObject:: %@", [NSDate date]);
 
   propstats = [NSMutableArray array];
 
@@ -667,9 +661,8 @@
   if ([properties404 count])
     [propstats addObject: [NSDictionary dictionaryWithObjectsAndKeys:
 					  properties404, @"properties",
-					@"HTTP/1.1 404 Not Found", @"status",
-					nil]];
-//    NSLog (@"/_propstats:ofObject:: %@", [NSDate date]);
+				@"HTTP/1.1 404 Not Found", @"status",
+				nil]];
 
   return propstats;
 }
@@ -807,7 +800,6 @@
   [source releaseConnection: connection];
   [records release];
   [cnames release];
-//   NSLog (@"/adding properties with url");
 
   NSZoneFree (NULL, propertiesArray);
 }
