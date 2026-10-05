@@ -247,7 +247,6 @@
 {
   if (!processed)
     NSLog(@"ERROR: validSignature called but not processed yet");
-    //[self _processMessage];
 
   return validSignature;
 }
@@ -270,7 +269,6 @@
 {
   if (!processed)
     NSLog(@"ERROR: validationMessage called but not processed yet");
-    //[self _processMessage];
 
   return validationMessage;
 }

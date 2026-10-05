@@ -58,8 +58,6 @@
 
   ex = [dispatcher dispatchRequest: request  inResponse: response  context: context];
 
-  //[[self class] memoryStatistics];
-
   if (ex)
     {
       RELEASE(dispatcher);

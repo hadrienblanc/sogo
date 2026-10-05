@@ -728,7 +728,6 @@ static const NSString *kJwtKey = @"jwt";
     [response addCookie: openIdCookieLocation];
   if(domainCookie)
     [response addCookie: domainCookie];
-  //[response setStatus: 303];
   return response;
 }
 
@@ -838,7 +837,6 @@ static const NSString *kJwtKey = @"jwt";
         //Only reload the page with the name
         serverUrl = [[context serverURL] absoluteString];
         redirectLocation = [NSString stringWithFormat: @"%@/%@/login?hint=%@", serverUrl, [request applicationName], username];
-        //response = [self redirectToLocation: [NSString stringWithFormat: @"%@/", redirectLocation]];
         response = [self responseWithStatus: 200 andJSONRepresentation:
           [NSDictionary dictionaryWithObjectsAndKeys: redirectLocation, @"redirect", nil]];
       }

@@ -862,8 +862,6 @@
 
   data = [NSMutableDictionary dictionary];
 
-  // TODO: we might want to flush the caches?
-  //[folder flushMailCaches];
   [folder expungeLastMarkedFolder];
 
   // Retrieve messages UIDs using form parameters "sort" and "asc"

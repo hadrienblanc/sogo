@@ -212,8 +212,6 @@ static NSArray *reminderValues = nil;
                       currentAttendee = [iCalPerson elementWithTag: @"attendee"];
                       [currentAttendee setCn: [currentData objectForKey: @"name"]];
                       [currentAttendee setEmail: currentEmail];
-                      // [currentAttendee
-                      //   setParticipationStatus: iCalPersonPartStatNeedsAction];
                     }
                   [currentAttendee
                     setRsvp: ([role isEqualToString: @"NON-PARTICIPANT"]
