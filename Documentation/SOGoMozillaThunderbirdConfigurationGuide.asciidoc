@@ -59,7 +59,7 @@ Mozilla Thunderbird
 
 Mozilla Thunderbird is the official front end client of SOGo.
 
-Mozilla Thunderbird versions 31, 38, 45 and above are supported
+Mozilla Thunderbird 78 and above are supported
 and it is recommended to use the latest version of Thunderbird.
 
 In order to download and install Mozilla Thunderbird, please visit:

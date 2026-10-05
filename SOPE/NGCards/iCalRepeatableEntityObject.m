@@ -139,15 +139,6 @@
         So for the rdates, even if they are correct (meaning 07h15 +0000 which is 09h15 +0200)
         We will have to set them to have 09h15 +0000 (in thas case it will be 11h15 +0200)...
         */
-        //the code below was before the fix above
-        // if ((rdateTimezone =[rDate timeZone]))
-        // {
-        //   //The property rdate can have the timezone, https://www.kanzaki.com/docs/ical/rdate.html
-        //   //In that case, dont force the
-        // }
-        // // Example: timezone is -0400, date is 2012-05-24 (00:00:00 +0000),
-        // //                      and changes to 2012-05-24 04:00:00 +0000
-        // else
         if ([theTimeZone isKindOfClass: [iCalTimeZone class]])
         {
           rDate = [(iCalTimeZone *) theTimeZone computedDateForDate: rDate];

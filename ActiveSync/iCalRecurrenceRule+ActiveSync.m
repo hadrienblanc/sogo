@@ -216,13 +216,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       [s appendFormat: @"<Recurrence_Occurrences xmlns=\"%@:\">%@</Recurrence_Occurrences>", t,
          [self flattenedValuesForKey: @"count"]];
     }
-  else if ([self untilDate])
+    else if ([self untilDate])
     {
       NSCalendarDate *date;
       
       date = [self untilDate];
-      //ud = [[context activeUser] userDefaults];
-      //[date setTimeZone: [ud timeZone]];
       
       [s appendFormat: @"<Recurrence_Until xmlns=\"%@:\">%@</Recurrence_Until>", t,
          [date activeSyncRepresentationWithoutSeparatorsInContext: context]];

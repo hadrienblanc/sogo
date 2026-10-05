@@ -957,7 +957,7 @@ your sensitive data. Check the doc of _<<sogo-tool-update-secret,sogo-tool updat
 - Modify your sogo.conf to modify your secret
 - Use the sogo-tool command to encrypt all sensitive data with the new secret, you will need to pass your current secret too.
 ----
- sogo-tool update-secret -n myNewSecret -p myCurrentSecret
+ sogo-tool update-secret -n myNewSecret -o myCurrentSecret
 ----
 - Restart sogo
 

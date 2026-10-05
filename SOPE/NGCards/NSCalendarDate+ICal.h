@@ -38,7 +38,6 @@
 @interface NSCalendarDate (iCalRecurrenceCalculatorExtensions)
 - (unsigned)yearsBetweenDate:(NSCalendarDate *)_date;
 - (unsigned)monthsBetweenDate:(NSCalendarDate *)_date;
-- (unsigned)daysBetweenDate:(NSCalendarDate *)_date;
 @end
 
 #endif /* __NGiCal_NSCalendarDate_ICal_H__ */

@@ -319,7 +319,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   // Comment
   o = [self comment];
-  //if (![self recurrenceId] && [o length])
   if ([o length])
     {
       // It is very important here to NOT set <Truncated>0</Truncated> in the response,
@@ -563,17 +562,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   // We ignore TimeZone sent by mobile devices for now.
   // Some Windows devices don't send during event updates.
-  //if ((o = [theValues objectForKey: @"TimeZone"]))
-  //  {
-  //  }
-  //else
-    {
-      // We haven't received a timezone, let's use the user's timezone
-      // specified in SOGo for now.
-      userTimeZone = [[[context activeUser] userDefaults] timeZone];
-      tz = [iCalTimeZone timeZoneForName: [userTimeZone name]];
-      [(iCalCalendar *) parent addTimeZone: tz];
-    }
+  // We haven't received a timezone, let's use the user's timezone
+  // specified in SOGo for now.
+  userTimeZone = [[[context activeUser] userDefaults] timeZone];
+  tz = [iCalTimeZone timeZoneForName: [userTimeZone name]];
+  [(iCalCalendar *) parent addTimeZone: tz];
   
   // FIXME: merge with iCalToDo
   if ([[context objectForKey: @"ASProtocolVersion"] isEqualToString: @"2.5"])

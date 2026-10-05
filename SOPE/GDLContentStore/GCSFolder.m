@@ -545,12 +545,6 @@ static GCSStringFormatter *stringFormatter = nil;
       [sql appendString:[self _sqlForSortOrderings:sortOrderings]];
     }
 
-#if 0
-  /* limit */
-  [sql appendString:@" LIMIT "]; // count
-  [sql appendString:@" OFFSET "]; // index from 0
-#endif
-
   return sql;
 }
 
@@ -1588,11 +1582,6 @@ andAttribute: (EOAttribute *)_attribute
   qualifier     = [_fs qualifier];
   sortOrderings = [_fs sortOrderings];
 
-#if 0
-  [self logWithFormat:@"FETCH: %@", _flds];
-  [self logWithFormat:@"  MATCH: %@", _q];
-#endif
-
   /* generate SQL */
 
   sql = [NSMutableString stringWithCapacity:256];
@@ -1615,11 +1604,6 @@ andAttribute: (EOAttribute *)_attribute
     [sql appendString:@" ORDER BY "];
     [sql appendString:[self _sqlForSortOrderings:sortOrderings]];
   }
-#if 0
-  /* limit */
-  [sql appendString:@" LIMIT "]; // count
-  [sql appendString:@" OFFSET "]; // index from 0
-#endif
 
   /* open channel */
 

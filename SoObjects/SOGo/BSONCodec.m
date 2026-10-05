@@ -140,7 +140,7 @@ static NSDictionary *BSONTypes()
 	NSMutableArray *keys = [[NSMutableArray alloc] init];
         [keys addObjectsFromArray: [self allKeys]];
 
-	// Encode data.- (NSData *) BSONEncode;
+	// Encode data.
 	uint8_t elementType = 0;
         int i;
 

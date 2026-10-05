@@ -172,7 +172,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   o = [SOGoCacheGCSObject objectWithName: key  inContainer: nil];
   [o setObjectType: ActiveSyncFolderCacheObject];
   [o setTableUrl: [self folderTableURL]];
-  //[o reloadIfNeeded];
 
   [[o properties] removeObjectForKey: @"SyncKey"];
   [[o properties] removeObjectForKey: @"SyncCache"];
@@ -1143,8 +1142,7 @@ FIXME
                   [s appendString: @"</SoftDelete>"];
 
                   [syncCache removeObjectForKey: key];
-                  //[dateCache removeObjectForKey: key];
-              
+
                   softdelete_count++;
                 }
               else if (cleanup_needed)
@@ -1162,7 +1160,6 @@ FIXME
 
                   // Now we are save to remove the dateCache entry.
                   [dateCache removeObjectForKey: key];
-                  //[uidCache removeObjectForKey: key];
                 }
             }
           
@@ -1973,13 +1970,6 @@ FIXME
   if (collection == nil)
     {
       // Collection not found - next folderSync will do the cleanup
-      //NSLog(@"Sync Collection not found %@ %@", collectionId, realCollectionId);
-      //Outlook doesn't like following response
-      //[theBuffer appendString: @"<Collection>"];
-      //[theBuffer appendFormat: @"<SyncKey>%@</SyncKey>", syncKey];
-      //[theBuffer appendFormat: @"<CollectionId>%@</CollectionId>", collectionId];
-      //[theBuffer appendFormat: @"<Status>%d</Status>", 8];
-      //[theBuffer appendString: @"</Collection>"];
       return;
     }
 
@@ -2093,7 +2083,6 @@ FIXME
     }
   else if ((![syncKey isEqualToString: @"-1"]) && !([folderMetadata objectForKey: @"SyncCache"]))
     {
-      //NSLog(@"Reset folder: %@", [collection nameInContainer]);
       davCollectionTag = @"0";
       first_sync = YES;
       *changeDetected = YES;
@@ -2680,17 +2669,8 @@ FIXME
   // We check to see if our heartbeat interval falls into the supported ranges.
   if (heartbeatInterval > defaultInterval || heartbeatInterval < 1)
     {
-      int limit;
-      // Interval is too long, inform the client.
+      // Interval is out of range, clamp it to the server default.
       heartbeatInterval = defaultInterval;
-
-      // When Status = 14, the Wait interval is specified in minutes while
-      // defaultInterval is specifed in seconds. Adjust accordinlgy.
-      limit = defaultInterval/60;
-      if (limit < 1)  limit = 1;
-      if (limit > 59)  limit = 59;
-      //[output appendFormat: @"<Limit>%d</Limit>", limit];
-      //[output appendFormat: @"<Status>%d</Status>", 14];
     }
 
   s = nil;

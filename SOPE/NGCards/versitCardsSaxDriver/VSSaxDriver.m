@@ -160,7 +160,6 @@ static BOOL debugOn = NO;
 
 static NSCharacterSet *dotCharSet = nil;
 static NSCharacterSet *equalSignCharSet = nil;
-static NSCharacterSet *commaCharSet = nil;
 static NSCharacterSet *colonAndSemicolonCharSet = nil;
 static NSCharacterSet *colonSemicolonAndDquoteCharSet = nil;
 static NSCharacterSet *whitespaceCharSet = nil;
@@ -181,8 +180,6 @@ static NSCharacterSet *whitespaceCharSet = nil;
     [[NSCharacterSet characterSetWithCharactersInString: @"."] retain];
   equalSignCharSet =
     [[NSCharacterSet characterSetWithCharactersInString: @"="] retain];
-  commaCharSet =
-    [[NSCharacterSet characterSetWithCharactersInString: @","] retain];
   colonAndSemicolonCharSet =
     [[NSCharacterSet characterSetWithCharactersInString: @":;"] retain];
   colonSemicolonAndDquoteCharSet =
@@ -342,16 +339,6 @@ static NSCharacterSet *whitespaceCharSet = nil;
         attrName = @"TYPE";
       attrValue = _attr;
     }
-
-#if 0
-  // ZNeK: what's this for?
-  r = [attrValue rangeOfCharacterFromSet: commaCharSet];
-  while (r.length > 0)
-    {
-      [attrValue replaceCharactersInRange: r withString: @" "];
-      r = [attrValue rangeOfCharacterFromSet: commaCharSet];
-    }
-#endif
 
   *attr_ = attrName;
   *value_ = attrValue;
@@ -688,11 +675,6 @@ static NSCharacterSet *whitespaceCharSet = nil;
   NSRange        r, todoRange;
   unsigned       length;
 
-#if 0  
-  if (debugOn)
-    NSLog(@"%s: parse line: '%@'", __PRETTY_FUNCTION__, _line);
-#endif
-
   length = [_line length];
   todoRange = NSMakeRange(0, length);
   r = [_line rangeOfCharacterFromSet: colonAndSemicolonCharSet
@@ -701,13 +683,6 @@ static NSCharacterSet *whitespaceCharSet = nil;
   /* is line well-formed? */
   if (!r.length || !r.location)
     {
-#if 0
-      NSLog(@"todo-range: %i-%i, range: %i-%i, length %i, str-class %@",
-            todoRange.location, todoRange.length,
-            r.location, r.length,
-            length, NSStringFromClass([_line class]));
-#endif
-
       [self reportError: 
               [@"got an improper content line! (did not find colon) ->\n" 
                 stringByAppendingString: _line]];
@@ -811,12 +786,6 @@ static NSCharacterSet *whitespaceCharSet = nil;
     attributes: ("type=INTERNET", "type=HOME", "type=pref")
   */
 
-#if 0
-#  warning DEBUG LOG ENABLED
-  NSLog(@"TAG: %@, value %@ attrs %@",
-        tagName, tagValue, tagAttributes);
-#endif
-  
   /* process tag */
   
   if ([tagName isEqualToString: @"BEGIN"])

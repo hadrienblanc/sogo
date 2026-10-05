@@ -65,23 +65,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 @implementation NSArray (SyncCache)
 
-- (NSDictionary *) dictionaryValue
-{
-  NSMutableDictionary *d;
-  SOGoSyncCacheObject *o;
-  int i;
-
-  d = [NSMutableDictionary dictionary];
-
-  for (i = 0; i < [self count]; i++)
-    {
-      o = [self objectAtIndex: i];
-      [d setObject: [o sequence]  forKey: [o uid]];
-    }
-
-  return d;
-}
-
 - (BOOL) syncKeyAdvancesAfterIndex: (int) theIndex
 {
   if (theIndex < 0 || theIndex + 1 >= (int) [self count])

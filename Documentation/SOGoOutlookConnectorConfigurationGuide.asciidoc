@@ -119,7 +119,7 @@ If you chose *Add new profile* for only one resource you can also choose the Out
 image::images/profile_config.png[scaledwidth="100%",alt="Single Profile Configuration"]
 
 If you know the correct calendar CalDAV URL, you can also enter that directly into the DAV Url textbox or paste it from the SOGo Web Frontend, when selecting Link in the calendar properties. For the personal calendar it looks like
-https://server.example/remote.php/dav/calendars/caldav/personal/
+https://server.example/SOGo/dav/username/Calendar/personal/
 
 Furthermore, you can configure sync settings and intervals or keep the default settings which are automatic Two-Way-Sync every 30 minutes for all events from 60 days in the past to 365 days in the future.
 
