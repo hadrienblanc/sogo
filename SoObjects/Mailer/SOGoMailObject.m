@@ -84,9 +84,6 @@ static BOOL debugSoParts       = NO;
                            // not yet supported: @"INTERNALDATE",
                            nil];
 
-      /* The following disabled code should not be needed, except if we use
-         annotations (see davEntityTag below) */
-      // if (![[ud objectForKey: @"SOGoMailDisableETag"] boolValue]) {
       mailETag = [[NSString alloc] initWithFormat: @"\"imap4url_%@_%@_%@\"",
                                    UIX_MAILER_MAJOR_VERSION,
                                    UIX_MAILER_MINOR_VERSION,

@@ -1235,9 +1235,6 @@ static NSComparisonResult _compareThreadsByNewestUID (id thread1, id thread2, vo
         className = @"SOGoJunkFolder";
       else if ([fullFolderName isEqualToString: [mailAccount templatesFolderNameInContext: _ctx]])
         className = @"SOGoTemplatesFolder";
-      /*       else if ([folderName isEqualToString:
-                [mailAccount sieveFolderNameInContext: _ctx]])
-                obj = [self lookupFiltersFolder: _key inContext: _ctx]; */
       else
         className = @"SOGoMailFolder";
 

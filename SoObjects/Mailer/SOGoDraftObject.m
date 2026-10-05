@@ -1170,7 +1170,6 @@ static NSString    *userAgent      = nil;
   else
     {
       // TODO: use subject for filename?
-      // error = [newDraft saveAttachment:content withName:@"forward.eml"];
       signature = [[self mailAccountFolder] signature];
       if ([signature length] && [ud mailUseSignatureOnForward])
         {

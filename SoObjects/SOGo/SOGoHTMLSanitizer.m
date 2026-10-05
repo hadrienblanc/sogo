@@ -461,9 +461,6 @@ static NSArray *VoidTags = nil;
                     }
                   else if ([lowerName isEqualToString: @"img"])
                     {
-                      /* [resultPart appendString:
-                         @"src=\"/SOGo.woa/WebServerResources/empty.gif\""]; */
-                      
                       //Check if the image is base64 ant not url
                       NSUInteger i, c;
                       BOOL isBase64 = NO;
