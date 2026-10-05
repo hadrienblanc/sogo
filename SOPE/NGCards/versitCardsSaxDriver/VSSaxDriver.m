@@ -683,8 +683,8 @@ static NSCharacterSet *whitespaceCharSet = nil;
   /* is line well-formed? */
   if (!r.length || !r.location)
     {
-      [self reportError: 
-              [@"got an improper content line! (did not find colon) ->\n" 
+      [self reportError:
+              [@"got an improper content line! (did not find colon) ->\n"
                 stringByAppendingString: _line]];
       return;
     }
@@ -787,7 +787,7 @@ static NSCharacterSet *whitespaceCharSet = nil;
   */
 
   /* process tag */
-  
+
   if ([tagName isEqualToString: @"BEGIN"])
     {
       if ([tagAttributes count] > 0)

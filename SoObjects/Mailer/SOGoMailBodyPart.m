@@ -195,7 +195,7 @@ static BOOL debugOn = NO;
       for (i = 0; i < [[self bodyPartPath] count]; i++)
         {
           nbr = [[[self bodyPartPath] objectAtIndex: i] intValue]-1;
-          part = [[part parts] objectAtIndex: nbr];;
+          part = [[part parts] objectAtIndex: nbr];
         }
 
       part = [[part parts] objectAtIndex: ([key intValue]-1)];

@@ -712,7 +712,7 @@ static BOOL       _singleStoreMode           = NO;
 	    {
 	      record = [_records objectAtIndex: i];
 	      recName = [record objectForKey: GCSPathRecordName];
-	      
+
 	      if ([name isEqualToString: recName])
 		matchRecord = record;
 	      else

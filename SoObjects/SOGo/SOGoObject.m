@@ -800,7 +800,7 @@
     
     return nil;
   }
-  
+
   [self logWithFormat:@"TODO: implement if-none-match for etag: '%@'", _c];
   return nil;
 }
