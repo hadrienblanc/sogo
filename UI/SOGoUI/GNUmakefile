@@ -16,13 +16,11 @@ ADDITIONAL_LDFLAGS += -Wl,--rpath,$(SOGO_SYSLIBDIR)/sogo
 libSOGoUI_HEADER_FILES +=	\
 	\
 	UIxComponent.h		\
-	SOGoAptFormatter.h	\
 	SOGoDirectAction.h
 
 libSOGoUI_OBJC_FILES +=		\
 	\
 	UIxComponent.m		\
-	SOGoAptFormatter.m	\
 	SOGoACLAdvisory.m	\
 	SOGoFolderAdvisory.m	\
 	SOGoDirectAction.m

@@ -36,13 +36,6 @@
 #import "NSData+Mail.h"
 #import "../SOGo/SOGoObject.h"
 
-#if 0
-#define showWhoWeAre() \
-  [self logWithFormat: @"invoked '%@'", NSStringFromSelector (_cmd)]
-#else
-#define showWhoWeAre() {}
-#endif
-
 #define paddingBuffer 8192
 
 #define punycodeBase 36
@@ -357,8 +350,6 @@ DomainByDecodingIDNLabels (NSString *domain)
 /* SaxContentHandler */
 - (void) startDocument
 {
-  showWhoWeAre();
-
   [result release];
   result = [NSMutableString new];
   orderedList = NO;
@@ -368,20 +359,16 @@ DomainByDecodingIDNLabels (NSString *domain)
 
 - (void) endDocument
 {
-  showWhoWeAre();
-
   ignoreContent = NO;
 }
 
 - (void) startPrefixMapping: (NSString *) prefix
                         uri: (NSString *) uri
 {
-  showWhoWeAre();
 }
 
 - (void) endPrefixMapping: (NSString *) prefix
 {
-  showWhoWeAre();
 }
 
 - (void) _startSpecialTreatment: (NSString *) tagName
@@ -444,8 +431,6 @@ DomainByDecodingIDNLabels (NSString *domain)
 {
   NSString *tagName;
   BOOL appendElement = YES;
-
-  showWhoWeAre();
 
   tagName = [rawName lowercaseString];
 
@@ -607,8 +592,6 @@ DomainByDecodingIDNLabels (NSString *domain)
 {
   NSString *tagName;
 
-  showWhoWeAre();
-
   if (ignoreContentTags && specialTreatmentTags)
     {
       if (ignoreContent)
@@ -648,62 +631,51 @@ DomainByDecodingIDNLabels (NSString *domain)
 - (void) ignorableWhitespace: (unichar *) whitespaces
                       length: (NSUInteger) length
 {
-  showWhoWeAre();
 }
 
 - (void) processingInstruction: (NSString *) pi
                           data: (NSString *) data
 {
-  showWhoWeAre();
 }
 
 - (void) setDocumentLocator: (id <NSObject, SaxLocator>) locator
 {
-  showWhoWeAre();
 }
 
 - (void) skippedEntity: (NSString *) entity
 {
-  showWhoWeAre();
 }
 
 /* SaxLexicalHandler */
 - (void) comment: (unichar *) chars
           length: (int) len
 {
-  showWhoWeAre();
 }
 
 - (void) startDTD: (NSString *) name
          publicId: (NSString *) pub
          systemId: (NSString *) sys
 {
-  showWhoWeAre();
 }
 
 - (void) endDTD
 {
-  showWhoWeAre();
 }
 
 - (void) startEntity: (NSString *) entity
 {
-  showWhoWeAre();
 }
 
 - (void) endEntity: (NSString *) entity
 {
-  showWhoWeAre();
 }
 
 - (void) startCDATA
 {
-  showWhoWeAre();
 }
 
 - (void) endCDATA
 {
-  showWhoWeAre();
 }
 
 @end

@@ -288,9 +288,7 @@ static BOOL showNamedTextAttachmentsInline = NO;
     }
 
   // TODO: always fallback to octet viewer?!
-#if 1
   [self errorWithFormat: @"found no viewer for MIME type: %@/%@", mt, st];
-#endif
 
   return [self linkViewer];
 }

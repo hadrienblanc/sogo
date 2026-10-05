@@ -175,7 +175,7 @@ static Class NSStringK;
                inDomain: (NSString *) sourceDomain
 {
   SOGoDomainDefaults *dd;
-  NSNumber *udQueryLimit, *udQueryTimeout, *udGroupExpansionEnabled, *dotValue, *disableSubgroupsValue;
+  NSNumber *udQueryLimit, *udQueryTimeout, *dotValue, *disableSubgroupsValue;
 
   if ((self = [self init]))
     {
@@ -257,14 +257,6 @@ static Class NSStringK;
         _queryTimeout = [udQueryTimeout intValue];
       else
         _queryTimeout = [dd ldapQueryTimeout];
-
-      if ([[udSource allKeys] containsObject: @"SOGoLDAPGroupExpansionEnabled"])
-        {
-          udGroupExpansionEnabled = [udSource objectForKey: @"SOGoLDAPGroupExpansionEnabled"];
-          _groupExpansionEnabled = [udGroupExpansionEnabled boolValue];
-        }
-      else
-        _groupExpansionEnabled = [dd ldapGroupExpansionEnabled];
 
       ASSIGN(_modulesConstraints, [udSource objectForKey: @"ModulesConstraints"]);
       ASSIGN(_filter, [udSource objectForKey: @"filter"]);

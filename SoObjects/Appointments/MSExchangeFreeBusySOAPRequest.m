@@ -114,17 +114,7 @@
 
 - (NSString *) bias
 {
-#if 0
-  NSTimeZone *userTimeZone;
-  NSInteger secs;
-
-  userTimeZone = [[[context activeUser] userDefaults] timeZone];
-  secs = [userTimeZone secondsFromGMT];
-
-  return [NSString stringWithFormat: @"%i", (secs/60)];
-#else
   return @"0";
-#endif
 }
 
 @end
