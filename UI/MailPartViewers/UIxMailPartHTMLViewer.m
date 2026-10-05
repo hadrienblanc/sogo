@@ -107,7 +107,6 @@ static NSString *_sanitizeHtmlForDisplay(NSString *content)
   return [content stringByReplacingOccurrencesOfString: @"sg-face layout-fill layout-column" withString:@""];;
 }
 
-
 @implementation UIxMailPartHTMLViewer
 
 - (id) init
