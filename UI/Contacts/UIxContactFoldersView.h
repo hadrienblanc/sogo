@@ -27,8 +27,6 @@
 @interface UIxContactFoldersView : UIxComponent
 {
   SOGoUserSettings *us;
-  NSDictionary *currentContact;
-  NSString *selectorComponentClass;
   NSMutableDictionary *moduleSettings;
   BOOL contextIsSetup;
 }

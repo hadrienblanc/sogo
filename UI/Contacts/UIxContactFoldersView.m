@@ -95,40 +95,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
     }
 }
 
-- (void) setCurrentContact: (NSDictionary *) _contact
-{
-  currentContact = _contact;
-}
-
-- (NSDictionary *) currentContact
-{
-  return currentContact;
-}
-
-- (NSString *) currentContactClasses
-{
-  return [[currentContact objectForKey: @"c_component"] lowercaseString];
-}
-
-- (NSString *) selectorComponentClass
-{
-  return selectorComponentClass;
-}
-
-- (WOElement *) selectorComponent
-{
-  WOElement *newComponent;
-
-  newComponent = [self pageWithName: selectorComponentClass];
-
-  return newComponent;
-}
-
-- (BOOL) hasContactSelectionButtons
-{
-  return (selectorComponentClass != nil);
-}
-
 - (id <WOActionResults>) allContactSearchAction
 {
   id <WOActionResults> result;
@@ -380,39 +346,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
   return response;
 }
 
-- (NSString *) verticalDragHandleStyle
-{
-  NSString *vertical;
-  
-  [self _setupContext];
-  vertical = [moduleSettings objectForKey: @"DragHandleVertical"];
-
-  return ((vertical && [vertical intValue] > 0)
-          ? (id)[vertical stringByAppendingFormat: @"px"] : nil);
-}
-
-- (NSString *) horizontalDragHandleStyle
-{
-  NSString *horizontal;
-
-  [self _setupContext];
-  horizontal = [moduleSettings objectForKey: @"DragHandleHorizontal"];
-
-  return ((horizontal && [horizontal intValue] > 0)
-          ? (id)[horizontal stringByAppendingFormat: @"px"] : nil);
-}
-
-- (NSString *) contactsListContentStyle
-{
-  NSString *height;
-
-  [self _setupContext];
-  height = [moduleSettings objectForKey: @"DragHandleVertical"];
-
-  return ((height && [height intValue] > 0)
-          ? [NSString stringWithFormat: @"%ipx", ([height intValue] - 27)] : nil);
-}
-
 - (WOResponse *) saveDragHandleStateAction
 {
   WORequest *request;
@@ -465,23 +398,8 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
 
 - (id) defaultAction
 {
-  // NSString *check;
-  // WOResponse *response;
-  // static NSString *etag = @"\"contacts-ui\"";
-
   [self checkDefaultModulePreference];
 
-  // check = [[context request] headerForKey: @"if-none-match"];
-  // if ([check length] > 0 && [check rangeOfString: etag].location != NSNotFound) /* not perfectly correct */
-  //   response = [self responseWithStatus: 304];
-  // else
-  //   {
-  //     response = [context response];
-  //     [response setHeader: etag forKey: @"etag"];
-  //     response = (WOResponse *) [super defaultAction];
-  //   }
-  
-  // return response;
   return [super defaultAction];
 }
 
