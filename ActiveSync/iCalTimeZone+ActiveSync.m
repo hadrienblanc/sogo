@@ -57,9 +57,6 @@ struct SYSTEMTIME {
 
 @implementation iCalTimeZonePeriod (ActiveSync)
 
-//
-// FIXME - combine with iCalTimeZone+MAPIStore.m
-//
 - (void) _fillTZDate: (struct SYSTEMTIME *) tzData
 {
   iCalRecurrenceRule *rrule;
@@ -107,9 +104,6 @@ struct SYSTEMTIME {
 
 @implementation iCalTimeZone (ActiveSync)
 
-//
-// FIXME - combine with iCalTimeZone+MAPIStore.m
-//
 - (iCalTimeZonePeriod *) _mostRecentPeriodWithName: (NSString *) periodName
 {
   NSArray *periods;

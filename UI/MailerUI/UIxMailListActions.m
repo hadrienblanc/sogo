@@ -855,9 +855,6 @@
         }
     }
 
-  // Get rid of the extra parenthesis
-   // uids = [[[[uids stringValue] stringByReplacingOccurrencesOfString:@"(" withString:@""] stringByReplacingOccurrencesOfString:@")" withString:@""] componentsSeparatedByString:@","];
-
   if (includeHeaders)
     {
       // Also retrieve the first headers, up to 'headersPrefetchMaxSize'

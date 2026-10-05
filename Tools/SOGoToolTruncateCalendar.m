@@ -235,9 +235,8 @@
 
   // We force parsing in the GMT timezone. If we don't do that, the date will be parsed
   // in the default timezone.
-  s = [NSString stringWithFormat: @"%@ GMT", date];  
+  s = [NSString stringWithFormat: @"%@ GMT", date];
   d = [NSCalendarDate dateWithString: s  calendarFormat: @"%Y-%m-%dT%H:%M:%S %Z"];
-  NSLog(@"Date is: %@", d);
   fom = [GCSFolderManager defaultFolderManager];
 
   if (d && fom)

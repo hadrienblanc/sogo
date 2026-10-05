@@ -124,7 +124,6 @@ Building frontend
 * Install grunt
 
     npm install -g grunt-cli
-    npm install -g bower
 
 * We need the SASS files of Angular Material to build our CSS. The git repository of Angular Material is included as a submodule of SOGo:
 
@@ -135,7 +134,6 @@ Building frontend
 
     cd UI/WebServerResources
     npm install
-    bower install
     grunt build
 
 Defining an alternate color theme

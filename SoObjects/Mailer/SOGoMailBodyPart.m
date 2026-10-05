@@ -55,10 +55,6 @@ static BOOL debugOn = NO;
 {
   if (!mailETag)
     {
-      /* The following disabled code should not be needed, except if we use
-         annotations (see davEntityTag below) */
-      // if (![[ud objectForKey: @"SOGoMailDisableETag"] boolValue]) {
-
       mailETag = [[NSString alloc] initWithFormat:@"\"imap4url_%@_%@_%@\"",
                                    UIX_MAILER_MAJOR_VERSION,
                                    UIX_MAILER_MINOR_VERSION,
@@ -202,7 +198,6 @@ static BOOL debugOn = NO;
           part = [[part parts] objectAtIndex: nbr];;
         }
 
-      //part = [[[m body] parts] objectAtIndex: ([key intValue]-1)];
       part = [[part parts] objectAtIndex: ([key intValue]-1)];
       mimeType = [[part contentType] stringValue];
       clazz = [SOGoMailBodyPart bodyPartClassForMimeType: mimeType

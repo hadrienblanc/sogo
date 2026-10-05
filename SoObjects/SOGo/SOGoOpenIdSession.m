@@ -632,7 +632,6 @@ size_t curl_body_function(void *ptr, size_t size, size_t nmemb, void *buffer)
   logUrl = [logUrl stringByAppendingFormat: @"&state=%@", [self _random_state]];
   if(self->forDomain != nil && [self->forDomain length] > 0)
     logUrl = [logUrl stringByAppendingFormat: @"&sogo_domain=%@", forDomain];
-  // logurl = [self->logurl stringByAppendingFormat: @"&state=%@", state];
 
   return logUrl;
 }
