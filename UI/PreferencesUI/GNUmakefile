@@ -19,10 +19,7 @@ PreferencesUI_OBJC_FILES =		\
 	UIxAdditionalPreferences.m
 
 PreferencesUI_RESOURCE_FILES += \
-	product.plist	
-
-PreferencesUI_RESOURCE_FILES += \
-	Toolbars/UIxPreferences.toolbar
+	product.plist
 
 PreferencesUI_LOCALIZED_RESOURCE_FILES += \
 	Localizable.strings		\

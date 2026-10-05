@@ -7,12 +7,6 @@
 
   categories = {
     SOGoMailFolder = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoMailFolder.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "View";
@@ -177,13 +171,6 @@
     };
 
     SOGoJunkFolder = {
-      /* just a new toolbar, other things come from SOGoMailFolder */
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoMailFolder.toolbar";
-        };
-      };
       methods = {
         emptyJunk = {
           protectedBy = "View";
@@ -194,13 +181,6 @@
     };
 
     SOGoTrashFolder = {
-      /* just a new toolbar, other things come from SOGoMailFolder */
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoMailFolder.toolbar";
-        };
-      };
       methods = {
         emptyTrash = {
           protectedBy = "View";
@@ -211,12 +191,6 @@
     };
 
     SOGoMailObject = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoMailObject.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "View";
@@ -321,12 +295,6 @@
     };
 
     SOGoMailAccounts = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoMailFolder.toolbar";
-        };
-      };
       methods = {
         view = {
           protectedBy = "View";
@@ -367,10 +335,6 @@
           actionClass = "UIxMailMainFrame";
           actionName = "mailAccounts";
         };
-        // viewerTemplate = {
-        //   protectedBy = "View";
-        //   pageName    = "UIxMailViewTemplate";
-        // };
         UIxMailPopupView = {
           protectedBy = "View";
           pageName    = "UIxMailPopupView";
@@ -383,12 +347,6 @@
     };
 
     SOGoMailAccount = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "SOGoMailFolder.toolbar";
-        };
-      };
       methods = {
         compose = {
           protectedBy = "View";
@@ -452,12 +410,6 @@
     };
 
     SOGoDraftObject = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value       = "SOGoDraftObject.toolbar";
-        };
-      };
       methods = {
         edit = {
           protectedBy = "View";

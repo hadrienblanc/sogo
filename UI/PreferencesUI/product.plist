@@ -8,12 +8,6 @@
 
   categories = {
     SOGoUserFolder = {
-      slots = {
-        toolbar = {
-          protectedBy = "View";
-          value = "UIxPreferences.toolbar";
-        };
-      };
       methods = {
         Preferences = {
           protectedBy = "View";
