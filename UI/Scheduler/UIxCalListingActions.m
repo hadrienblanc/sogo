@@ -773,7 +773,8 @@ static NSArray *tasksFields = nil;
       calendarSettings = [NSMutableDictionary dictionary];
       [us setObject: calendarSettings forKey: @"Calendar"];
     }
-    [calendarSettings setObject: filter forKey: submodule];    [us synchronize];
+    [calendarSettings setObject: filter forKey: submodule];
+    [us synchronize];
   }
 }
 

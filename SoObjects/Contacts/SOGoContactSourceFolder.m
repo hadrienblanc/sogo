@@ -661,8 +661,8 @@
   if ([properties404 count])
     [propstats addObject: [NSDictionary dictionaryWithObjectsAndKeys:
 					  properties404, @"properties",
-				@"HTTP/1.1 404 Not Found", @"status",
-				nil]];
+					@"HTTP/1.1 404 Not Found", @"status",
+					nil]];
 
   return propstats;
 }
