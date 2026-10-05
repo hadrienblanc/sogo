@@ -43,7 +43,7 @@ SOGo features:
 thousand users
 * Rich Web-based interface that shares the look and feel, the features
 and the data of Mozilla Thunderbird and Lightning
-* Improved integration with Mozilla Thunderbird and Lighthing by using
+* Improved integration with Mozilla Thunderbird and Lightning by using
 the SOGo Connector and the SOGo Integrator
 * Two-way synchronization support with any Microsoft ActiveSync-capable
 device, or Outlook 2013
