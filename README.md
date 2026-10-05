@@ -39,7 +39,7 @@ SOGo and its associated components are available in various languages. The follo
 * [ar] Arabic - Anass Ahmed
 * [eu] Basque - Gorka Gonzalez
 * [bs_BA] Bosnian - Refik Bećirović
-* [pr_BR] Brazilian Portuguese - Alexandre Marcilio
+* [pt_BR] Brazilian Portuguese - Alexandre Marcilio
 * [bg] Bulgarian - Todor Todorov
 * [ca] Catalan - Hector M. Rulot Segovia
 * [zh_CN] Chinese (China) - Thomas Kuiper
@@ -57,7 +57,7 @@ SOGo and its associated components are available in various languages. The follo
 * [id] Indonesian - Woka
 * [is] Icelandic - Anna Jonna Armannsdottir
 * [it] Italian - Alessio Fattorini
-* [jp] Japanese - Ryo Yamamoto
+* [ja] Japanese - Ryo Yamamoto
 * [kk] Kazakh - Nazym Idrissova
 * [lv] Latvian - Juris Balandis
 * [lt] Lithuanian - Mantas Liobė
@@ -70,7 +70,7 @@ SOGo and its associated components are available in various languages. The follo
 * [ro_RO] Romanian - Vasile Razvan Luca
 * [ru] Russian - Alex Kabakaev
 * [sr] Serbian - Bogdanović Bojan
-* [sr@latin)] Serbian (Latin) - Zlatko Štulić
+* [sr@latin] Serbian (Latin) - Zlatko Štulić
 * [sk] Slovak - Martin Pastor
 * [sl_SI] Slovenian - Jens Riecken
 * [es_AR] Spanish (Argentina) - Federico Alberto Sayd
