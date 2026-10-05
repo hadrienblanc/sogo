@@ -191,16 +191,6 @@ static Class SOGoContactGCSEntryK = Nil;
 
 /* actions */
 
-// - (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
-//                            inContext: (WOContext*) context
-// {
-//   NSString *actionName;
-// 
-//   actionName = [[request requestHandlerPath] lastPathComponent];
-// 
-//   return ([actionName hasPrefix: @"save"]);
-// }
-
 - (NSString *) viewActionName
 {
   /* this is overridden in the mail based contacts UI to redirect to tb.edit */

@@ -1061,33 +1061,6 @@
   return response;
 }
 
-// - (WOResponse *) _subscriptionStubAction
-// {
-//   NSString *mailInvitationParam, *mailInvitationURL;
-//   WOResponse *response;
-//   SOGoMailFolder *clientObject;
-
-//   mailInvitationParam
-//     = [[context request] formValueForKey: @"mail-invitation"];
-//   if ([mailInvitationParam boolValue])
-//     {
-//       clientObject = [self clientObject];
-//       mailInvitationURL
-// 	= [[clientObject soURLToBaseContainerForCurrentUser]
-// 	    absoluteString];
-//       response = [self responseWithStatus: 302];
-//       [response setHeader: mailInvitationURL
-// 		forKey: @"location"];
-//     }
-//   else
-//     {
-//       response = [self responseWithStatus: 500];
-//       [response appendContentString: @"How did you end up here?"];
-//     }
-
-//   return response;
-// }
-
 - (WOResponse *) _subscribeOrUnsubscribeAction: (BOOL) subscribing
 {
   NGImap4Client *client;
