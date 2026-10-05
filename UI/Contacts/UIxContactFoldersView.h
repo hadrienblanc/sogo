@@ -35,8 +35,6 @@
 
 - (NSArray *) contactFolders;
 
-- (NSArray *) personalContactInfos;
-
 - (WOResponse *) saveDragHandleStateAction;
 
 - (BOOL) isPopup;

@@ -110,26 +110,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
   return [[currentContact objectForKey: @"c_component"] lowercaseString];
 }
 
-- (NSArray *) personalContactInfos
-{
-  SOGoContactFolders *folders;
-  id <SOGoContactFolder> folder;
-  NSArray *contactInfos;
-
-  folders = [self clientObject];
-  folder = [folders lookupPersonalFolder: @"personal" ignoringRights: YES];
-  if (folder && [folder conformsToProtocol: @protocol (SOGoContactFolder)])
-    contactInfos = [folder lookupContactsWithFilter: nil
-                                         onCriteria: nil
-                                             sortBy: @"c_cn"
-                                           ordering: NSOrderedAscending
-                                           inDomain: nil];
-  else
-    contactInfos = nil;
-  
-  return contactInfos;
-}
-
 - (NSString *) selectorComponentClass
 {
   return selectorComponentClass;
