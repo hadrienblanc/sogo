@@ -40,12 +40,6 @@
 
 #import "UIxMailPartHTMLViewer.h"
 
-#if 0
-#define showWhoWeAre() NSLog(@"invoked '%@'", NSStringFromSelector(_cmd))
-#else
-#define showWhoWeAre()
-#endif
-
 static xmlCharEncoding
 _xmlCharsetForCharset (NSString *charset)
 {
