@@ -20,6 +20,7 @@
 
 
 
+#import <Foundation/NSDictionary.h>
 #import <Foundation/NSUserDefaults.h> /* for locale string constants */
 #import <NGExtensions/NSCalendarDate+misc.h>
 #import <SoObjects/SOGo/NSCalendarDate+SOGo.h>
@@ -57,7 +58,6 @@
   [weeksToDisplay release];
   [currentTableDay release];
   [currentWeek release];
-  [enabledWeekDays release];
   free(daysNumbersToDisplay);
   [super dealloc];
 }

@@ -19,6 +19,9 @@
  */
 
 
+#import <Foundation/NSTimeZone.h>
+#import <Foundation/NSURL.h>
+
 #import <NGObjWeb/WOResponse.h>
 #import <NGExtensions/NSCalendarDate+misc.h>
 #import <NGExtensions/NSString+misc.h>
@@ -58,6 +61,7 @@
 
 - (void) dealloc
 {
+  [enabledWeekDays release];
   [timeZone release];
   [super dealloc];
 }
