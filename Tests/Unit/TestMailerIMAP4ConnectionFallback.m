@@ -6,9 +6,9 @@
 
 @interface SOGoMailBaseObject (Test99999FallbackSupport)
 - (id) _connectionFromManager: (id) manager
-                           url: (NSURL *) url
-                      password: (NSString *) password
-          preLoginIDParameters: (NSString *) idParameters;
+                          url: (NSURL *) url
+                     password: (NSString *) password
+         preLoginIDParameters: (NSString *) idParameters;
 @end
 
 @interface Test99999ConnectionManagerFake : NSObject
@@ -118,7 +118,7 @@
 
   baseObject = nil;
   baseObjectClass = ([SOGoTest loadSOGoBundle: @"Mailer"
-                                   markerClass: @"SOGoMailBaseObject"]
+                                  markerClass: @"SOGoMailBaseObject"]
                      ? NSClassFromString (@"SOGoMailBaseObject")
                      : Nil);
   testWithMessage (baseObjectClass != Nil,
@@ -141,9 +141,9 @@
   manager = [[Test99999ConnectionManagerFake alloc] initWithConnection: baseObject];
 
   result = [baseObject _connectionFromManager: manager
-                                            url: [NSURL URLWithString: @"imap://127.0.0.1/"]
-                                       password: @"secret"
-                           preLoginIDParameters: @"(\"x-originating-ip\" \"127.0.0.1\")"];
+                                          url: [NSURL URLWithString: @"imap://127.0.0.1/"]
+                                     password: @"secret"
+                         preLoginIDParameters: @"(\"x-originating-ip\" \"127.0.0.1\")"];
 
   testEquals (result, baseObject);
   testEquals ([manager lastSelector], @"connectionForURL:password:");
@@ -162,9 +162,9 @@
   manager = [[Test99999PreLoginManagerFake alloc] initWithConnection: baseObject];
 
   result = [baseObject _connectionFromManager: manager
-                                            url: [NSURL URLWithString: @"imap://127.0.0.1/"]
-                                       password: @"secret"
-                           preLoginIDParameters: @"(\"x-originating-ip\" \"127.0.0.1\")"];
+                                          url: [NSURL URLWithString: @"imap://127.0.0.1/"]
+                                     password: @"secret"
+                         preLoginIDParameters: @"(\"x-originating-ip\" \"127.0.0.1\")"];
 
   testEquals (result, baseObject);
   testEquals ([manager lastSelector], @"connectionForURL:password:preLoginIDParameters:");
@@ -183,9 +183,9 @@
   manager = [[Test99999ConnectionManagerFake alloc] initWithConnection: baseObject];
 
   result = [baseObject _connectionFromManager: manager
-                                            url: [NSURL URLWithString: @"imap://127.0.0.1/"]
-                                       password: @"secret"
-                           preLoginIDParameters: nil];
+                                          url: [NSURL URLWithString: @"imap://127.0.0.1/"]
+                                     password: @"secret"
+                         preLoginIDParameters: nil];
 
   testEquals (result, baseObject);
   testEquals ([manager lastSelector], @"connectionForURL:password:");

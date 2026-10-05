@@ -176,9 +176,9 @@
 }
 
 - (NGImap4Connection *) _connectionFromManager: (id) manager
-                                            url: (NSURL *) url
-                                       password: (NSString *) password
-                           preLoginIDParameters: (NSString *) idParameters
+                                           url: (NSURL *) url
+                                      password: (NSString *) password
+                          preLoginIDParameters: (NSString *) idParameters
 {
   if ([manager respondsToSelector:
                 @selector(connectionForURL:password:preLoginIDParameters:)])
@@ -229,18 +229,18 @@
       idParameters = [self _preLoginIDParameters];
 
       newConnection = [self _connectionFromManager: manager
-                                                url: imap4URL
-                                           password: password
-                               preLoginIDParameters: idParameters];
+                                               url: imap4URL
+                                          password: password
+                              preLoginIDParameters: idParameters];
       if (!newConnection)
         {
           [self logWithFormat: @"renewing imap4 password"];
           password = [self imap4PasswordRenewed: YES];
           if (password)
             newConnection = [self _connectionFromManager: manager
-                                                      url: imap4URL
-                                                 password: password
-                                     preLoginIDParameters: idParameters];
+                                                     url: imap4URL
+                                                password: password
+                                    preLoginIDParameters: idParameters];
         }
     }
   else
