@@ -801,15 +801,7 @@
     return nil;
   }
   
-#if 0
-  if ([_c isEqualToString:@"*"])
-    return nil;
-  
-  if ((a = [self parseETagList:_c]) == nil)
-    return nil;
-#else
   [self logWithFormat:@"TODO: implement if-none-match for etag: '%@'", _c];
-#endif
   return nil;
 }
 
