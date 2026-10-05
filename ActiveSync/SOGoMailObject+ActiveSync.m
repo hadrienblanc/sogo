@@ -1476,9 +1476,9 @@ struct GlobalObjectId {
             }
         }
       else
-        [self removeFlags: @"\\Flagged"]; 
+        [self removeFlags: @"\\Flagged"];
     }
-  
+
   if ((o = [theValues objectForKey: @"Read"]))
     {
       if ([o intValue])

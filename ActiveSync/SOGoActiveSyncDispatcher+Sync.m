@@ -1060,12 +1060,12 @@ FIXME
   // If this is a new sync operation, DateCache and SyncCache need to be deleted
   if ([theSyncKey isEqualToString: @"-1"])
     {
-      [folderMetadata setObject: [NSMutableDictionary dictionary]  forKey: @"SyncCache"];
-      [folderMetadata setObject: [NSMutableDictionary dictionary]  forKey: @"DateCache"];
+      [folderMetadata setObject: [NSMutableDictionary dictionary] forKey: @"SyncCache"];
+      [folderMetadata setObject: [NSMutableDictionary dictionary] forKey: @"DateCache"];
       if (theFolderType != ActiveSyncMailFolder)
         {
           [folderMetadata setObject: [NSCalendarDate date] forKey: @"CleanoutDate"];
-          [folderMetadata setObject: [NSMutableDictionary dictionary]  forKey: @"UidCache"];
+          [folderMetadata setObject: [NSMutableDictionary dictionary] forKey: @"UidCache"];
         }
     }
   else if ([folderMetadata objectForKey: @"SyncKey"] && !([theSyncKey isEqualToString: [folderMetadata objectForKey: @"SyncKey"]]))
@@ -1264,7 +1264,7 @@ FIXME
                       [self logWithFormat: @"EAS - Cache cleanup: DELETE %@", uid];
  
                     // For deletes we have to recreate a cache entry to make sure the delete is sent again.
-                    [syncCache setObject: @"0"  forKey: uid];
+                    [syncCache setObject: @"0" forKey: uid];
                   }
                 else
                   {
@@ -1283,7 +1283,7 @@ FIXME
                           [self logWithFormat: @"EAS - Cache cleanup: CHANGE %@", uid];
 
                         // Update cache entry to make sure the change is sent again.
-                        [syncCache setObject: @"0"  forKey: uid];
+                        [syncCache setObject: @"0" forKey: uid];
                       }
                   }
               }
@@ -1635,7 +1635,7 @@ FIXME
                     if (debugOn)
                       [self logWithFormat: @"EAS - Cache cleanup: CHANGE %@", [[allCacheObjects objectAtIndex: j] uid]];
 
-                    [syncCache setObject: @"0"  forKey:[[allCacheObjects objectAtIndex: j] uid]];
+                    [syncCache setObject: @"0" forKey: [[allCacheObjects objectAtIndex: j] uid]];
                   }
                 else if ([[[allCacheObjects objectAtIndex: j] sequence] isEqual: [NSNull null]])
                   {
@@ -1643,7 +1643,7 @@ FIXME
                       [self logWithFormat: @"EAS - Cache cleanup: DELETE %@", [[allCacheObjects objectAtIndex: j] uid]];
 
                     // For deletes we have to recreate a cache entry to have the <Delete> included in the response.
-                    [syncCache setObject: @"0"  forKey:[[allCacheObjects objectAtIndex: j] uid]];
+                    [syncCache setObject: @"0" forKey: [[allCacheObjects objectAtIndex: j] uid]];
                   }
               }
           }
@@ -2160,10 +2160,10 @@ FIXME
         }
     }
   
-  [context setObject: bodyPreferenceType  forKey: @"BodyPreferenceType"];
-  [context setObject: mimeSupport  forKey: @"MIMESupport"];
-  [context setObject: mimeTruncation  forKey: @"MIMETruncation"];
-  [context setObject: [folderMetadata objectForKey: @"SupportedElements"]  forKey: @"SupportedElements"];
+  [context setObject: bodyPreferenceType forKey: @"BodyPreferenceType"];
+  [context setObject: mimeSupport forKey: @"MIMESupport"];
+  [context setObject: mimeTruncation forKey: @"MIMETruncation"];
+  [context setObject: [folderMetadata objectForKey: @"SupportedElements"] forKey: @"SupportedElements"];
 
   //
   // We process the commands from the request
@@ -2230,7 +2230,7 @@ FIXME
       BOOL cacheUpdateNeeded;
 
       mfLastServerKey = nil;
-      cacheUpdateNeeded=NO;
+      cacheUpdateNeeded = NO;
 
       if (folderType == ActiveSyncContactFolder)
         component_name = @"vcard";
@@ -2251,14 +2251,14 @@ FIXME
                                                                         forKey: @"MergedFoldersSyncKeys"];
            mergedFoldersSyncKeys = [folderMetadata objectForKey: @"MergedFoldersSyncKeys"];
 
-           cacheUpdateNeeded=YES;
+           cacheUpdateNeeded = YES;
         }
 
       // Copy the MergedFoldersSyncKeys entry. Later we update this entry with new SyncKeys if there are changes.
       if (![syncKey isEqualToString: [folderMetadata objectForKey: @"SyncKey"]])
         {
           [mergedFoldersSyncKeys setObject: [mergedFoldersSyncKeys objectForKey: syncKey] forKey: [folderMetadata objectForKey: @"SyncKey"]];
-          cacheUpdateNeeded=YES;
+          cacheUpdateNeeded = YES;
         }
 
       // We only keep 5 entries in MergedFoldersSyncKeys.
@@ -2377,8 +2377,8 @@ FIXME
                       [folderMetadata removeObjectForKey: @"DateCache"];
                       [folderMetadata removeObjectForKey: @"MoreAvailable"];
 
-                      [folderMetadata setObject: folderRoles  forKey: @"FolderPermissions"];
-                      [self _setFolderMetadata: folderMetadata  forKey: folderKey];
+                      [folderMetadata setObject: folderRoles forKey: @"FolderPermissions"];
+                      [self _setFolderMetadata: folderMetadata forKey: folderKey];
                       break;
                     }
                 }
