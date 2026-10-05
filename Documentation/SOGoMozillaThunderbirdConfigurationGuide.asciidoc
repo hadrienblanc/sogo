@@ -27,7 +27,7 @@ Introduction
 
 SOGo is a free and modern scalable groupware server. It offers shared
 calendars, address books, and emails through your favourite Web browser
-and by using a native client such as Mozilla Thunderbird and Lightning.
+and by using a native client such as Mozilla Thunderbird.
 
 SOGo is standard-compliant. It supports CalDAV, CardDAV, GroupDAV, iMIP
 and iTIP and reuses existing IMAP, SMTP and database servers - making
@@ -38,8 +38,8 @@ SOGo features:
 * Scalable architecture suitable for deployments from dozen to many
 thousand users
 * Rich Web-based interface that shares the look and feel, the features
-and the data of Mozilla Thunderbird and Lightning
-* Improved integration with Mozilla Thunderbird and Lightning by using
+and the data of Mozilla Thunderbird
+* Improved integration with Mozilla Thunderbird by using
 the SOGo Connector and the SOGo Integrator extensions
 * Two-way synchronization support with any Microsoft ActiveSync-capable
 device, or Outlook 2013
@@ -82,8 +82,7 @@ integration of Mozilla Thunderbird with the SOGo groupware solution.
 First of all, the SOGo Connector extension transforms Thunderbird into a
 full DAV client for groupware servers such as SOGo, eGroupware or
 Citadel. It does this by adding support for remote DAV address books and
-by adding features to be used along with the Lightning calendar
-extension.
+by adding features to be used along with the Thunderbird calendar.
 
 Among supported features of the SOGo Connector extension, we have:
 
