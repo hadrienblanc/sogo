@@ -134,10 +134,6 @@
 - (NSException *) sendMailAndCopyToSent: (BOOL) copyToSent; /* default: YES */
 - (NSException *) save;
 
-// /* fake being a SOGoMailObject */
-
-// - (id) fetchParts: (NSArray *) _parts;
-
 @end
 
 #endif /* __Mailer_SOGoDraftObject_H__ */

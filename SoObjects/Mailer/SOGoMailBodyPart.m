@@ -489,14 +489,9 @@ static BOOL debugOn = NO;
   }
   else
   {
-//  [self debugWithFormat: @"should fetch body part: %@",
-// 	[self bodyPartIdentifier]];
     data = [self fetchBLOB];
     if (data)
 	  {
-//    [self debugWithFormat:@"  fetched %d bytes: %@", [data length],
-// 	  [self partInfo]];
-
 	    response = [localContext response];
 	    mimeType = [self davContentType];
 

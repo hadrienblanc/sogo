@@ -30,13 +30,6 @@
 #import "SOGoCacheGCSFolder.h"
 
 #undef DEBUG
-//#include <stdbool.h>
-//#include <talloc.h>
-//#include <util/time.h>
-//#include <mapistore/mapistore.h>
-//#include <mapistore/mapistore_errors.h>
-//#include <libmapiproxy.h>
-//#include <param.h>
 
 Class SOGoCacheGCSObjectK = Nil;
 
@@ -115,8 +108,7 @@ Class SOGoCacheGCSObjectK = Nil;
              andSortOrderings: (NSArray *) sortOrderings
 {
   NSMutableArray *childKeys;
-  NSMutableString *sql// , *qualifierClause
-    ;
+  NSMutableString *sql;
   NSString *childPathPrefix, *childPath, *childKey;
   NSMutableArray *whereClause;
   NSArray *records;
@@ -241,8 +233,7 @@ Class SOGoCacheGCSObjectK = Nil;
 
 - (void) changePathTo: (NSString *) newPath
 {
-  NSMutableString *sql// , *qualifierClause
-    ;
+  NSMutableString *sql;
   NSString *oldPath, *oldPathAsPrefix, *path, *parentPath;
   NSMutableArray *queries;
   NSArray *records;

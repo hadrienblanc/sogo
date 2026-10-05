@@ -58,9 +58,6 @@
 - (id) mailAccountsFolder: (NSString *) _key
                 inContext: (WOContext *) _ctx;
 
-- (BOOL) collectionDavKey: (NSString *) key
-		  matches: (NSString *) value;
-
 - (SOGoAppointmentFolders *) privateCalendars: (NSString *) key
 				    inContext: (WOContext *) localContext;
 

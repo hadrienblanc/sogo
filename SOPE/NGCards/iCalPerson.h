@@ -59,9 +59,6 @@ typedef enum {
 - (void)setRsvp:(NSString *)_s;
 - (NSString *)rsvp;
 
-// - (void)setXuid:(NSString *)_s;
-// - (NSString *)xuid;
-
 - (void)setRole:(NSString *)_s;
 - (NSString *)role;
 - (NSString *)roleWithDefault;

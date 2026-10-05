@@ -81,7 +81,6 @@
     [children addObject: @"Contacts"];
   if ([currentUser canAccessModule: @"Mail"])
     [children addObject: @"Mail"];
-  // [children addObject: @"Preferences"];
 
   return children;
 }
@@ -687,13 +686,6 @@
   int secs = [tz secondsFromGMT];
 
   return [NSString stringWithFormat: @"%02i%02i", secs / 60 / 60, abs(secs % 60)];
-}
-
-#warning unused stub
-- (BOOL) collectionDavKey: (NSString *) key
-		  matches: (NSString *) value
-{
-  return YES;
 }
 
 @end /* SOGoUserFolder */

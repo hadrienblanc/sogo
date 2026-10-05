@@ -25,33 +25,10 @@
 
 #import "UIxCalDayView.h"
 
+/* The whole rendering is delegated to the UIxCalDayTable component
+   embedded in UIxCalMulticolumnDayView.wox. */
+
 @interface UIxCalMulticolumnDayView : UIxCalDayView
-{
-  SOGoDateFormatter *dateFormatter;
-  NSString *currentTableHour;
-  NSMutableArray *subscriptionUsers;
-  NSMutableArray *hoursToDisplay;
-//   NSArray *allAppointments;
-
-  NSString *currentTableUser;
-//   NSDictionary *currentAppointment;
-
-  NSString *cssClass;
-  NSString *cssId;
-}
-
-- (void) setCSSClass: (NSString *) aCssClass;
-- (NSString *) cssClass;
-
-- (void) setCSSId: (NSString *) aCssId;
-- (NSString *) cssId;
-
-- (NSArray *) subscriptionUsers;
-- (void) setCurrentTableUser: (NSString *) aTableDay;
-- (NSString *) currentTableUser;
-
-// - (void) setCurrentAppointment: (NSDictionary *) newCurrentAppointment;
-// - (NSDictionary *) currentAppointment;
 
 @end
 

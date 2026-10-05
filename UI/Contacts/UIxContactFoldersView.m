@@ -110,26 +110,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
   return [[currentContact objectForKey: @"c_component"] lowercaseString];
 }
 
-- (NSArray *) personalContactInfos
-{
-  SOGoContactFolders *folders;
-  id <SOGoContactFolder> folder;
-  NSArray *contactInfos;
-
-  folders = [self clientObject];
-  folder = [folders lookupPersonalFolder: @"personal" ignoringRights: YES];
-  if (folder && [folder conformsToProtocol: @protocol (SOGoContactFolder)])
-    contactInfos = [folder lookupContactsWithFilter: nil
-                                         onCriteria: nil
-                                             sortBy: @"c_cn"
-                                           ordering: NSOrderedAscending
-                                           inDomain: nil];
-  else
-    contactInfos = nil;
-  
-  return contactInfos;
-}
-
 - (NSString *) selectorComponentClass
 {
   return selectorComponentClass;
@@ -165,7 +145,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
   searchText = [self queryParameterForKey: @"search"];
   if ([searchText length] >= [self minimumSearchLength])
     {
-      // NSLog(@"Search all contacts: %@", searchText);
       excludeGroups = [[self queryParameterForKey: @"excludeGroups"] boolValue];
       excludeLists = [[self queryParameterForKey: @"excludeLists"] boolValue];
       priorityGcs = [[self queryParameterForKey: @"priority"] isEqualToString: @"gcs"];
@@ -198,7 +177,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
       for (i = 0; i < max; i++)
         {
           folder = [sortedFolders objectAtIndex: i];
-          //NSLog(@"  Address book: %@ (%@)", [folder displayName], [folder class]);
           contacts = [folder lookupContactsWithFilter: searchText
                                            onCriteria: nil
                                                sortBy: @"c_cn"
@@ -219,8 +197,6 @@ Class SOGoContactSourceFolderK, SOGoGCSFolderK;
                     [contact setObject: @"gcs"
                                 forKey: @"containerType"];
                 }
-              //NSLog(@"   found %@ (%@) ? %@", [contact objectForKey: @"c_name"], mail,
-              //      [contact description]);
               if (!excludeLists && [[contact objectForKey: @"c_component"]
                                           isEqualToString: @"vlist"])
                 {
