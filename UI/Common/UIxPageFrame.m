@@ -48,7 +48,6 @@
 
       item = nil;
       title = nil;
-      toolbar = nil;
       udKeys = nil;
       usKeys = nil;
       additionalJSFiles = nil;
@@ -70,7 +69,6 @@
 {
   [item release];
   [title release];
-  [toolbar release];
   [udKeys release];
   [usKeys release];
   [additionalJSFiles release];
@@ -464,16 +462,6 @@
 - (BOOL) hasProductSpecificCSS
 {
   return ([[self productCSSURL] length] > 0);
-}
-
-- (void) setToolbar: (NSString *) newToolbar
-{
-  ASSIGN (toolbar, newToolbar);
-}
-
-- (NSString *) toolbar
-{
-  return toolbar;
 }
 
 - (BOOL) isSuperUser
