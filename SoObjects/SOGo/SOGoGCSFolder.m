@@ -2102,7 +2102,6 @@ static NSArray *childRecordFields = nil;
   unsigned int count, max, currentSize, queryNameLength;
   NSString *currentName;
 
-
   currentNames = [NSMutableArray array];
   currentSize = baseQuerySize;
 
@@ -2128,7 +2127,6 @@ static NSArray *childRecordFields = nil;
       records = [self _fetchComponentsWithNames: currentNames fields: fields];
       [components addObjectsFromArray: records];
     }
-
 
   return components;
 }
@@ -2226,11 +2224,9 @@ static NSArray *childRecordFields = nil;
   NSString **values, **currentValue;
   SEL methodSel;
 
-
   values = NSZoneMalloc (NULL,
                          (propertiesCount + 1) * sizeof (NSString *));
   *(values + propertiesCount) = nil;
-
 
   sogoObject = [self createChildComponentWithRecord: object];
   currentProperty = properties;
@@ -2245,7 +2241,6 @@ static NSArray *childRecordFields = nil;
       currentValue++;
     }
 
-
   return values;
 }
 
@@ -2256,7 +2251,6 @@ static NSArray *childRecordFields = nil;
   NSMutableArray *propstats, *properties200, *properties404, *propDict;
   NSString **property, **values, **currentValue;
   NSString *propertyValue, *nodeTag;
-
 
   propstats = [NSMutableArray array];
 

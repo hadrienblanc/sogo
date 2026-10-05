@@ -679,7 +679,6 @@
 
   cc = [[context request] clientCapabilities];
 
-
   return (([[cc userAgentType] isEqualToString: @"IE"]
 	   && [cc majorVersion] >= 7)
 	  || ([[cc userAgentType] isEqualToString: @"Mozilla"]
