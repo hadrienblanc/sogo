@@ -44,7 +44,6 @@
 /* TODO:
    - handle database connectivity errors
    - respond to "--help backup"
-   - allow more than one user specifier on the command-line
 */
 
 @interface SOGoToolBackup : SOGoTool
