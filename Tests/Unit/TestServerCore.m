@@ -1903,7 +1903,7 @@
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
   context = [self contextWithLogin: @"bob" method: @"GET"];
-  object = [SOGoObject objectWithName: @"personal"
+  object = [StubServerCoreObject objectWithName: @"personal"
 			  inContainer: container];
   [object setContext: (WOContext *) context];
   testEquals([object labelForKey: @"greeting"], @"HelloLabel");
