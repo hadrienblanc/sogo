@@ -259,6 +259,11 @@ html p {
   margin: 0;
 }
 
+html h1.sg-md-title,
+html h2.sg-md-display-2--thin {
+  margin: 0;
+}
+
 /// Gogle Material Design Standard styles
 /// as specified (http://www.google.com/design/spec/style/typography.html#typography-standard-styles)
 /// Some specification class names are counterintuitive. We provide some aliases

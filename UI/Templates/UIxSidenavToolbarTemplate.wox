@@ -10,7 +10,7 @@
                      size="40">person</sg-avatar-image>
     <div layout="row" layout-align="space-between center">
       <div style="overflow: hidden">
-        <p class="sg-md-title sg-no-wrap" ng-bind="::activeUser.identification"><!-- username --></p>
+        <h1 class="sg-md-title sg-no-wrap" ng-bind="::activeUser.identification"><!-- username --></h1>
         <p class="md-caption sg-no-wrap" ng-bind="::activeUser.email"><!-- email --></p>
       </div>
       <md-button class="md-icon-button"
