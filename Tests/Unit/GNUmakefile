@@ -141,6 +141,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestMailerUnseenCountReset.m \
 	TestMailerSortListLocalization.m \
 	TestMailerIMAP4ConnectionFallback.m \
+	TestUIHeadingStructure.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\

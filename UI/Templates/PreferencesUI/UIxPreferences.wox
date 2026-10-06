@@ -283,7 +283,7 @@
             <md-content id="passwordView" class="md-padding">
               <!-- Password recovery -->
               <var:if condition="shouldDisplayPasswordRecovery">
-                <h5><var:string label:value="Password recovery"/></h5>
+                <h2 class="md-title"><var:string label:value="Password recovery"/></h2>
                 <div layout="row" layout-align="start start">
                   <md-input-container class="md-block md-input-has-value">
                     <label><var:string label:value="Password recovery mode"/></label>
@@ -321,7 +321,7 @@
               </var:if>
               <!-- Password change -->
               <var:if condition="shouldDisplayPasswordChange">
-                <h5><var:string label:value="Password change"/></h5>
+                <h2 class="md-title"><var:string label:value="Password change"/></h2>
                 <div layout="row" layout-xs="column">
                   <md-input-container class="md-block" flex="flex">
                     <label><var:string label:value="Current password"/>
@@ -1227,7 +1227,7 @@
                 </div>
 
                 <var:if condition="isVacationPeriodEnabled">
-                <h4 class="md-title"><var:string label:value="Activation Constraints"/></h4>
+                <h2 class="md-title"><var:string label:value="Activation Constraints"/></h2>
                 <div layout="row" class="sub-information" layout-wrap="layout-wrap">
                   <var:string label:value="Customize day and hour ranges independently and optionally combine them with specific weekdays to tailor your vacation filters to your preferences"/>
                 </div>

@@ -13,7 +13,7 @@
   <md-content class="md-padding">
     <div class="md-margin" layout="row" layout-padding="">
       <div flex="50">
-        <h3 class="md-title">Palettes</h3>
+        <h2 class="md-title">Palettes</h2>
         <md-subheader>Accessible from <a href="https://material.angularjs.org/latest/api/directive/mdColors">md-colors</a> and <a href="https://material.angularjs.org/latest/api/service/$mdThemingProvider">$mdThemingProvider</a></md-subheader>
         <md-list ng-repeat="palette in ['primary', 'accent', 'warn', 'background']">
           <md-subheader>
@@ -31,7 +31,7 @@
         </md-list>
       </div>
       <div flex="50">
-        <h3 class="md-title">Foregrounds</h3>
+        <h2 class="md-title">Foregrounds</h2>
         <md-list>
           <md-subheader>Accessible from <a href="https://material.angularjs.org/latest/api/service/$mdThemingProvider">$mdThemingProvider</a> only</md-subheader>
           <md-list-item class="foreground-1">foreground-1</md-list-item>
@@ -41,7 +41,7 @@
           <md-list-item class="background-contrast">background-contrast</md-list-item>
           <md-list-item class="background-contrast-secondary">background-contrast-secondary</md-list-item>
         </md-list>
-        <h3 class="md-title">Backgrounds</h3>
+        <h2 class="md-title">Backgrounds</h2>
         <md-list>
           <md-subheader>Accessible from <a href="https://material.angularjs.org/latest/api/service/$mdThemingProvider">$mdThemingProvider</a> only</md-subheader>
           <md-list-item class="background-default">background-default ({{ctrl.defaultTheme.colors.background.hues.default }})</md-list-item>
@@ -54,7 +54,7 @@
     </div>
     <div class="md-margin" layout="row" layout-padding="">
       <div flex="50">
-        <h3 class="md-title">Components Colors</h3>
+        <h2 class="md-title">Components Colors</h2>
         <div layout="row" ng-repeat="palette in ['primary', 'accent', 'warn']">
           <md-button class="md-flex md-raised md-{{ palette }}">{{ palette }} ({{ctrl.defaultTheme.colors[palette].hues.default }})</md-button>
           <md-button class="md-flex md-raised md-{{ palette }} md-hue-1">hue-1 ({{ctrl.defaultTheme.colors[palette].hues['hue-1'] }})</md-button>
@@ -63,7 +63,7 @@
         </div>
       </div>
       <div flex="50">
-        <h3 class="md-title">Theme Definition</h3>
+        <h2 class="md-title">Theme Definition</h2>
         <md-content><pre>{{ ctrl.jsonDefaultTheme }}</pre></md-content>
       </div>
     </div>
