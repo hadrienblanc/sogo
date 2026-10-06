@@ -1899,6 +1899,7 @@
   StubServerCoreContainer *container;
   StubServerCoreContext *context;
   SOGoObject *object;
+  NSArray *englishStrings;
 
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
@@ -1906,7 +1907,18 @@
   object = [SOGoObject objectWithName: @"personal"
 			  inContainer: container];
   [object setContext: (WOContext *) context];
-  testEquals([object labelForKey: @"greeting"], @"HelloLabel");
+  englishStrings = [[NSBundle bundleForClass: [SOGoObject class]]
+                     pathsForResourcesOfType: @"strings"
+                     inDirectory: @"English.lproj"
+                     forLocalization: @"English"];
+  if ([englishStrings count] > 0)
+    {
+      testEquals([object labelForKey: @"greeting"], @"HelloLabel");
+    }
+  else
+    {
+      testEquals([object labelForKey: @"greeting"], @"greeting");
+    }
   testEquals([object labelForKey: @"absent"], @"absent");
 }
 
