@@ -1158,6 +1158,12 @@
 
 @end
 
+@interface StubServerCoreLabelObject : SOGoObject
+@end
+
+@implementation StubServerCoreLabelObject
+@end
+
 @interface TestServerCore : SOGoTest
 @end
 
@@ -1903,7 +1909,7 @@
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
   context = [self contextWithLogin: @"bob" method: @"GET"];
-  object = [SOGoObject objectWithName: @"personal"
+  object = [StubServerCoreLabelObject objectWithName: @"personal"
 			  inContainer: container];
   [object setContext: (WOContext *) context];
   testEquals([object labelForKey: @"greeting"], @"HelloLabel");
