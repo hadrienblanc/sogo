@@ -939,6 +939,27 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
   [contact setObject: [emails objectAtIndex: 0] forKey: @"c_email"];
 }
 
+- (void) _qualifyEmails: (NSMutableArray *) emails
+          withMailDomain: (NSString *) mailDomain
+{
+  NSString *email;
+  NSUInteger count, max;
+
+  if ([mailDomain length] == 0)
+    return;
+
+  max = [emails count];
+  for (count = 0; count < max; count++)
+    {
+      email = [emails objectAtIndex: count];
+      if ([email length] > 0
+          && [email rangeOfString: @"@"].location == NSNotFound)
+        [emails replaceObjectAtIndex: count
+                          withObject: [NSString stringWithFormat: @"%@@%@",
+                                                email, mailDomain]];
+    }
+}
+
 //
 //
 //
@@ -1061,6 +1082,8 @@ static const NSString *kObfuscatedSecondaryEmailKey = @"obfuscatedSecondaryEmail
   if (c_sievehostname)
     [theCurrentUser setObject: c_sievehostname forKey: @"c_sievehostname"];
 
+  [self _qualifyEmails: emails
+          withMailDomain: [[SOGoDomainDefaults defaultsForDomain: c_domain] mailDomain]];
   [theCurrentUser setObject: emails forKey: @"emails"];
   [theCurrentUser setObject: cn forKey: @"cn"];
   [theCurrentUser setObject: c_uid forKey: @"c_uid"];
