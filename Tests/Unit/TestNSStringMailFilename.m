@@ -53,4 +53,51 @@
   testEquals ([@"/etc/passwd" asSafeFilename], @"_etc_passwd");
 }
 
+- (void) test_stringByTruncatingFilenameKeepsShortFilename
+{
+  testEquals ([@"report.pdf" stringByTruncatingFilenameToByteLength: 200],
+              @"report.pdf");
+}
+
+- (void) test_stringByTruncatingFilenameKeepsFilenameAtByteLimit
+{
+  NSString *filename;
+
+  filename = [[@"" stringByPaddingToLength: 98 withString: @"Д" startingAtIndex: 0]
+              stringByAppendingString: @".pdf"];
+
+  testEquals ([filename stringByTruncatingFilenameToByteLength: 200],
+              filename);
+}
+
+- (void) test_stringByTruncatingFilenameBoundsLongCyrillicFilename
+{
+  NSString *filename;
+
+  filename = [[@"" stringByPaddingToLength: 120 withString: @"Д" startingAtIndex: 0]
+              stringByAppendingString: @".pdf"];
+
+  testEquals ([filename stringByTruncatingFilenameToByteLength: 200],
+              [[@"" stringByPaddingToLength: 98 withString: @"Д" startingAtIndex: 0]
+               stringByAppendingString: @".pdf"]);
+}
+
+- (void) test_stringByTruncatingFilenameCutsOnUTF8Boundary
+{
+  testEquals ([@"ДДДД.pdf" stringByTruncatingFilenameToByteLength: 5],
+              @"ДД");
+}
+
+- (void) test_stringByTruncatingFilenameFallsBackWhenExtensionTooLong
+{
+  NSString *filename, *expected;
+
+  filename = [NSString stringWithFormat: @"a.%@",
+                         [@"" stringByPaddingToLength: 210 withString: @"z" startingAtIndex: 0]];
+  expected = [NSString stringWithFormat: @"a.%@",
+                         [@"" stringByPaddingToLength: 198 withString: @"z" startingAtIndex: 0]];
+
+  testEquals ([filename stringByTruncatingFilenameToByteLength: 200], expected);
+}
+
 @end

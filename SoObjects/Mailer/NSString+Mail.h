@@ -36,6 +36,7 @@
 - (NSString *) decodedHeader;
 - (NSString *) emailWithDecodedIDNDomain;
 - (NSString *) asSafeFilename;
+- (NSString *) stringByTruncatingFilenameToByteLength: (NSUInteger) maxBytes;
 - (NSString *) asPreferredFilenameUsingPath: (NSString *) thePath;
 
 @end

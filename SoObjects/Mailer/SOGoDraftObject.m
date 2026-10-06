@@ -89,6 +89,7 @@
 
 static NSString *contentTypeValue = @"text/plain; charset=utf-8";
 static NSString *htmlContentTypeValue = @"text/html; charset=utf-8";
+static const NSUInteger draftAttachmentFilenameByteLimit = 200;
 static NSString *headerKeys[] = {@"subject", @"to", @"cc", @"bcc",
                                  @"from", @"replyTo", @"message-id",
                                  nil};
@@ -1261,7 +1262,7 @@ static NSString    *userAgent      = nil;
                     withMetadata: (NSMutableDictionary *) metadata
 {
   NSFileManager *fm;
-  NSString *p, *pmime, *pbodyId, *name, *baseName, *extension, *mimeType, *bodyId;
+  NSString *p, *pmime, *pbodyId, *name, *baseName, *extension, *mimeType, *bodyId, *truncatedName;
   int i;
 
   if (![_attach isNotNull])
@@ -1280,6 +1281,12 @@ static NSString    *userAgent      = nil;
     }
 
   name = [[metadata objectForKey: @"filename"] asSafeFilename];
+  truncatedName = [name stringByTruncatingFilenameToByteLength: draftAttachmentFilenameByteLimit];
+  if (![truncatedName isEqualToString: name])
+    {
+      name = truncatedName;
+      [metadata setObject: name forKey: @"filename"];
+    }
   baseName = [name stringByDeletingPathExtension];
   extension = [name pathExtension];
   fm = [NSFileManager defaultManager];

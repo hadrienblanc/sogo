@@ -889,6 +889,42 @@ convertChars (const char *oldString, unsigned int oldLength,
   return [NSString stringWithFormat: @"%@@%@", localPart, decodedDomain];
 }
 
+static NSString *
+TruncateUTF8StringToByteLength (NSString *theString, NSUInteger maxBytes)
+{
+  NSData *data;
+  const unsigned char *bytes;
+  NSString *truncated;
+  NSUInteger length, i, charLength;
+
+  data = [theString dataUsingEncoding: NSUTF8StringEncoding];
+  length = [data length];
+  if (length <= maxBytes)
+    return theString;
+
+  bytes = [data bytes];
+  i = 0;
+  while (i < maxBytes)
+    {
+      charLength = 1;
+      if ((bytes[i] & 0xF8) == 0xF0)
+        charLength = 4;
+      else if ((bytes[i] & 0xF0) == 0xE0)
+        charLength = 3;
+      else if ((bytes[i] & 0xE0) == 0xC0)
+        charLength = 2;
+      if (i + charLength > maxBytes)
+        break;
+      i += charLength;
+    }
+
+  truncated = [[[NSString alloc] initWithBytes: bytes
+                                        length: i
+                                      encoding: NSUTF8StringEncoding] autorelease];
+
+  return truncated;
+}
+
 - (NSString *) asSafeFilename
 {
   NSRange r;
@@ -909,6 +945,30 @@ convertChars (const char *oldString, unsigned int oldLength,
     return @"__";
 
   return safeName;
+}
+
+- (NSString *) stringByTruncatingFilenameToByteLength: (NSUInteger) maxBytes
+{
+  NSString *baseName, *extension, *truncated;
+  NSUInteger extensionBytes;
+
+  if ([self lengthOfBytesUsingEncoding: NSUTF8StringEncoding] <= maxBytes)
+    return self;
+
+  baseName = [self stringByDeletingPathExtension];
+  extension = [self pathExtension];
+  if ([extension length] > 0)
+    {
+      extensionBytes = [extension lengthOfBytesUsingEncoding: NSUTF8StringEncoding];
+      if (extensionBytes + 1 < maxBytes)
+        {
+          truncated = TruncateUTF8StringToByteLength (baseName, maxBytes - extensionBytes - 1);
+          if ([truncated length] > 0)
+            return [NSString stringWithFormat: @"%@.%@", truncated, extension];
+        }
+    }
+
+  return TruncateUTF8StringToByteLength (self, maxBytes);
 }
 
 //
