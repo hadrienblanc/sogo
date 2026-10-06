@@ -27,6 +27,7 @@
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGObjWeb/WORequest+So.h>
 #import <NGExtensions/NSObject+Logs.h>
+#import <NGExtensions/NGBase64Coding.h>
 #import <NGExtensions/NGHashMap.h>
 #import <NGExtensions/NGQuotedPrintableCoding.h>
 #import <NGCards/iCalCalendar.h>
@@ -34,6 +35,7 @@
 #import <NGCards/iCalEvent.h>
 #import <NGCards/iCalToDo.h>
 #import <NGMime/NGMimeBodyPart.h>
+#import <NGMime/NGMimeFileData.h>
 #import <NGMime/NGMimeMultipartBody.h>
 #import <NGMail/NGMimeMessage.h>
 #import <GDLContentStore/GCSFolder.h>
@@ -758,6 +760,7 @@ static NSArray *allowed_tags = nil;
   NGMutableHashMap *headerMap;
   NSString *iCalString, *header, *charset;
   NSData *objectData;
+  NGMimeFileData *fileData;
   iCalCalendar *parent;
 
   parent = [object parent];
@@ -771,8 +774,13 @@ static NSArray *allowed_tags = nil;
   headerMap = [NGMutableHashMap hashMapWithCapacity: 3];
   [headerMap setObject: @"urn:content-classes:calendarmessage"  forKey: @"Content-Class"];
   [headerMap setObject: header forKey: @"content-type"];
+  [headerMap setObject: @"base64" forKey: @"content-transfer-encoding"];
   bodyPart = [NGMimeBodyPart bodyPartWithHeader: headerMap];
-  [bodyPart setBody: objectData];
+  objectData = [objectData dataByEncodingBase64];
+  fileData = [[NGMimeFileData alloc] initWithBytes: [objectData bytes]
+                                            length: [objectData length]];
+  [bodyPart setBody: fileData];
+  [fileData release];
 
   return bodyPart;
 }

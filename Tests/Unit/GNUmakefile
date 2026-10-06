@@ -127,6 +127,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoAppointmentObjectConflictWindow.m \
 	TestSOGoAppointmentObjectStoreErrors.m \
 	TestSOGoCalendarComponentCopy.m \
+	TestSOGoCalendarComponentICalAttachment.m \
 	TestSOGoContactSourceFolder.m \
 	TestNGVCard+SOGo.m \
 	TestSOGoCacheACLs.m \
