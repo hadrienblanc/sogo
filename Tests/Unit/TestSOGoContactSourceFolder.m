@@ -25,6 +25,8 @@
 
 #import <DOM/DOMDocument.h>
 #import <DOM/DOMElement.h>
+#import <EOControl/EOQualifier.h>
+#import <EOControl/EOSortOrdering.h>
 #import <NGObjWeb/NSException+HTTP.h>
 #import <NGObjWeb/WOResponse.h>
 
@@ -35,6 +37,9 @@
          inContext: (id) lookupContext
            acquire: (BOOL) acquire;
 - (NSEnumerator *) davChildKeysInContext: (id) aContext;
+- (NSArray *) lookupContactsWithQualifier: (EOQualifier *) qualifier
+                          andSortOrdering: (EOSortOrdering *) ordering
+                                 inDomain: (NSString *) domain;
 - (void) _appendComponentProperties: (NSArray *) properties
                        matchingURLs: (id) refs
                          toResponse: (id) response;
@@ -57,12 +62,14 @@
   NSMutableDictionary *records;
   NSArray *entryIDs;
   int singleLookupCount;
+  int qualifierLookupCount;
 }
 
 + (id) sourceWithEntryIDs: (NSArray *) newEntryIDs
                    records: (NSDictionary *) newRecords;
 
 - (int) singleLookupCount;
+- (int) qualifierLookupCount;
 
 @end
 
@@ -100,9 +107,40 @@
   return singleLookupCount;
 }
 
+- (int) qualifierLookupCount
+{
+  return qualifierLookupCount;
+}
+
 - (NSArray *) allEntryIDsVisibleFromDomain: (NSString *) domain
 {
   return entryIDs;
+}
+
+- (BOOL) listRequiresDot
+{
+  return NO;
+}
+
+- (NSString *) sourceID
+{
+  return @"test-6014-gal";
+}
+
+- (NSArray *) lookupContactsWithQualifier: (EOQualifier *) qualifier
+                          andSortOrdering: (EOSortOrdering *) ordering
+                                 inDomain: (NSString *) domain
+{
+  NSArray *values;
+
+  qualifierLookupCount++;
+
+  values = [records allValues];
+  if (ordering)
+    values = [values sortedArrayUsingKeyOrderArray:
+                       [NSArray arrayWithObject: ordering]];
+
+  return values;
 }
 
 - (NSDictionary *) lookupContactEntry: (NSString *) theID
@@ -352,6 +390,54 @@ LoadContactsBundle ()
   testEquals([[obj ldifRecord] objectForKey: @"c_cn"], @"Alice");
   testEquals([NSNumber numberWithInt: [source singleLookupCount]],
              [NSNumber numberWithInt: 1]);
+}
+
+- (void) test_lookupContactsWithQualifierCachesRecordsForLookupName
+{
+  Test6014LegacySource *source;
+  EOQualifier *qualifier;
+  EOSortOrdering *ordering;
+  NSArray *records;
+  id folder, obj;
+
+  source = [Test6014LegacySource
+             sourceWithEntryIDs: [NSArray arrayWithObjects: @"alice", @"bob", nil]
+                         records: [NSDictionary dictionaryWithObjectsAndKeys:
+                                     [self _record6014ForUID: @"alice" andCN: @"Alice"],
+                                     @"alice",
+                                      [self _record6014ForUID: @"bob" andCN: @"Bob"],
+                                      @"bob",
+                                      nil]];
+  folder = [self _folder6014WithSource: source];
+
+  qualifier = [EOQualifier qualifierWithQualifierFormat: @"(cn like 'a*')"];
+  ordering = [EOSortOrdering sortOrderingWithKey: @"c_cn"
+                                        selector: EOCompareCaseInsensitiveAscending];
+  records = [folder lookupContactsWithQualifier: qualifier
+                                andSortOrdering: ordering
+                                       inDomain: @"example.com"];
+
+  testEquals([NSNumber numberWithInt: [records count]],
+             [NSNumber numberWithInt: 2]);
+  testEquals([[records objectAtIndex: 0] objectForKey: @"c_cn"], @"Alice");
+  testEquals([[records objectAtIndex: 1] objectForKey: @"c_cn"], @"Bob");
+  testEquals([NSNumber numberWithInt: [source qualifierLookupCount]],
+             [NSNumber numberWithInt: 1]);
+
+  obj = [folder lookupName: @"alice" inContext: nil acquire: NO];
+  testWithMessage ([obj respondsToSelector: @selector (ldifRecord)],
+                    @"a fetched entry must be resolved as a contact without a"
+                    @" per-entry source lookup");
+  testEquals([[obj ldifRecord] objectForKey: @"c_cn"], @"Alice");
+
+  obj = [folder lookupName: @"bob" inContext: nil acquire: NO];
+  testWithMessage ([obj respondsToSelector: @selector (ldifRecord)],
+                    @"a fetched entry must be resolved as a contact without a"
+                    @" per-entry source lookup");
+  testEquals([[obj ldifRecord] objectForKey: @"c_cn"], @"Bob");
+
+  testEquals([NSNumber numberWithInt: [source singleLookupCount]],
+             [NSNumber numberWithInt: 0]);
 }
 
 - (void) test_multigetFetchesEntriesThroughTheBatchLookup
