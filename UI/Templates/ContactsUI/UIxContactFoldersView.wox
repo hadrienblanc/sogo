@@ -74,6 +74,7 @@
               <md-menu class="md-secondary"
                        ng-show="app.service.selectedFolder.id == folder.id">
                 <md-icon label:aria-label="Options"
+                         role="button"
                          ng-click="$mdMenu.open()"
                          md-menu-origin="md-menu-origin">more_vert</md-icon>
                 <md-menu-content width="2">
@@ -172,6 +173,7 @@
               <md-menu class="md-secondary"
                        ng-show="app.service.selectedFolder.id == folder.id">
                 <md-icon label:aria-label="Options"
+                         role="button"
                          ng-click="$mdMenu.open()"
                          md-menu-origin="md-menu-origin">more_vert</md-icon>
                 <md-menu-content width="2">

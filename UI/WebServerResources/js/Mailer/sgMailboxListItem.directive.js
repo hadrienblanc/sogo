@@ -43,7 +43,12 @@
         '           sg-enter="$ctrl.saveFolder($event)"',
         '           sg-escape="$ctrl.revertEditing()" />',
         '  </md-input-container>',
-        '  <md-icon class="md-menu md-secondary-container" ng-click="$ctrl.showMenu($event)" aria-label="' + l("Options") + '">more_vert</md-icon>'
+        '  <md-icon class="md-menu md-secondary-container"',
+        '           role="button"',
+        '           aria-haspopup="true"',
+        '           ng-attr-aria-expanded="$ctrl.menuIsOpen"',
+        '           ng-click="$ctrl.showMenu($event)"',
+        '           aria-label="' + l("Options") + '">more_vert</md-icon>'
       ].join(''),
       controller: 'sgMailboxListItemController',
       controllerAs: '$ctrl'
@@ -61,6 +66,7 @@
     this.$onInit = function() {
       this.$element = $element;
       this.editMode = false;
+      this.menuIsOpen = false;
       this.accountController.addMailboxController(this);
     };
 
@@ -223,12 +229,16 @@
         trapFocus: true,
         clickOutsideToClose: true,
         escapeToClose: true,
-        focusOnOpen: true
+        focusOnOpen: true,
+        onCloseSuccess: function() {
+          $ctrl.menuIsOpen = false;
+        }
       };
 
       $mdPanel.open(config)
         .then(function(panelRef) {
           $ctrl.panel = panelRef;
+          $ctrl.menuIsOpen = true;
           // Automatically close panel when clicking inside of it
           panelRef.panelEl.one('click', function() {
             panelRef.close();

@@ -41,6 +41,9 @@
         '           as-sortable-item-handle="as-sortable-item-handle"',
         '           md-colors="::{color: \'accent-400\'}">drag_handle</md-icon>',
         '<md-icon class="md-menu md-secondary-container sg-list-sortable-hide"',
+        '         role="button"',
+        '         aria-haspopup="true"',
+        '         ng-attr-aria-expanded="$ctrl.menuIsOpen"',
         '         ng-click="$ctrl.showMenu($event)"',
         '         aria-label="' + l("Options") + '">more_vert</md-icon>'
       ].join(''),
@@ -59,6 +62,7 @@
 
     this.$onInit = function() {
       this.editMode = false;
+      this.menuIsOpen = false;
     };
 
 
@@ -193,12 +197,16 @@
         trapFocus: true,
         clickOutsideToClose: true,
         escapeToClose: true,
-        focusOnOpen: true
+        focusOnOpen: true,
+        onCloseSuccess: function() {
+          $ctrl.menuIsOpen = false;
+        }
       };
 
       $mdPanel.open(config)
         .then(function(panelRef) {
           $ctrl.panel = panelRef;
+          $ctrl.menuIsOpen = true;
           // Automatically close panel when clicking inside of it
           panelRef.panelEl.one('click', function() {
             panelRef.close();

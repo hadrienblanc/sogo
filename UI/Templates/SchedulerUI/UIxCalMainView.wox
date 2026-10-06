@@ -534,7 +534,7 @@
   <!-- template of contextual menu for a calendar -->
   <script type="text/ng-template" id="UIxCalendarMenu">
     <div md-whiteframe="3">
-      <md-menu-content width="2">
+      <md-menu-content role="menu" width="2">
         <md-menu-item>
           <md-button ng-click="$menuCtrl.showOnly()">
             <var:string label:value="Show Only This Calendar"/>

@@ -142,7 +142,7 @@
   <!-- template of contextual menu for a mailbox -->
   <script type="text/ng-template" id="UIxMailFolderMenu">
     <div md-whiteframe="3">
-      <md-menu-content width="3">
+      <md-menu-content role="menu" width="3">
         <md-menu-item>
           <md-button type="button" md-menu-align-target="md-menu-align-target"
                      ng-click="$menuCtrl.markFolderRead()">

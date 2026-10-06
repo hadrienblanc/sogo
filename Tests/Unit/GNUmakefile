@@ -142,6 +142,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestMailerSortListLocalization.m \
 	TestMailerIMAP4ConnectionFallback.m \
 	TestUIHeadingStructure.m \
+	TestUIFolderKebabMenus.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\
