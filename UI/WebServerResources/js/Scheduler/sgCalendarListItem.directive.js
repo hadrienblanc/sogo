@@ -18,6 +18,7 @@
         '           ng-class="$ctrl.calendar.getClassName(\'md-switch\')"',
         '           ng-true-value="1"',
         '           ng-false-value="0"',
+        '           sg-enter="$ctrl.toggleFolder()"',
         '           aria-label="' + l('Enable') + '"></md-switch>',
         '<p class="sg-item-name"',
         '   ng-dblclick="$ctrl.editFolder($event)">',
@@ -59,6 +60,10 @@
 
     this.$onInit = function() {
       this.editMode = false;
+    };
+
+    this.toggleFolder = function() {
+      this.calendar.active = this.calendar.active ? 0 : 1;
     };
 
 

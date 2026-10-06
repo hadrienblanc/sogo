@@ -143,6 +143,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestMailerIMAP4ConnectionFallback.m \
 	TestUIHeadingStructure.m \
 	TestUIFocusIndicator.m \
+	TestUICalendarSwitchKeyboard.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\
