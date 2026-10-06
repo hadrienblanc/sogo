@@ -1898,7 +1898,7 @@
 {
   StubServerCoreContainer *container;
   StubServerCoreContext *context;
-  SOGoObject *object;
+  StubServerCoreObject *object;
 
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
