@@ -508,6 +508,66 @@ LoadDraftClass ()
                    @"a string attachment body must be persisted as UTF-8");
 }
 
+- (void) test_saveAttachmentWithReporterLongCyrillicFilename
+{
+  NSString *filename;
+  NSMutableDictionary *metadata;
+  NSData *spooled, *payload;
+  NSException *error;
+
+  filename = @"Длинное название вложения на русском языка может помешать передаче при сообщения. Тестирование данного факта надо помочь тест тест.pdf";
+  payload = [attachmentContent dataUsingEncoding: NSUTF8StringEncoding];
+  metadata = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                             filename, @"filename",
+                             @"application/pdf", @"mimetype",
+                             nil];
+  error = [draft saveAttachment: payload withMetadata: metadata];
+  testWithMessage (error == nil,
+                   @"the reporter's long Cyrillic filename must not fail the draft save (bug 5855)");
+
+  testWithMessage ([[metadata objectForKey: @"filename"] hasSuffix: @".pdf"],
+                   @"a truncated attachment name must keep its extension");
+  testWithMessage ([[metadata objectForKey: @"filename"] lengthOfBytesUsingEncoding: NSUTF8StringEncoding] <= 200,
+                   @"a truncated attachment name must fit the filesystem byte limit");
+
+  spooled = [NSData dataWithContentsOfFile:
+               [draft pathToAttachmentWithName: [metadata objectForKey: @"filename"]]];
+  testWithMessage ([spooled isEqualToData: payload],
+                   @"the attachment content must be intact under the truncated name");
+
+  test ([[draft fetchAttachmentAttrs] count] == 2);
+}
+
+- (void) test_saveAttachmentBoundsVeryLongCyrillicFilename
+{
+  NSMutableString *filename;
+  NSMutableDictionary *metadata;
+  NSException *error;
+
+  filename = [NSMutableString stringWithString: @"test-5855-"];
+  while ([filename lengthOfBytesUsingEncoding: NSUTF8StringEncoding] < 280)
+    [filename appendString: @"Длинное"];
+  [filename appendString: @".pdf"];
+
+  metadata = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                             filename, @"filename",
+                             @"application/pdf", @"mimetype",
+                             nil];
+  error = [draft saveAttachment: [attachmentContent dataUsingEncoding: NSUTF8StringEncoding]
+                   withMetadata: metadata];
+  testWithMessage (error == nil,
+                   @"a very long Cyrillic filename must not fail the draft save (bug 5855)");
+
+  testWithMessage ([[metadata objectForKey: @"filename"] hasPrefix: @"test-5855-"],
+                   @"a truncated attachment name must keep its prefix");
+  testWithMessage ([[metadata objectForKey: @"filename"] hasSuffix: @".pdf"],
+                   @"a truncated attachment name must keep its extension");
+  testWithMessage ([[metadata objectForKey: @"filename"] lengthOfBytesUsingEncoding: NSUTF8StringEncoding] <= 200,
+                   @"a truncated attachment name must fit the filesystem byte limit");
+
+  test ([[draft fetchAttachmentAttrs] count] == 2);
+}
+
 - (void) test_setHeadersReplacesPreviousReplyTo
 {
   [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
