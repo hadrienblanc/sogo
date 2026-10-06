@@ -69,14 +69,12 @@ describe('E2E Calendar: PUT, QUERY, GET, DELETE via CalDAV', function() {
     'END:VCALENDAR'
   ].join('\r\n')
 
-  it('creates an event via PUT', async function() {
-    const res = await dav('PUT',
+  it('PUT, QUERY, GET, DELETE round-trip', async function() {
+    const put = await dav('PUT',
       `/dav/${config.username}/Calendar/personal/${filename}`, ics,
       { 'Content-Type': 'text/calendar' })
-    expect([201, 204]).withContext(`PUT returned ${res.status}`).toContain(res.status)
-  })
+    expect([201, 204]).withContext(`PUT returned ${put.status}`).toContain(put.status)
 
-  it('finds it via calendar-query', async function() {
     const query = `<?xml version="1.0"?>
       <C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
         <D:prop><D:getetag/><D:resourcetype/></D:prop>
@@ -90,24 +88,20 @@ describe('E2E Calendar: PUT, QUERY, GET, DELETE via CalDAV', function() {
           </C:comp-filter>
         </C:filter>
       </C:calendar-query>`
-    const res = await dav('REPORT',
+    const rep = await dav('REPORT',
       `/dav/${config.username}/Calendar/personal/`, query)
-    expect(res.status).withContext('REPORT must return 207').toBe(207)
-    expect(res.text).withContext('must find the event').toContain(filename)
-  })
+    expect(rep.status).withContext('REPORT must return 207').toBe(207)
+    expect(rep.text).withContext('must find the event').toContain(filename)
 
-  it('reads it back with correct properties', async function() {
-    const res = await dav('GET',
+    const get = await dav('GET',
       `/dav/${config.username}/Calendar/personal/${filename}`)
-    expect(res.status).toBe(200)
-    expect(res.text).withContext('must contain the summary').toContain('E2E Calendar Test')
-    expect(res.text).withContext('must contain the location').toContain('Test Room')
-  })
+    expect(get.status).toBe(200)
+    expect(get.text).withContext('must contain the summary').toContain('E2E Calendar Test')
+    expect(get.text).withContext('must contain the location').toContain('Test Room')
 
-  it('cleans up', async function() {
-    const res = await dav('DELETE',
+    const del = await dav('DELETE',
       `/dav/${config.username}/Calendar/personal/${filename}`)
-    expect([200, 204]).toContain(res.status)
+    expect([200, 204]).withContext(`DELETE returned ${del.status}`).toContain(del.status)
   })
 })
 
@@ -127,39 +121,33 @@ describe('E2E Contacts: PUT, addressbook-query, GET, round-trip, DELETE', functi
     'END:VCARD'
   ].join('\r\n')
 
-  it('creates a contact', async function() {
-    const res = await dav('PUT',
+  it('PUT, PROPFIND, round-trip, DELETE', async function() {
+    const put = await dav('PUT',
       `/dav/${config.username}/Contacts/personal/${filename}`,
       mkVCard('+1 555 0100'),
       { 'Content-Type': 'text/vcard' })
-    expect([201, 204]).withContext(`PUT returned ${res.status}`).toContain(res.status)
-  })
+    expect([201, 204]).withContext(`PUT returned ${put.status}`).toContain(put.status)
 
-  it('finds it via PROPFIND listing', async function() {
     const query = '<?xml version="1.0"?>' +
       '<D:propfind xmlns:D="DAV:"><D:prop><D:resourcetype/><D:getetag/></D:prop></D:propfind>'
-    const res = await dav('PROPFIND',
+    const listing = await dav('PROPFIND',
       `/dav/${config.username}/Contacts/personal/`, query, { Depth: '1' })
-    expect(res.status).withContext(`PROPFIND returned ${res.status}`).toBe(207)
-    expect(res.text).withContext('must list the contact').toContain(filename)
-  })
+    expect(listing.status).withContext(`PROPFIND returned ${listing.status}`).toBe(207)
+    expect(listing.text).withContext('must list the contact').toContain(filename)
 
-  it('updates with two phone numbers and both survive', async function() {
     const updated = mkVCard('+1 555 0200', ['TEL;TYPE=CELL:+1 555 0300'])
-    const put = await dav('PUT',
+    const update = await dav('PUT',
       `/dav/${config.username}/Contacts/personal/${filename}`, updated,
       { 'Content-Type': 'text/vcard' })
-    expect([201, 204]).toContain(put.status)
+    expect([201, 204]).withContext(`update PUT returned ${update.status}`).toContain(update.status)
 
     const get = await dav('GET',
       `/dav/${config.username}/Contacts/personal/${filename}`)
     expect(get.text).withContext('WORK phone must survive').toContain('+1 555 0200')
     expect(get.text).withContext('CELL phone must survive').toContain('+1 555 0300')
-  })
 
-  it('deletes the contact', async function() {
-    const res = await dav('DELETE',
+    const del = await dav('DELETE',
       `/dav/${config.username}/Contacts/personal/${filename}`)
-    expect([200, 204]).toContain(res.status)
+    expect([200, 204]).withContext(`DELETE returned ${del.status}`).toContain(del.status)
   })
 })

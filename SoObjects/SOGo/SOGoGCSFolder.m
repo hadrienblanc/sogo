@@ -1307,15 +1307,11 @@ static NSArray *childRecordFields = nil;
     }
   else
     {
-      qualifier = [EOQualifier qualifierWithQualifierFormat:
-                                 @"c_lastmodified < %d", now];
-
       filter = [self additionalWebdavSyncFilters];
       if ([filter length])
-        qualifier = [[[EOAndQualifier alloc] initWithQualifiers:
-                                           [EOQualifier qualifierWithQualifierFormat: filter],
-                                           qualifier,
-                                           nil] autorelease];
+        qualifier = [EOQualifier qualifierWithQualifierFormat: filter];
+      else
+        qualifier = nil;
 
       if (theStartDate)
         {
@@ -1328,7 +1324,7 @@ static NSArray *childRecordFields = nil;
                                                   qualifier,
                                                   nil] autorelease];
         }
-      
+
       records = [self _fetchFields: fields
                      withQualifier: qualifier
                      ignoreDeleted: YES];
