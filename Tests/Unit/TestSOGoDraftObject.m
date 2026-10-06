@@ -632,4 +632,24 @@ LoadDraftClass ()
                    @"the composed message must drop the reply-to of the previous identity (bug 5984)");
 }
 
+- (void) test_composedMessageReplyToHeaderFollowsAdditionalIdentity
+{
+  NGMimeMessageParser *parser;
+  id <NGMimePart> message;
+
+  [draft setHeaders: [NSDictionary dictionaryWithObjectsAndKeys:
+                                 @"Second User <second@example.com>", @"from",
+                                 @"third@example.com", @"replyTo",
+                                 nil]];
+
+  parser = [[NGMimeMessageParser alloc] init];
+  message = [parser parsePartFromData: [draft mimeMessageForRecipient: nil
+                                                     extractingImages: NO]];
+  [parser release];
+
+  testEquals ([message headerForKey: @"from"],
+              @"Second User <second@example.com>");
+  testEquals ([message headerForKey: @"reply-to"], @"third@example.com");
+}
+
 @end
