@@ -1903,8 +1903,8 @@
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
   context = [self contextWithLogin: @"bob" method: @"GET"];
-  object = [SOGoObject objectWithName: @"personal"
-			  inContainer: container];
+  object = [StubServerCoreObject objectWithName: @"personal"
+				  inContainer: container];
   [object setContext: (WOContext *) context];
   testEquals([object labelForKey: @"greeting"], @"HelloLabel");
   testEquals([object labelForKey: @"absent"], @"absent");
