@@ -16,9 +16,6 @@ md-chips {
       &.md-focused {
         box-shadow: none;
       }
-      md-chip-template:focus {
-        outline: 0;
-      }
       .md-chip-content {
         //max-width: initial; // fix bug in ng-material
       }
