@@ -80,3 +80,23 @@ html * {
     display: none;
   }
 }
+
+html body :is(a,
+              button,
+              input,
+              select,
+              textarea,
+              [tabindex],
+              .md-button,
+              .md-tab,
+              .md-chip-content,
+              .md-autocomplete-suggestion,
+              md-checkbox,
+              md-option,
+              md-radio-group,
+              md-select,
+              md-slider,
+              md-switch):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

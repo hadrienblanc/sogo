@@ -199,10 +199,6 @@ sg-timepicker {
   .md-pane-open & {
     opacity: 1;
   }
-
-  sg-time-pane:focus {
-    outline: none;
-  }
 }
 
 // Down triangle/arrow indicating that the datepicker can be opened.
