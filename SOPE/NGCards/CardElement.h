@@ -98,6 +98,7 @@
 - (void) addAttributes: (NSDictionary *) someAttributes;
 - (void) removeValue: (NSString *) aValue
        fromAttribute: (NSString *) anAttribute;
+- (void) removeAttribute: (NSString *) anAttribute;
 - (NSMutableDictionary *) attributes;
 - (BOOL) hasAttribute: (NSString *) aType
           havingValue: (NSString *) aValue;

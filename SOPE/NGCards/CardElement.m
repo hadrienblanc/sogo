@@ -330,6 +330,22 @@
     }
 }
 
+- (void) removeAttribute: (NSString *) anAttribute
+{
+  NSMutableArray *matchedKeys;
+  NSEnumerator *keys;
+  NSString *key;
+
+  matchedKeys = [NSMutableArray array];
+  keys = [attributes keyEnumerator];
+  while ((key = [keys nextObject]))
+    {
+      if ([key caseInsensitiveCompare: anAttribute] == NSOrderedSame)
+        [matchedKeys addObject: key];
+    }
+  [attributes removeObjectsForKeys: matchedKeys];
+}
+
 - (void) addAttributes: (NSDictionary *) someAttributes
 {
   NSEnumerator *keys;

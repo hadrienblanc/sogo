@@ -45,6 +45,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalPerson+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
+	TestiCalEntityObjectDescriptionAltRep.m \
 	TestiCalEntityObjectResetCreationMetadata.m \
 	TestiCalEntityObjectVersionCompare.m \
 	TestNSCalendarDateClamping.m \

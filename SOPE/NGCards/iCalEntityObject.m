@@ -106,7 +106,13 @@
 #warning the "comment" accessors are actually "description" accessors, the "comment" ones are missing
 - (void) setComment: (NSString *) _value
 {
-  [[self uniqueChildWithTag: @"description"] setSingleValue: _value forKey: @""];
+  CardElement *description;
+
+  description = [self uniqueChildWithTag: @"description"];
+  if (_value
+      && ![[description flattenedValuesForKey: @""] isEqualToString: _value])
+    [description removeAttribute: @"altrep"];
+  [description setSingleValue: _value forKey: @""];
 }
 
 - (NSString *) comment
