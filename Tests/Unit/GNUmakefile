@@ -69,6 +69,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestNSString+Utilities.m \
 	TestNSString+Imap4LabelName.m \
 	TestNSData+Mail.m \
+	TestNSDataSMIME.m \
 	TestNSString+ActiveSync.m \
 	TestNGDOMElement+ActiveSync.m \
 	TestNSString+Mail.m \
