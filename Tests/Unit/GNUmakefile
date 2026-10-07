@@ -150,6 +150,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIHeadingStructure.m \
 	TestUIFocusIndicator.m \
 	TestUICalendarSwitchKeyboard.m \
+	TestUILoginAccentTheme.m \
 	TestWORequest+SOGo.m \
 	TestApacheAliasDirectives.m \
 	\
