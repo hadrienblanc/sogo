@@ -31,6 +31,7 @@
   NSDictionary *headersValue;
   NSString *uriValue;
   NSDictionary *formValuesValue;
+  NSArray *browserLanguagesValue;
   BOOL webDAVValue;
   BOOL iCal4Value;
   BOOL defaultHandlerValue;
@@ -41,6 +42,8 @@
 + (StubServerCoreRequest *) requestWithMethod: (NSString *) method;
 + (StubServerCoreRequest *) requestWithMethod: (NSString *) method
 				       headers: (NSDictionary *) headers;
++ (StubServerCoreRequest *) requestWithMethod: (NSString *) method
+				    languages: (NSArray *) languages;
 - (void) setUri: (NSString *) uri;
 - (void) setFormValues: (NSDictionary *) formValues;
 - (void) setWebDAV: (BOOL) webDAV;
@@ -68,12 +71,25 @@
   return request;
 }
 
++ (StubServerCoreRequest *) requestWithMethod: (NSString *) method
+				    languages: (NSArray *) languages
+{
+  StubServerCoreRequest *request;
+
+  request = [[StubServerCoreRequest new] autorelease];
+  request->methodValue = [method retain];
+  request->browserLanguagesValue = [languages retain];
+
+  return request;
+}
+
 - (void) dealloc
 {
   [methodValue release];
   [headersValue release];
   [uriValue release];
   [formValuesValue release];
+  [browserLanguagesValue release];
   [appNameValue release];
   [domDocumentValue release];
   [bodyValue release];
@@ -138,6 +154,11 @@
 - (NSString *) uri
 {
   return uriValue;
+}
+
+- (NSArray *) browserLanguages
+{
+  return browserLanguagesValue;
 }
 
 - (NSDictionary *) formValues
@@ -1898,15 +1919,19 @@
 {
   StubServerCoreContainer *container;
   StubServerCoreContext *context;
+  StubServerCoreRequest *request;
   SOGoObject *object;
 
   container = [StubServerCoreContainer containerWithName: @"Calendar"
 						   owner: @"bob"];
-  context = [self contextWithLogin: @"bob" method: @"GET"];
+  request = [StubServerCoreRequest requestWithMethod: @"GET"
+					  languages: [NSArray arrayWithObject: @"Klingon"]];
+  context = [StubServerCoreContext contextWithUser: nil
+					   request: request];
   object = [SOGoObject objectWithName: @"personal"
 			  inContainer: container];
   [object setContext: (WOContext *) context];
-  testEquals([object labelForKey: @"greeting"], @"HelloLabel");
+  testEquals([object labelForKey: @"greeting"], @"greeting");
   testEquals([object labelForKey: @"absent"], @"absent");
 }
 
