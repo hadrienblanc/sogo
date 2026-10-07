@@ -136,6 +136,26 @@ extern int pkcs5_pbkdf2(const char *pass, size_t pass_len, const uint8_t *salt,
   test([result length] == 0);
 }
 
+- (void) test_decodeDataFromHexString_longInput
+{
+  NSMutableString *hex;
+  NSData *result;
+  int i;
+
+  hex = [NSMutableString stringWithCapacity: 256];
+  for (i = 0; i < 64; i++)
+    [hex appendString: @"ab"];
+
+  result = [NSData decodeDataFromHexString: hex];
+  test([result length] == 64);
+  testEquals([NSData encodeDataAsHexString: result], [hex lowercaseString]);
+
+  [hex appendString: @"cd"];
+  result = [NSData decodeDataFromHexString: hex];
+  test([result length] == 65);
+  testEquals([NSData encodeDataAsHexString: result], [hex lowercaseString]);
+}
+
 - (void) test_generateSaltForLength
 {
   NSData *salt;
