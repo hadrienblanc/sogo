@@ -30,6 +30,7 @@
 #import <NGObjWeb/WOResponse.h>
 
 #import <Mailer/SOGoMailFolder.h>
+#import <SOGo/NSString+Utilities.h>
 
 #import "SOGoTest.h"
 #import <UI/MailerUI/UIxMailFolderActions.h>
