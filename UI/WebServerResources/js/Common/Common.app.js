@@ -273,6 +273,7 @@
       '}',
     ].join(''));
 
+    // Register custom stylesheet for the login panel
     $mdThemingProvider.registerStyles([
       '.sg-login.md-accent.md-bg md-input-container:not(.md-input-invalid) label,',
       '.sg-login.md-accent.md-bg md-input-container:not(.md-input-invalid) .md-placeholder,',
