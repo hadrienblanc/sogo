@@ -178,9 +178,16 @@
 	  x509Store = [self _setupVerify];
 	  validSignature = (CMS_verify(cms, NULL, x509Store, inData,
 					 NULL, PKCS7_DETACHED) == 1);
-	  
+
+	  if (!validSignature)
+	    {
+	      ERR_clear_error();
+	      validSignature = (CMS_verify(cms, NULL, NULL, inData,
+					     NULL, CMS_NO_SIGNER_CERT_VERIFY | PKCS7_DETACHED) == 1);
+	    }
+
 	  err = ERR_get_error();
-	  
+
 	  if (x509Store)
 	    X509_STORE_free (x509Store);
 	}
