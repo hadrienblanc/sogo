@@ -137,6 +137,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxListEditor.m \
 	TestUIxContactFolderActionsMobileconfig.m \
 	TestUIxMailRenderingContext.m \
+	TestUIxMailPartSignedViewer.m \
 	TestUIxMailEditorReplyTo.m \
 	TestUIxMailListActionsChanges.m \
 	TestUIxMailFolderActionsMove.m \
@@ -151,6 +152,9 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestApacheAliasDirectives.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
+	../../UI/MailPartViewers/UIxMailPartViewer.m \
+	../../UI/MailPartViewers/UIxMailPartSignedViewer.m \
+	../../UI/MailPartViewers/UIxMailPartMixedViewer.m \
 	../../UI/MailerUI/WOContext+UIxMailer.m \
 	../../UI/MailerUI/UIxMailFormatter.m \
 	../../UI/MailerUI/UIxEnvelopeAddressFormatter.m \
@@ -176,6 +180,11 @@ $(TEST_TOOL)_OBJC_FILES += \
 	     undefined reference to `__objc_class_name_SOGoMailFolder'
 
 TEST_TOOL_NAME = $(TEST_TOOL)
+
+ifeq ($(HAS_LIBRARY_ssl),yes)
+$(TEST_TOOL)_CPPFLAGS += -DHAVE_OPENSSL=1
+ADDITIONAL_LIB_DIRS += -lcrypto
+endif
 
 $(TEST_TOOL)_CPPFLAGS += \
 	-Wall -D_GNU_SOURCE -I../../ -I../../SOPE/ -I../../SoObjects/ -I../../UI/ -I../../UI/MailPartViewers -I../../ActiveSync -I../../SoObjects/Contacts $(shell xml2-config --cflags)

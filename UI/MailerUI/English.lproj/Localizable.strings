@@ -313,6 +313,9 @@
 /* OpenSSL certificate error - digest failure */
 "digest failure" = "The message has been modified";
 
+/* OpenSSL certificate error - verification failure */
+"verification failure" = "The message has been modified";
+
 /* OpenSSL reading error */
 "Error reading the certificate. Please install a new certificate." = "Error reading the certificate. Please install a new certificate.";
 
