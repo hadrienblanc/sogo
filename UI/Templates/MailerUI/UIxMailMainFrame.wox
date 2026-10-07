@@ -165,6 +165,15 @@
               <var:string label:value="Move To"/>
             </md-button>
             <md-menu-content class="md-dense" width="3">
+              <md-menu-item>
+                <md-button class="sg-no-wrap"
+                           aria-label="{{$menuCtrl.folder.$account.name}}"
+                           ng-disabled="$menuCtrl.folder.path.split('/').length == 1"
+                           ng-click="$menuCtrl.moveFolder('')">
+                  <span class="sg-child-level-0"
+                        ng-bind="$menuCtrl.folder.$account.name"><!-- top level --></span>
+                </md-button>
+              </md-menu-item>
               <div ng-repeat="folder in
                               $menuCtrl.folder.$account.$flattenMailboxes({ all: true })
                               track by folder.path">

@@ -232,7 +232,7 @@
   params = [[request contentAsString] objectFromJSONString];
   newParentPath = [params objectForKey: @"parent"]; // encoded parent path (ex: "Travail/Employ&AOk-s")
 
-  if (!newParentPath || [newParentPath length] == 0)
+  if (!newParentPath)
     {
       message = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing parent parameter" inContext: context]
                                             forKey: @"message"];
@@ -240,9 +240,13 @@
     }
   else
     {
-      newFolderPath = [NSString stringWithFormat:@"/%@/%@",
-                                newParentPath,
-                                [[co imap4URL] lastPathComponent]];
+      if ([newParentPath length] == 0)
+        newFolderPath = [NSString stringWithFormat: @"/%@",
+                                   [[co imap4URL] lastPathComponent]];
+      else
+        newFolderPath = [NSString stringWithFormat:@"/%@/%@",
+                                  newParentPath,
+                                  [[co imap4URL] lastPathComponent]];
       error = [co renameTo: newFolderPath];
       if (error)
         {
@@ -263,12 +267,17 @@
                                     [currentComponents componentsJoinedByString: @"/"]];
 
           // Build lookup key for new mailbox path
-          newComponents = [newParentPath pathComponents];
-          newComponents = [newComponents resultsOfSelector: @selector (asCSSIdentifier)];
-          newComponents = [newComponents stringsWithFormat: @"folder%@"];
           currentMailbox = [NSString stringWithFormat: @"folder%@", [[[co imap4URL] lastPathComponent] asCSSIdentifier]];
-          newKeyForMsgUIDs = [NSString stringWithFormat:@"/%@/%@/%@", currentAccount,
-                                       [newComponents componentsJoinedByString: @"/"], currentMailbox];
+          if ([newParentPath length] == 0)
+            newKeyForMsgUIDs = [NSString stringWithFormat:@"/%@/%@", currentAccount, currentMailbox];
+          else
+            {
+              newComponents = [newParentPath pathComponents];
+              newComponents = [newComponents resultsOfSelector: @selector (asCSSIdentifier)];
+              newComponents = [newComponents stringsWithFormat: @"folder%@"];
+              newKeyForMsgUIDs = [NSString stringWithFormat:@"/%@/%@/%@", currentAccount,
+                                           [newComponents componentsJoinedByString: @"/"], currentMailbox];
+            }
 
           // Verify if the current folder have any collapsed threads save under it old name and adjust the folderName
           if (threadsCollapsed)
