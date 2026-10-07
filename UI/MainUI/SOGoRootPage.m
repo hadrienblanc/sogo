@@ -1481,8 +1481,7 @@ static const NSString *kJwtKey = @"jwt";
   passwordRecoveryDomains = [[SOGoSystemDefaults sharedSystemDefaults]
                              passwordRecoveryDomains];
   if (![[SOGoSystemDefaults sharedSystemDefaults] isPasswordRecoveryEnabled]) {
-    return [self responseWithStatus: 403
-            andJSONRepresentation: nil];
+    return [self responseWith204];
   } else if (username && [NSNull null] != username && 
       domainName && passwordRecoveryDomains && 
       [passwordRecoveryDomains containsObject: domainName]) {
@@ -1492,8 +1491,7 @@ static const NSString *kJwtKey = @"jwt";
     return [self responseWithStatus: 200
             andJSONRepresentation: result];
   } else {
-    return [self responseWithStatus: 403
-            andJSONRepresentation: nil];
+    return [self responseWith204];
   }
 }
 
