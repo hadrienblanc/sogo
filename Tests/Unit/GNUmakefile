@@ -126,6 +126,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoGCSFolderDelete.m \
 	TestSOGoGCSFolderWebDAVSync.m \
 	TestSOGoAppointmentFolderNewEventsAsFree.m \
+	TestSOGoAppointmentFolderCalDAVQuery.m \
 	TestSOGoAppointmentObjectConflictWindow.m \
 	TestSOGoAppointmentObjectStoreErrors.m \
 	TestSOGoCalendarComponentCopy.m \

@@ -1889,7 +1889,7 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
 
   parentNode = (id <DOMElement>) [filterElement parentNode];
   
-  // This parses time-range filters. 
+  // This parses time-range filters.
   //
   //   <C:filter>
   //   <C:comp-filter name="VCALENDAR">
@@ -1899,20 +1899,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   //     </C:comp-filter>
   //   </C:comp-filter>
   // </C:filter>
-  //
-  //
-  // We currently ignore filters based on just the component type.
-  // For example, this is ignored:
-  //
-  // <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
-  //     <d:prop>
-  //         <d:getetag />
-  //         <c:calendar-data />
-  //     </d:prop>
-  //     <c:filter>
-  //         <c:comp-filter name="VCALENDAR" />
-  //     </c:filter>
-  // </c:calendar-query>
   //
   if ([[parentNode tagName] isEqualToString: @"comp-filter"]
       && [[parentNode attribute: @"name"] isEqualToString: @"VCALENDAR"])
@@ -1936,6 +1922,15 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
           if (maxStart)
             [self _addDateRangeLimitToFilter: filterData];
         }
+      [filterData setObject: [NSNumber numberWithBool: NO] forKey: @"iscycle"];
+    }
+  else if ([[filterElement attribute: @"name"] isEqualToString: @"VCALENDAR"]
+           && ![[filterElement getElementsByTagName: @"comp-filter"] length])
+    {
+      filterData = [NSMutableDictionary dictionary];
+      maxStart = [self _getMaxStartDate];
+      if (maxStart)
+        [self _addDateRangeLimitToFilter: filterData];
       [filterData setObject: [NSNumber numberWithBool: NO] forKey: @"iscycle"];
     }
   else
@@ -2004,6 +1999,26 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   return filterString;
 }
 
+- (NSString *) _classificationFilterForTextMatch: (NSString *) textMatch
+{
+  NSString *upperCaseMatch;
+  int classification;
+
+  upperCaseMatch = [textMatch uppercaseString];
+  if ([upperCaseMatch isEqualToString: @"PUBLIC"])
+    classification = iCalAccessPublic;
+  else if ([upperCaseMatch isEqualToString: @"PRIVATE"])
+    classification = iCalAccessPrivate;
+  else if ([upperCaseMatch isEqualToString: @"CONFIDENTIAL"])
+    classification = iCalAccessConfidential;
+  else if (![textMatch length])
+    return nil;
+  else
+    classification = -1;
+
+  return [NSString stringWithFormat: @"(c_classification = %d)", classification];
+}
+
 /* This method enables the mapping between comp-filter attributes and SQL
    fields in the quick table. Probably unused most of the time but should be
    completed one day for full CalDAV compliance. */
@@ -2028,13 +2043,24 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   keys = [[filter allKeys] objectEnumerator];
   while ((currentKey = [keys nextObject]))
     {
-      keyField = [NSString stringWithFormat: @"c_%@", currentKey];
-      if ([fields containsObject: keyField])
+      if ([currentKey isEqualToString: @"class"])
         {
           filterString
-            = [self _additionalFilterKey: keyField
-                                   value: [filter objectForKey: currentKey]];
-          [filters addObject: filterString];
+            = [self _classificationFilterForTextMatch:
+                       [filter objectForKey: currentKey]];
+          if (filterString)
+            [filters addObject: filterString];
+        }
+      else
+        {
+          keyField = [NSString stringWithFormat: @"c_%@", currentKey];
+          if ([fields containsObject: keyField])
+            {
+              filterString
+                = [self _additionalFilterKey: keyField
+                                       value: [filter objectForKey: currentKey]];
+              [filters addObject: filterString];
+            }
         }
     }
 
