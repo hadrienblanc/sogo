@@ -641,21 +641,35 @@
 
     Preferences.$$resource.fetch('Calendar/' + url, '?resetAlarm=yes').then(function(data) {
       var today = new Date().beginOfDay(),
-          day = data.startDate.split(/T/)[0].asDate(),
+          day = today,
           period = [],
           id;
-      if (day.getTime() != today.getTime() || data.localizedStartDate != data.localizedEndDate) {
-        period.push(data.localizedStartDate);
+      if (data.component == 'vtodo') {
+        if (data.dueDate || data.startDate) {
+          day = (data.dueDate || data.startDate).split(/T/)[0].asDate();
+          if (day.getTime() != today.getTime()) {
+            period.push(data.localizedDueDate || data.localizedStartDate);
+          }
+          if (data.localizedDueTime || data.localizedStartTime) {
+            period.push(data.localizedDueTime || data.localizedStartTime);
+          }
+        }
       }
-      if (!data.isAllDay) {
-        period.push(data.localizedStartTime);
-        period.push('-');
-      }
-      if (data.localizedStartDate != data.localizedEndDate) {
-        period.push(data.localizedEndDate);
-      }
-      if (!data.isAllDay) {
-        period.push(data.localizedEndTime);
+      else {
+        day = data.startDate.split(/T/)[0].asDate();
+        if (day.getTime() != today.getTime() || data.localizedStartDate != data.localizedEndDate) {
+          period.push(data.localizedStartDate);
+        }
+        if (!data.isAllDay) {
+          period.push(data.localizedStartTime);
+          period.push('-');
+        }
+        if (data.localizedStartDate != data.localizedEndDate) {
+          period.push(data.localizedEndDate);
+        }
+        if (!data.isAllDay) {
+          period.push(data.localizedEndTime);
+        }
       }
       if (_this.defaults.SOGoDesktopNotifications) {
         id = 'calendar-' + data.id;
