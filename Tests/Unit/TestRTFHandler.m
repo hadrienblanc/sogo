@@ -30,6 +30,7 @@
 #import <sys/types.h>
 #import <sys/wait.h>
 #import <unistd.h>
+#import <fcntl.h>
 
 #import <SOGo/RTFHandler.h>
 
@@ -442,6 +443,68 @@
   test(waitpid(pid, &status, 0) == pid);
   test(WIFEXITED(status));
   test(WEXITSTATUS(status) == 0);
+}
+
+- (void) test_dealloc_does_not_log_null_map_table
+{
+  RTFHandler *handler;
+  NSData *data;
+  NSString *capturePath, *captured;
+  pid_t pid;
+  int status;
+
+  data = [@"{\\rtf1 x}" dataUsingEncoding: NSUTF8StringEncoding];
+  capturePath = [NSTemporaryDirectory() stringByAppendingPathComponent: @"test-5730-stderr.txt"];
+  [[NSFileManager defaultManager] removeItemAtPath: capturePath error: NULL];
+
+  handler = [[RTFHandler alloc] initWithData: data];
+  test([handler parse] != nil);
+
+  pid = fork();
+  if (pid == 0)
+    {
+      int fd;
+
+      fd = open([capturePath fileSystemRepresentation], O_WRONLY | O_CREAT | O_TRUNC, 0600);
+      if (fd >= 0)
+        {
+          dup2(fd, STDERR_FILENO);
+          close(fd);
+        }
+      [handler release];
+      fflush(NULL);
+      _exit(0);
+    }
+  test(waitpid(pid, &status, 0) == pid);
+  test(WIFEXITED(status));
+  test(WEXITSTATUS(status) == 0);
+
+  captured = [NSString stringWithContentsOfFile: capturePath];
+  test(captured != nil);
+  test([captured rangeOfString: @"Null table argument"].location == NSNotFound);
+  [[NSFileManager defaultManager] removeItemAtPath: capturePath error: NULL];
+}
+
+- (void) test_charsets_table_survives_handler_release
+{
+  RTFHandler *handler;
+  NSData *data;
+  NSString *html, *expected;
+
+  data = [@"{\\rtf1{\\fonttbl{\\f1\\fswiss\\fcharset204 Calibri Cyr;}}{\\f1\\'c7\\'e0}}" dataUsingEncoding: NSUTF8StringEncoding];
+  expected = @"<html><meta charset='utf-8'><body><font face=\"Calibri Cyr\">За</font></body></html>";
+
+  handler = [[RTFHandler alloc] initWithData: data];
+  html = [[NSString alloc] initWithData: [handler parse] encoding: NSUTF8StringEncoding];
+  testEquals(html, expected);
+  [html release];
+  [handler release];
+
+  handler = [[RTFHandler alloc] initWithData: data];
+  html = [[NSString alloc] initWithData: [handler parse] encoding: NSUTF8StringEncoding];
+  testEquals(html, expected);
+  [html release];
+  [handler release];
 }
 
 @end
