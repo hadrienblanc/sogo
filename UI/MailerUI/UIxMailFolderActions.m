@@ -201,7 +201,7 @@
  * @apiName PostRenameFolder
  * @apiGroup Mail
  *
- * @apiParam {String} parent Name of the new parent mailbox
+ * @apiParam {String} parent Name of the new parent mailbox (empty to move the folder to the account root)
  *
  * @apiSuccess (Success 200) {String} path  New mailbox path relative to account
  * @apiSuccess (Success 200) {String} sievePath  New mailbox path relative to account for Sieve script usage
