@@ -13,7 +13,7 @@
           pageName    = "UIxContactFoldersView";
         };
         allContactSearch = {
-          protectedBy = "<public>";
+          protectedBy = "View";
           pageName    = "UIxContactFoldersView";
           actionName  = "allContactSearch";
         };
