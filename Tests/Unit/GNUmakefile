@@ -42,6 +42,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestiCalEntityObjectQuickRecordDates.m \
 	TestiCalEvent+ActiveSync.m \
 	TestiCalToDo+ActiveSync.m \
+	TestiCalToDoAttributes.m \
 	TestiCalPerson+SOGo.m \
 	TestiCalEntityObjectAttachUrls.m \
 	TestiCalEntityObjectAttributes.m \
