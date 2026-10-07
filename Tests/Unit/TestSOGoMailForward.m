@@ -27,7 +27,6 @@
 #define FORWARD_CLASS_NAME @"SOGoMailEnglishForward"
 
 static NSString *TicketMsgID = @"<dudpr@imb11375a27a6d84913ed336c9e2eb74a@dudpr@imb11375.eurprddl.prod.gelabs.com>";
-static NSString *TicketMsgIDEscaped = @"&lt;dudpr@imb11375a27a6d84913ed336c9e2eb74a@dudpr@imb11375.eurprddl.prod.gelabs.com&gt;";
 
 @interface TestSOGoMailForwardSourceMail : NSObject
 {
@@ -147,32 +146,20 @@ static NSString *TicketMsgIDEscaped = @"&lt;dudpr@imb11375a27a6d84913ed336c9e2eb
   test ([page performSelector: @selector(subject)] == nil);
 }
 
-- (void) test_htmlCompositionEscapesReferences
+- (void) test_forwardOmitsReferencesHeader
 {
   id page;
   NSDictionary *headers;
 
   headers = [NSDictionary dictionaryWithObject: TicketMsgID
                                        forKey: @"references"];
-  page = [self _pageWithSubject: @"test 6186"
-                    mailHeaders: headers
-                         isHTML: YES];
-  testEquals (([NSString stringWithFormat: @"%@<br/>", TicketMsgIDEscaped]),
-              [page performSelector: @selector(references)]);
-}
-
-- (void) test_textCompositionKeepsReferences
-{
-  id page;
-  NSDictionary *headers;
-
-  headers = [NSDictionary dictionaryWithObject: TicketMsgID
-                                       forKey: @"references"];
-  page = [self _pageWithSubject: @"test 6186"
+  page = [self _pageWithSubject: @"test 5717"
                     mailHeaders: headers
                          isHTML: NO];
-  testEquals (([NSString stringWithFormat: @"%@\n", TicketMsgID]),
-              [page performSelector: @selector(references)]);
+  test (![page respondsToSelector: @selector(hasReferences)]);
+  test (![page respondsToSelector: @selector(references)]);
+  test ([page valueForKey: @"hasReferences"] == nil);
+  test ([page valueForKey: @"references"] == nil);
 }
 
 - (void) test_htmlCompositionEscapesOrganization

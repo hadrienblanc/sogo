@@ -218,23 +218,6 @@
   return rc;
 }
 
-- (BOOL) hasReferences
-{
-  return ([[self _headerField: @"references"] length] > 0);
-}
-
-- (NSString *) references
-{
-  NSString *rc;
-
-  if (htmlComposition)
-    rc = [NSString stringWithFormat: @"%@<br/>", [[self _headerField: @"references"] stringByEscapingHTMLString]];
-  else
-    rc = [NSString stringWithFormat: @"%@\n", [self _headerField: @"references"]];
-
-  return rc;
-}
-
 - (NSString *) messageBody
 {
   return [sourceMail contentForEditing];
