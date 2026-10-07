@@ -489,7 +489,8 @@ static int cssEscapingCount;
 
   // Escape double quotes and remove control characters
   cleanedString = [[self safeString] doubleQuotedString];
-  return cleanedString;
+  return [cleanedString stringByReplacingString: @"<"
+                                      withString: @"\\u003C"];
 }
 
 - (void) _setupCSSEscaping

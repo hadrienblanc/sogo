@@ -255,6 +255,20 @@
 - (void) test_jsonRepresentation
 {
   testEquals([@"a\"b\033c" jsonRepresentation], @"\"a\\\"bc\"");
+  testEquals([@"<br />" jsonRepresentation], @"\"\\u003Cbr />\"");
+  testEquals([@"a</script>b" jsonRepresentation], @"\"a\\u003C/script>b\"");
+  testEquals([@"<script src=\"chrome-extension://x/inpage.js\" id=\"x\"></script>" jsonRepresentation],
+             @"\"\\u003Cscript src=\\\"chrome-extension://x/inpage.js\\\" id=\\\"x\\\">\\u003C/script>\"");
+}
+
+- (void) test_jsonRepresentation_objectFromJSONString
+{
+  NSRange r;
+
+  testEquals([[@"<b>x</b>" jsonRepresentation] objectFromJSONString], @"<b>x</b>");
+  testEquals([[@"a</script>b" jsonRepresentation] objectFromJSONString], @"a</script>b");
+  r = [[@"<script>a\"b</script>" jsonRepresentation] rangeOfString: @"</script>"];
+  failIf(r.length > 0);
 }
 
 - (void) test_isJSONString
