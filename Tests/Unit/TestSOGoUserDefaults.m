@@ -18,6 +18,9 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#import <Foundation/NSCalendarDate.h>
+#import <Foundation/NSTimeZone.h>
+
 #import <SOGo/SOGoUserDefaults.h>
 #import "SOGoTest.h"
 
@@ -223,6 +226,97 @@
   [defaults setMailFetchAllUnseenCountFolders: YES];
 
   test ([defaults mailFetchAllUnseenCountFolders] == YES);
+}
+
+- (void) test_timeZoneNameFromUserSource
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *userSource;
+
+  userSource = [NSDictionary dictionaryWithObject: @"Europe/Moscow"
+                                           forKey: @"SOGoTimeZone"];
+  defaults = [self _defaultsWithSource: userSource
+                          parentSource: [NSDictionary dictionary]];
+
+  testEquals([defaults timeZoneName], @"Europe/Moscow");
+}
+
+- (void) test_timeZoneNameFallsBackToParentSource
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *parentSource;
+
+  parentSource = [NSDictionary dictionaryWithObject: @"Europe/Moscow"
+                                              forKey: @"SOGoTimeZone"];
+  defaults = [self _defaultsWithSource: [NSDictionary dictionary]
+                          parentSource: parentSource];
+
+  testEquals([defaults timeZoneName], @"Europe/Moscow");
+}
+
+- (void) test_setTimeZoneNameStoresValue
+{
+  SOGoUserDefaults *defaults;
+
+  defaults = [self _defaultsWithSource: [NSMutableDictionary dictionary]
+                          parentSource: [NSDictionary dictionary]];
+  [defaults setTimeZoneName: @"Europe/Moscow"];
+
+  testEquals([defaults timeZoneName], @"Europe/Moscow");
+}
+
+- (void) test_timeZoneResolvesFixedOffsetZone
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *userSource;
+  NSTimeZone *timeZone;
+  NSCalendarDate *winter, *summer;
+
+  userSource = [NSDictionary dictionaryWithObject: @"Europe/Moscow"
+                                           forKey: @"SOGoTimeZone"];
+  defaults = [self _defaultsWithSource: userSource
+                          parentSource: [NSDictionary dictionary]];
+
+  timeZone = [defaults timeZone];
+  testWithMessage (timeZone != nil,
+                   @"SOGoTimeZone Europe/Moscow must resolve to an NSTimeZone");
+  testEquals([timeZone name], @"Europe/Moscow");
+
+  winter = [NSCalendarDate dateWithYear: 2026 month: 1 day: 15
+                                   hour: 12 minute: 0 second: 0
+                               timeZone: [NSTimeZone timeZoneWithName: @"GMT"]];
+  testWithMessage ([[defaults timeZone] secondsFromGMTForDate: winter] == 10800,
+                   @"Moscow must be +0300 in January 2026, not UTC");
+
+  summer = [NSCalendarDate dateWithYear: 2026 month: 7 day: 15
+                                   hour: 12 minute: 0 second: 0
+                               timeZone: [NSTimeZone timeZoneWithName: @"GMT"]];
+  testWithMessage ([[defaults timeZone] secondsFromGMTForDate: summer] == 10800,
+                   @"Moscow must remain +0300 in July 2026, no DST");
+}
+
+- (void) test_timeZoneResolvesDstTransitions
+{
+  SOGoUserDefaults *defaults;
+  NSDictionary *userSource;
+  NSCalendarDate *winter, *summer;
+
+  userSource = [NSDictionary dictionaryWithObject: @"Europe/Paris"
+                                           forKey: @"SOGoTimeZone"];
+  defaults = [self _defaultsWithSource: userSource
+                          parentSource: [NSDictionary dictionary]];
+
+  winter = [NSCalendarDate dateWithYear: 2026 month: 1 day: 15
+                                   hour: 12 minute: 0 second: 0
+                               timeZone: [NSTimeZone timeZoneWithName: @"GMT"]];
+  testWithMessage ([[defaults timeZone] secondsFromGMTForDate: winter] == 3600,
+                   @"Paris must be +0100 in January 2026");
+
+  summer = [NSCalendarDate dateWithYear: 2026 month: 7 day: 15
+                                   hour: 12 minute: 0 second: 0
+                               timeZone: [NSTimeZone timeZoneWithName: @"GMT"]];
+  testWithMessage ([[defaults timeZone] secondsFromGMTForDate: summer] == 7200,
+                   @"Paris must be +0200 in July 2026");
 }
 
 @end
