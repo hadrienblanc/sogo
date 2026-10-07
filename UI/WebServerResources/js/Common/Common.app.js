@@ -273,6 +273,16 @@
       '}',
     ].join(''));
 
+    $mdThemingProvider.registerStyles([
+      '.sg-login.md-accent.md-bg md-input-container:not(.md-input-invalid) label,',
+      '.sg-login.md-accent.md-bg md-input-container:not(.md-input-invalid) .md-placeholder,',
+      '.sg-login.md-accent.md-bg md-input-container:not(.md-input-invalid) .md-input,',
+      '.sg-login.md-accent.md-bg md-input-container:not(.md-input-invalid) md-icon,',
+      '.sg-login.md-accent.md-bg md-select .md-select-value {',
+      '  color: \'{{accent-default-contrast}}\';',
+      '}',
+    ].join(''));
+
     if (!window.DebugEnabled) {
       // Disable debugging information
       $logProvider.debugEnabled(false);
