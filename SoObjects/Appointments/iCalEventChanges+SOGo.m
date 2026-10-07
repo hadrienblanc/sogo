@@ -28,7 +28,7 @@
 - (BOOL) sequenceShouldBeIncreased
 {
   static NSString *properties[] = {@"organizer", @"startDate", @"endDate",
-                                   @"due", @"duration", @"summary",
+                                   @"due", @"duration", @"summary", @"comment",
                                    @"rdate", @"rrule", @"exdate", @"exrule",
                                    @"status", @"location", @"rid",
                                    nil};
