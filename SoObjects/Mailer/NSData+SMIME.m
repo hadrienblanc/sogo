@@ -32,6 +32,10 @@
 #import <NGMail/NGMimeMessageParser.h>
 
 #if defined(HAVE_OPENSSL) || defined(HAVE_GNUTLS)
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/cms.h>
@@ -464,15 +468,27 @@
   NSData *output = NULL;
 
   BIO *ibio, *obio = NULL;
-  EVP_PKEY *pkey;
+  EVP_PKEY *pkey = NULL;
   BUF_MEM *bptr;
   PKCS12 *p12;
-  X509 *cert;
+  X509 *cert = NULL;
 
   const char* bytes;
   int i, len;
 
   STACK_OF(X509) *ca = NULL;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  static OSSL_PROVIDER *defaultProvider = NULL;
+  static OSSL_PROVIDER *legacyProvider = NULL;
+
+  if (defaultProvider == NULL)
+    {
+      defaultProvider = OSSL_PROVIDER_load(NULL, "default");
+      if (defaultProvider)
+        legacyProvider = OSSL_PROVIDER_load(NULL, "legacy");
+    }
+#endif
 
   OpenSSL_add_all_algorithms();
   ERR_load_crypto_strings();
@@ -492,7 +508,7 @@
   if (!PKCS12_parse(p12, [thePassword UTF8String], &pkey, &cert, &ca))
     {
       [self logSSLError: @"FATAL: could not parse PKCS12 certificate with provided password"];
-      return nil;
+      goto cleanup;
     }
 
   // We output everything in PEM
@@ -520,6 +536,9 @@
   output = [NSData dataWithBytes: bptr->data  length: bptr->length];
 
  cleanup:
+  EVP_PKEY_free(pkey);
+  X509_free(cert);
+  sk_X509_pop_free(ca, X509_free);
   PKCS12_free(p12);
   BIO_free(ibio);
   BIO_free(obio);
