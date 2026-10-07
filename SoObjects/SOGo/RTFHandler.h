@@ -32,7 +32,6 @@
 
 @interface RTFHandler : NSObject
 {
-  NSMapTable *_charsets;
   NSMutableData *_html;
   NSData *_data;
 

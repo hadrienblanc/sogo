@@ -562,7 +562,6 @@ static void _init_fontCws_table()
 
 - (void) dealloc
 {
-  NSFreeMapTable(_charsets);
   [_data release];
   [super dealloc];
 }
