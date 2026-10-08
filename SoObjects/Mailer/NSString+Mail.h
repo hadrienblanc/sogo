@@ -22,6 +22,7 @@
 #define NSSTRING_MAIL_H
 
 #import <Foundation/NSArray.h>
+#import <Foundation/NSSet.h>
 
 @interface NSString (SOGoExtension)
 
@@ -36,6 +37,7 @@
 - (NSString *) decodedHeader;
 - (NSString *) emailWithDecodedIDNDomain;
 - (NSString *) asSafeFilename;
+- (NSString *) filenameNotInUse: (NSMutableSet *) usedFilenames;
 - (NSString *) stringByTruncatingFilenameToByteLength: (NSUInteger) maxBytes;
 - (NSString *) asPreferredFilenameUsingPath: (NSString *) thePath;
 

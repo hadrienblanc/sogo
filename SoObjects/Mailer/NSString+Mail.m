@@ -947,6 +947,44 @@ TruncateUTF8StringToByteLength (NSString *theString, NSUInteger maxBytes)
   return safeName;
 }
 
+- (NSString *) filenameNotInUse: (NSMutableSet *) usedFilenames
+{
+  NSString *base, *extension, *candidate;
+  NSUInteger dot, count;
+  NSRange r;
+
+  if (![usedFilenames containsObject: self])
+    {
+      [usedFilenames addObject: self];
+      return self;
+    }
+
+  r = [self rangeOfString: @"." options: NSBackwardsSearch];
+  if (r.location != NSNotFound && r.location > 0)
+    {
+      base = [self substringToIndex: r.location];
+      extension = [self substringFromIndex: r.location];
+    }
+  else
+    {
+      base = self;
+      extension = @"";
+    }
+
+  count = 1;
+  do
+    {
+      candidate = [NSString stringWithFormat: @"%@ (%lu)%@",
+                             base, (unsigned long) count, extension];
+      count++;
+    }
+  while ([usedFilenames containsObject: candidate]);
+
+  [usedFilenames addObject: candidate];
+
+  return candidate;
+}
+
 - (NSString *) stringByTruncatingFilenameToByteLength: (NSUInteger) maxBytes
 {
   NSString *baseName, *extension, *truncated;

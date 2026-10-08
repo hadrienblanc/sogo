@@ -962,6 +962,7 @@ static BOOL debugSoParts       = NO;
   NSException *error;
   NSFileManager *fm;
   NSString *spoolPath, *name, *baseName, *extension, *zipPath, *qpFileName;
+  NSMutableSet *usedNames;
   SOGoMailFolder *folder;
   WOResponse *response;
   unsigned int max, count;
@@ -993,13 +994,15 @@ static BOOL debugSoParts       = NO;
   }
 
   // Fetch attachments and write them on disk
+  usedNames = [NSMutableSet set];
   attachments = [self fetchFileAttachments];
   max = [attachments count];
   for (count = 0; count < max; count++)
     {
       currentAttachment = [attachments objectAtIndex: count];
       body = [currentAttachment objectForKey: @"body"];
-      name = [[currentAttachment objectForKey: @"filename"] asSafeFilename];
+      name = [[[currentAttachment objectForKey: @"filename"] asSafeFilename]
+                filenameNotInUse: usedNames];
       [archiver putFileWithName: name andData: body];
     }
 
