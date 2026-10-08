@@ -86,4 +86,54 @@ MessageIDShape(NSString *mailOrDomain)
              @"a@bücher.example.");
 }
 
+- (void) test_filenameNotInUse_firstUseKeepsName
+{
+  NSMutableSet *used;
+  NSString *result;
+
+  used = [NSMutableSet set];
+  result = [@"report.pdf" filenameNotInUse: used];
+  testEquals(result, @"report.pdf");
+  result = [@"photo.jpg" filenameNotInUse: used];
+  testEquals(result, @"photo.jpg");
+}
+
+- (void) test_filenameNotInUse_deduplicatesSameName
+{
+  NSMutableSet *used;
+  NSString *result;
+
+  used = [NSMutableSet set];
+  result = [@"report.pdf" filenameNotInUse: used];
+  testEquals(result, @"report.pdf");
+  result = [@"report.pdf" filenameNotInUse: used];
+  testEquals(result, @"report (1).pdf");
+  result = [@"report.pdf" filenameNotInUse: used];
+  testEquals(result, @"report (2).pdf");
+}
+
+- (void) test_filenameNotInUse_handlesExtensionlessNames
+{
+  NSMutableSet *used;
+  NSString *result;
+
+  used = [NSMutableSet set];
+  result = [@"README" filenameNotInUse: used];
+  testEquals(result, @"README");
+  result = [@"README" filenameNotInUse: used];
+  testEquals(result, @"README (1)");
+}
+
+- (void) test_filenameNotInUse_keepsDottedBaseIntact
+{
+  NSMutableSet *used;
+  NSString *result;
+
+  used = [NSMutableSet set];
+  result = [@"archive.tar.gz" filenameNotInUse: used];
+  testEquals(result, @"archive.tar.gz");
+  result = [@"archive.tar.gz" filenameNotInUse: used];
+  testEquals(result, @"archive.tar (1).gz");
+}
+
 @end
