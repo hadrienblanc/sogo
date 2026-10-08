@@ -134,6 +134,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoCalendarComponentICalAttachment.m \
 	TestSOGoContactSourceFolder.m \
 	TestNGVCard+SOGo.m \
+	TestNGVCardPhoto.m \
 	TestSOGoCacheACLs.m \
 	TestSOGoCacheLifecycle.m \
 	TestUIxListEditor.m \

@@ -686,7 +686,7 @@
   [card setPhoto: @"QUJDRA=="];
   testEquals([card photo], @"QUJDRA==");
   testEquals([[[card childrenWithTag: @"photo"] objectAtIndex: 0] versitString],
-             @"PHOTO;ENCODING=BASE64:QUJDRA==");
+             @"PHOTO;ENCODING=b;TYPE=JPEG:QUJDRA==");
 }
 
 - (void) test_vcard_certificate
