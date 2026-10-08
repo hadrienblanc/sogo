@@ -139,6 +139,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUIxListEditor.m \
 	TestUIxContactFolderActionsMobileconfig.m \
 	TestUIxMailRenderingContext.m \
+	TestUIxMailCharsets.m \
 	TestUIxMailPartSignedViewer.m \
 	TestUIxMailEditorReplyTo.m \
 	TestUIxMailListActionsChanges.m \
@@ -155,6 +156,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestApacheAliasDirectives.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
+	../../UI/MailPartViewers/UIxMailCharsets.m \
 	../../UI/MailPartViewers/UIxMailPartViewer.m \
 	../../UI/MailPartViewers/UIxMailPartSignedViewer.m \
 	../../UI/MailPartViewers/UIxMailPartMixedViewer.m \

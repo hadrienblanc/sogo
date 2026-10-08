@@ -40,62 +40,7 @@
 
 #import "UIxMailPartHTMLViewer.h"
 
-static xmlCharEncoding
-_xmlCharsetForCharset (NSString *charset)
-{
-  struct { NSString *name; xmlCharEncoding encoding; } xmlEncodings[] = {
-    { @"us-ascii", XML_CHAR_ENCODING_ASCII},
-    { @"utf-8", XML_CHAR_ENCODING_UTF8},
-    { @"utf8", XML_CHAR_ENCODING_UTF8},		// broken mailers
-    { @"utf-16le", XML_CHAR_ENCODING_UTF16LE},
-    { @"utf-16be",  XML_CHAR_ENCODING_UTF16BE},
-    { @"ucs-4le", XML_CHAR_ENCODING_UCS4LE},
-    { @"ucs-4be", XML_CHAR_ENCODING_UCS4BE},
-    { @"ebcdic", XML_CHAR_ENCODING_EBCDIC},
-    { @"iso8859_1", XML_CHAR_ENCODING_8859_1},
-    { @"iso-8859-1", XML_CHAR_ENCODING_8859_1},
-    { @"iso-8859-2",  XML_CHAR_ENCODING_8859_2},
-    { @"iso-8859-3", XML_CHAR_ENCODING_8859_3},
-    { @"iso-8859-4", XML_CHAR_ENCODING_8859_4},
-    { @"iso-8859-5", XML_CHAR_ENCODING_8859_5},
-    { @"iso-8859-6", XML_CHAR_ENCODING_8859_6},
-    { @"iso-8859-7", XML_CHAR_ENCODING_8859_7},
-    { @"iso-8859-8", XML_CHAR_ENCODING_8859_8},
-    { @"iso-8859-9", XML_CHAR_ENCODING_8859_9},
-    { @"iso-8859-13", XML_CHAR_ENCODING_ERROR},
-    { @"iso-2022-jp", XML_CHAR_ENCODING_2022_JP},
-//     { @"iso-2022-jp", XML_CHAR_ENCODING_SHIFT_JIS},
-    { @"koi8-r", XML_CHAR_ENCODING_ERROR},       // unsupported, will trigger koi8-r -> utf8 conversion
-    { @"koi8-u", XML_CHAR_ENCODING_ERROR},       // unsupported, will trigger koi8-u -> utf8 conversion
-    { @"windows-1250", XML_CHAR_ENCODING_ERROR}, // unsupported, will trigger windows-1250 -> utf8 conversion
-    { @"windows-1251", XML_CHAR_ENCODING_ERROR}, // unsupported, will trigger windows-1251 -> utf8 conversion
-    { @"windows-1255", XML_CHAR_ENCODING_ERROR}, // unsupported, will trigger windows-1255 -> utf8 conversion
-    { @"windows-1256", XML_CHAR_ENCODING_ERROR}, // unsupported, will trigger windows-1255 -> utf8 conversion
-    { @"windows-1257", XML_CHAR_ENCODING_ERROR}, // unsupported, will trigger windows-1257 -> utf8 conversion
-    { @"windows-874", XML_CHAR_ENCODING_ERROR},  // unsupported, will trigger windows-874 -> utf8 conversion
-    { @"gb2312", XML_CHAR_ENCODING_ERROR},       // unsupported, will trigger gb2312 -> utf8 conversion
-    { @"gbk", XML_CHAR_ENCODING_ERROR},          // unsupported, will trigger gb2312 -> utf8 conversion
-    { @"gb18030", XML_CHAR_ENCODING_ERROR},      // unsupported, will trigger gb2312 -> utf8 conversion
-    { @"big5", XML_CHAR_ENCODING_ERROR},         // unsupported, will trigger gb2312 -> utf8 conversion
-    { @"euc-jp", XML_CHAR_ENCODING_EUC_JP}};
-  unsigned count;
-  xmlCharEncoding encoding;
-
-  encoding = XML_CHAR_ENCODING_NONE;
-  count = 0;
-
-  while (encoding == XML_CHAR_ENCODING_NONE
-	 && count < (sizeof (xmlEncodings) / sizeof (xmlEncodings[0])))
-    if ([charset isEqualToString: xmlEncodings[count].name])
-      encoding = xmlEncodings[count].encoding;
-    else
-      count++;
-
-  if (encoding == XML_CHAR_ENCODING_NONE)
-    encoding = XML_CHAR_ENCODING_8859_1;
-
-  return encoding;
-}
+#import "UIxMailCharsets.h"
 
 static NSString *_sanitizeHtmlForDisplay(NSString *content)
 {
@@ -141,7 +86,7 @@ static NSString *_sanitizeHtmlForDisplay(NSString *content)
   if (![charset length])
     charset = @"us-ascii";
 
-  return _xmlCharsetForCharset([charset lowercaseString]);
+  return UIxMailCharsetToXMLEncoding([charset lowercaseString]);
 }
 
 - (void) _parseContent
@@ -337,7 +282,7 @@ static NSString *_sanitizeHtmlForDisplay(NSString *content)
   if (![charset length])
     charset = @"us-ascii";
 
-  return _xmlCharsetForCharset([charset lowercaseString]);
+  return UIxMailCharsetToXMLEncoding([charset lowercaseString]);
 }
 
 - (void) _parseContent
@@ -375,7 +320,7 @@ static NSString *_sanitizeHtmlForDisplay(NSString *content)
   // we convert everything to UTF-16{LE,BE} so it passes
   // in libxml2 and also in characters: length: defined
   // in this file (that expects unichar:s)
-  enc = _xmlCharsetForCharset(encoding);
+  enc = UIxMailCharsetToXMLEncoding(encoding);
   if (enc == XML_CHAR_ENCODING_ERROR)
     {
       NSString *s;
