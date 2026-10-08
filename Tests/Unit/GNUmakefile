@@ -119,6 +119,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestSOGoUserManagerEmailQualification.m \
 	TestSOGoUserFolderCalendarUserAddressSet.m \
 	TestSOGoProxyAuthenticator.m \
+	TestSOGoWebAuthenticator.m \
 	TestSQLSourcePasswordCheck.m \
 	TestSQLSourceLookupContactEntries.m \
 	TestSOGoUserProfile.m \
