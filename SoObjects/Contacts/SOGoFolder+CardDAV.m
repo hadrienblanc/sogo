@@ -177,11 +177,37 @@
   return isValid;
 }
 
+- (EOQualifier *) _equalityQualifierForKey: (NSString *) key
+                                      value: (NSString *) value
+{
+  EOQualifier *qualifier;
+  NSArray *qualifiers;
+
+  qualifiers = [NSArray arrayWithObjects:
+                  [[[EOKeyValueQualifier alloc] initWithKey: key
+                                            operatorSelector: EOQualifierOperatorCaseInsensitiveLike
+                                                       value: value] autorelease],
+                  [[[EOKeyValueQualifier alloc] initWithKey: key
+                                            operatorSelector: EOQualifierOperatorCaseInsensitiveLike
+                                                       value: [NSString stringWithFormat: @"%@,*", value]] autorelease],
+                  [[[EOKeyValueQualifier alloc] initWithKey: key
+                                            operatorSelector: EOQualifierOperatorCaseInsensitiveLike
+                                                       value: [NSString stringWithFormat: @"*,%@", value]] autorelease],
+                  [[[EOKeyValueQualifier alloc] initWithKey: key
+                                            operatorSelector: EOQualifierOperatorCaseInsensitiveLike
+                                                       value: [NSString stringWithFormat: @"*,%@,*", value]] autorelease],
+                  nil];
+  qualifier = [[[EOOrQualifier alloc] initWithQualifierArray: qualifiers] autorelease];
+
+  return qualifier;
+}
+
 - (EOQualifier *) _parseContactFilter: (id <DOMElement>) filterElement // a prop-filter element
 {
   NSMutableArray *qualifiers;
   NSMutableArray *criteria;
   NSString *name, *test;
+  NSRange dot;
   NGDOMElement *match;
   EOQualifier *qualifier;
   id <DOMNode> parentNode;
@@ -192,6 +218,10 @@
 
   parentNode = [filterElement parentNode];
   name = [[filterElement attribute: @"name"] lowercaseString];
+
+  dot = [name rangeOfString: @"."];
+  if (dot.location != NSNotFound)
+    name = [name substringFromIndex: dot.location + 1];
 
   if ([[(id)parentNode tagName] isEqualToString: @"filter"]
       && [self _isValidFilter: name])
@@ -212,21 +242,35 @@
               SEL currentOperator;
               EOQualifier *currentQualifier;
               NSString *currentMatchType, *currentMatch;
+              BOOL negate;
 
               currentMatch = [match textValue];
               currentMatchType = [[match attribute: @"match-type"] lowercaseString];
+              negate = [[[match attribute: @"negate-condition"] lowercaseString]
+                         isEqualToString: @"yes"];
+
               if ([currentMatchType isEqualToString: @"equals"])
-                currentOperator = EOQualifierOperatorEqual;
-              else // contains, starts-with, ends-with
+                currentQualifier = [self _equalityQualifierForKey: [criteria objectAtIndex: 0]
+                                                             value: currentMatch];
+              else
                 {
-                  currentOperator = EOQualifierOperatorCaseInsensitiveLike;
-                  currentMatch = [NSString stringWithFormat: @"*%@*", currentMatch];
+                  NSString *pattern;
+
+                  if ([currentMatchType isEqualToString: @"starts-with"])
+                    pattern = [currentMatch stringByAppendingString: @"*"];
+                  else if ([currentMatchType isEqualToString: @"ends-with"])
+                    pattern = [NSString stringWithFormat: @"*%@", currentMatch];
+                  else // contains
+                    pattern = [NSString stringWithFormat: @"*%@*", currentMatch];
+
+                  currentQualifier = [[[EOKeyValueQualifier alloc] initWithKey: [criteria objectAtIndex: 0]
+                                                                   operatorSelector: EOQualifierOperatorCaseInsensitiveLike
+                                                                              value: pattern] autorelease];
                 }
 
-              currentQualifier = [[EOKeyValueQualifier alloc] initWithKey: [criteria objectAtIndex: 0]
-                                                         operatorSelector: currentOperator
-                                                                    value: currentMatch];
-              [currentQualifier autorelease];
+              if (negate)
+                currentQualifier = [[[EONotQualifier alloc] initWithQualifier: currentQualifier] autorelease];
+
               [qualifiers addObject: currentQualifier];
             }
         }
