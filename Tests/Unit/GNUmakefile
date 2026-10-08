@@ -152,6 +152,7 @@ $(TEST_TOOL)_OBJC_FILES += \
 	TestUICalendarSwitchKeyboard.m \
 	TestUILoginAccentTheme.m \
 	TestWORequest+SOGo.m \
+	TestWORequestMacOSXClientDetection.m \
 	TestApacheAliasDirectives.m \
 	\
 	../../UI/MailPartViewers/UIxMailRenderingContext.m \
